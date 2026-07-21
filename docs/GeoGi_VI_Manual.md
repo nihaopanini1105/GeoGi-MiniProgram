@@ -267,7 +267,7 @@ box-shadow: 0 12px 28px rgba(17, 47, 122, 0.05);
    主按钮：`开始`
 
 5. 轻量平台标签  
-   豆包 / 元宝 / 通义 / DeepSeek / Kimi
+   豆包 / 元宝 / 千问 / DeepSeek / Kimi
 
 首屏不应出现：
 

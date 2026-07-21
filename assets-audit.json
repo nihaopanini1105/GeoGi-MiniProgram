@@ -1,0 +1,193 @@
+{
+  "version": "v1.1",
+  "generatedAt": "2026-07-21",
+  "items": [
+    {
+      "key": "home.hero",
+      "path": "assets/hero/geogi_hero_mark_512.png",
+      "usage": "首页 Hero 右侧视觉",
+      "sourceWidthPx": 512,
+      "sourceHeightPx": 512,
+      "displaySize": "220-260rpx",
+      "mode": "aspectFit",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "home.platform.doubao",
+      "path": "assets/platforms/144/doubao.png",
+      "usage": "首页平台 Logo：豆包",
+      "sourceWidthPx": 144,
+      "sourceHeightPx": 144,
+      "displaySize": "76rpx x 76rpx",
+      "mode": "aspectFit",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "home.platform.yuanbao",
+      "path": "assets/platforms/144/yuanbao.png",
+      "usage": "首页平台 Logo：元宝",
+      "sourceWidthPx": 144,
+      "sourceHeightPx": 144,
+      "displaySize": "76rpx x 76rpx",
+      "mode": "aspectFit",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "home.platform.qianwen",
+      "path": "assets/platforms/144/qianwen.png",
+      "usage": "首页平台 Logo：千问",
+      "sourceWidthPx": 144,
+      "sourceHeightPx": 144,
+      "displaySize": "76rpx x 76rpx",
+      "mode": "aspectFit",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "home.platform.deepseek",
+      "path": "assets/platforms/144/deepseek.png",
+      "usage": "首页平台 Logo：DeepSeek",
+      "sourceWidthPx": 144,
+      "sourceHeightPx": 144,
+      "displaySize": "76rpx x 76rpx",
+      "mode": "aspectFit",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "home.platform.kimi",
+      "path": "assets/platforms/144/kimi.png",
+      "usage": "首页平台 Logo：Kimi",
+      "sourceWidthPx": 144,
+      "sourceHeightPx": 144,
+      "displaySize": "76rpx x 76rpx",
+      "mode": "aspectFit",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "tabbar.home",
+      "path": "assets/tabbar/home.png",
+      "usage": "TabBar 首页未选中",
+      "sourceWidthPx": 81,
+      "sourceHeightPx": 81,
+      "displaySize": "微信原生 TabBar",
+      "mode": "native",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "tabbar.home_selected",
+      "path": "assets/tabbar/home_selected.png",
+      "usage": "TabBar 首页选中",
+      "sourceWidthPx": 81,
+      "sourceHeightPx": 81,
+      "displaySize": "微信原生 TabBar",
+      "mode": "native",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "tabbar.diagnosis",
+      "path": "assets/tabbar/diagnosis.png",
+      "usage": "TabBar 品牌诊断未选中",
+      "sourceWidthPx": 81,
+      "sourceHeightPx": 81,
+      "displaySize": "微信原生 TabBar",
+      "mode": "native",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "tabbar.diagnosis_selected",
+      "path": "assets/tabbar/diagnosis_selected.png",
+      "usage": "TabBar 品牌诊断选中",
+      "sourceWidthPx": 81,
+      "sourceHeightPx": 81,
+      "displaySize": "微信原生 TabBar",
+      "mode": "native",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "tabbar.research",
+      "path": "assets/tabbar/research.png",
+      "usage": "TabBar 研究中心未选中",
+      "sourceWidthPx": 81,
+      "sourceHeightPx": 81,
+      "displaySize": "微信原生 TabBar",
+      "mode": "native",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "tabbar.research_selected",
+      "path": "assets/tabbar/research_selected.png",
+      "usage": "TabBar 研究中心选中",
+      "sourceWidthPx": 81,
+      "sourceHeightPx": 81,
+      "displaySize": "微信原生 TabBar",
+      "mode": "native",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "diagnosis.platform.doubao",
+      "path": "assets/platforms/144/doubao.png",
+      "usage": "诊断页平台 Logo：豆包",
+      "sourceWidthPx": 144,
+      "sourceHeightPx": 144,
+      "displaySize": "76rpx x 76rpx",
+      "mode": "aspectFit",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "diagnosis.platform.yuanbao",
+      "path": "assets/platforms/144/yuanbao.png",
+      "usage": "诊断页平台 Logo：元宝",
+      "sourceWidthPx": 144,
+      "sourceHeightPx": 144,
+      "displaySize": "76rpx x 76rpx",
+      "mode": "aspectFit",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "diagnosis.platform.qianwen",
+      "path": "assets/platforms/144/qianwen.png",
+      "usage": "诊断页平台 Logo：千问",
+      "sourceWidthPx": 144,
+      "sourceHeightPx": 144,
+      "displaySize": "76rpx x 76rpx",
+      "mode": "aspectFit",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "diagnosis.platform.deepseek",
+      "path": "assets/platforms/144/deepseek.png",
+      "usage": "诊断页平台 Logo：DeepSeek",
+      "sourceWidthPx": 144,
+      "sourceHeightPx": 144,
+      "displaySize": "76rpx x 76rpx",
+      "mode": "aspectFit",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    },
+    {
+      "key": "diagnosis.platform.kimi",
+      "path": "assets/platforms/144/kimi.png",
+      "usage": "诊断页平台 Logo：Kimi",
+      "sourceWidthPx": 144,
+      "sourceHeightPx": 144,
+      "displaySize": "76rpx x 76rpx",
+      "mode": "aspectFit",
+      "compressed": false,
+      "source": "GeoGi_微信小程序Codex高清视觉资产包_v1.1.zip/production"
+    }
+  ]
+}

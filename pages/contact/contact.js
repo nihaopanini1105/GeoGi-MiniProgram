@@ -1,16 +1,25 @@
 const app = getApp();
+const { track } = require('../../utils/analytics');
 
 Page({
   data: {
     email: app.globalData.contactEmail,
-    fields: [
-      { label: '品牌名称', name: 'brand', placeholder: '请输入品牌或公司名称' },
-      { label: '联系人', name: 'name', placeholder: '请输入联系人姓名' },
-      { label: '联系方式', name: 'contact', placeholder: '手机号或微信号' }
-    ]
+    wechatId: 'GeoGi-Advisor',
+    workHours: '工作日 10:00-19:00'
+  },
+
+  copyWechat() {
+    track('contact_advisor_click', { page: 'contact', position: 'wechat' });
+    wx.setClipboardData({
+      data: this.data.wechatId,
+      success: () => {
+        wx.showToast({ title: '微信号已复制', icon: 'success' });
+      }
+    });
   },
 
   copyEmail() {
+    track('contact_advisor_click', { page: 'contact', position: 'email' });
     wx.setClipboardData({
       data: this.data.email,
       success: () => {
@@ -19,13 +28,7 @@ Page({
     });
   },
 
-  submitForm(event) {
-    const values = event.detail.value;
-    if (!values.brand || !values.name || !values.contact) {
-      wx.showToast({ title: '请补全信息', icon: 'none' });
-      return;
-    }
-
-    wx.showToast({ title: '已记录需求', icon: 'success' });
+  goDiagnosis() {
+    wx.switchTab({ url: '/pages/diagnosis/diagnosis' });
   }
 });

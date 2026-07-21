@@ -1,0 +1,47 @@
+[
+  {
+    "key": "doubao",
+    "name": "豆包",
+    "logo": "/assets/platforms/144/doubao.png",
+    "sourceSize": 256,
+    "displayWidthRpx": 72,
+    "displayHeightRpx": 72,
+    "mode": "aspectFit"
+  },
+  {
+    "key": "yuanbao",
+    "name": "元宝",
+    "logo": "/assets/platforms/144/yuanbao.png",
+    "sourceSize": 256,
+    "displayWidthRpx": 72,
+    "displayHeightRpx": 72,
+    "mode": "aspectFit"
+  },
+  {
+    "key": "qianwen",
+    "name": "千问",
+    "logo": "/assets/platforms/144/qianwen.png",
+    "sourceSize": 256,
+    "displayWidthRpx": 72,
+    "displayHeightRpx": 72,
+    "mode": "aspectFit"
+  },
+  {
+    "key": "deepseek",
+    "name": "DeepSeek",
+    "logo": "/assets/platforms/144/deepseek.png",
+    "sourceSize": 256,
+    "displayWidthRpx": 72,
+    "displayHeightRpx": 72,
+    "mode": "aspectFit"
+  },
+  {
+    "key": "kimi",
+    "name": "Kimi",
+    "logo": "/assets/platforms/144/kimi.png",
+    "sourceSize": 256,
+    "displayWidthRpx": 72,
+    "displayHeightRpx": 72,
+    "mode": "aspectFit"
+  }
+]

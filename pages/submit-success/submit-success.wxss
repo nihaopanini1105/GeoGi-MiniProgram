@@ -38,6 +38,10 @@
   font-weight: 900;
 }
 
+.muted-id {
+  color: #60708f;
+}
+
 .next-row,
 .article-row {
   display: flex;

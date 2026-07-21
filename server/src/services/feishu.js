@@ -37,6 +37,25 @@ async function createBitableRecord({ tenantToken, appToken, tableId, fields }) {
   return result.data;
 }
 
+async function updateBitableRecord({ tenantToken, appToken, tableId, recordId, fields }) {
+  const result = await requestJson({
+    method: 'PUT',
+    hostname: 'open.feishu.cn',
+    path: `/open-apis/bitable/v1/apps/${appToken}/tables/${tableId}/records/${recordId}`,
+    headers: {
+      Authorization: `Bearer ${tenantToken}`
+    },
+    body: {
+      fields
+    }
+  });
+
+  if (result.code !== 0) {
+    throw new Error(`update record failed: ${JSON.stringify(result)}`);
+  }
+  return result.data;
+}
+
 async function listBitableRecords({ tenantToken, appToken, tableId, pageSize = 100 }) {
   const result = await requestJson({
     method: 'GET',
@@ -151,6 +170,7 @@ function requestJson({ method, hostname, path, headers = {}, body }) {
 module.exports = {
   getTenantAccessToken,
   createBitableRecord,
+  updateBitableRecord,
   listBitableRecords,
   sendWebhookText,
   sendBotText,

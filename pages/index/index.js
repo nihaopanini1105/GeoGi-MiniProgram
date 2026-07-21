@@ -1,72 +1,60 @@
+const { platforms } = require('../../config/platforms');
+const { assets } = require('../../config/assets');
+const { track } = require('../../utils/analytics');
+
 Page({
   data: {
-    metrics: [
-      { value: '30秒', label: '理解服务价值' },
-      { value: '2-3分钟', label: '提交品牌资料' },
-      { value: '5平台', label: '人工证据测试' }
-    ],
-    pains: [
-      'AI 没有提到你',
-      '品牌信息说错了',
-      '竞品排在你前面'
-    ],
-    abilities: [
-      '品牌识别',
-      '主动推荐',
-      '信息准确',
-      '跨平台一致',
-      '竞品压制',
-      '引用信源'
-    ],
-    services: [
+    assets,
+    platforms: platforms.filter((item) => item.enabled),
+    entries: [
       {
-        tag: '体验',
-        title: '品牌 AI 可见度体验',
-        desc: '快速判断品牌是否被 AI 看见。'
-      },
-      {
-        tag: '快检',
+        icon: assets.icons.quickCheck,
         title: 'AI 可见度快检',
-        desc: '五平台测试，输出基础评分和解读。'
+        desc: '快速了解品牌是否被 AI 识别和推荐',
+        action: 'goDiagnosis'
       },
       {
-        tag: '全景',
-        title: 'GEO 全景诊断',
-        desc: '覆盖品牌、关键词、竞品和信源。'
+        icon: assets.icons.research,
+        title: 'GeoGi 研究中心',
+        desc: '洞察行业趋势，获取 GEO 实战知识',
+        action: 'goResearch'
       }
     ],
-    flow: ['提交资料', '品牌研究', '问题测试', '分析报告', '解读优化'],
+    values: [
+      { icon: assets.icons.eye, text: 'AI 是否认识并推荐你的品牌' },
+      { icon: assets.icons.competitors, text: '哪些竞品正在被优先推荐' },
+      { icon: assets.icons.accuracy, text: '品牌信息是否准确、完整' },
+      { icon: assets.icons.optimization, text: '应该优先优化的内容与信源' }
+    ],
+    flow: ['提交信息', '品牌研究', 'AI 平台检测', '获得报告'],
     latestArticles: [
       {
         id: 'what-is-geo',
         category: 'GEO 基础',
         title: '什么是 GEO：AI 搜索时代的品牌增长方法',
-        desc: '理解生成式引擎优化如何影响品牌被发现、被解释和被推荐。',
         date: '2026-07-21'
       },
       {
         id: 'brand-entity',
         category: '品牌诊断',
         title: '品牌实体画像：让 AI 知道你是谁',
-        desc: '从名称、业务、受众、优势和证据五个维度建立稳定识别。',
-        date: '2026-07-21'
-      },
-      {
-        id: 'source-chain',
-        category: '指标与方法',
-        title: 'AI 答案里的证据链：内容与权威信源如何协同',
-        desc: '品牌要进入 AI 答案，需要可验证、可引用的信任结构。',
         date: '2026-07-21'
       }
-    ],
-    faqs: [
-      { q: '没有官网可以提交吗？', a: '可以。公众号、店铺、媒体报道或其他公开页面都可以作为初始资料。' },
-      { q: '一定要懂 GEO 才能填写吗？', a: '不需要。表单会使用正常经营语言，只问品牌、业务、目标和联系方式。' },
-      { q: '第一阶段会自动调用 AI 平台吗？', a: '不会预先接入五个平台 API。测试由运营人员人工提问并保留截图和原始回答。' }
     ]
   },
 
+  onShow() {
+    track('home_view');
+  },
+
+  onReady() {
+    track('platform_section_view', {
+      visible_platforms: this.data.platforms.map((item) => item.name).join(',')
+    });
+  },
+
   goDiagnosis() {
+    track('diagnosis_cta_click', { position: 'home' });
     wx.switchTab({ url: '/pages/diagnosis/diagnosis' });
   },
 
@@ -88,6 +76,18 @@ Page({
 
   openArticle(event) {
     const id = event.currentTarget.dataset.id;
+    const article = this.data.latestArticles.find((item) => item.id === id);
+    track('research_card_click', {
+      article_id: id,
+      category: article ? article.category : ''
+    });
     wx.navigateTo({ url: `/pages/research-detail/research-detail?id=${id}` });
+  },
+
+  openEntry(event) {
+    const action = event.currentTarget.dataset.action;
+    if (action && this[action]) {
+      this[action]();
+    }
   }
 });

@@ -7,13 +7,14 @@
   </view>
 
   <view class="article-body card">
-    <view class="article-section" wx:for="{{article.sections}}" wx:key="title">
-      <text class="section-title">{{item.title}}</text>
+    <view class="article-section" wx:for="{{article.sections}}" wx:key="body">
+      <text wx:if="{{item.title}}" class="section-title">{{item.title}}</text>
       <text class="body">{{item.body}}</text>
     </view>
     <view class="source-box">
-      <text class="source-title">说明</text>
-      <text class="body">小程序首版使用内置示例内容。正式上线后，研究中心文章会由飞书内容表或统一 CMS 维护。</text>
+      <text class="source-title">来源</text>
+      <text class="body">研究中心内容以 GeoGi 官网为唯一内容源；小程序通过服务器同步标题、摘要、日期和原文链接。</text>
+      <text wx:if="{{article.canonicalUrl}}" class="source-link">{{article.canonicalUrl}}</text>
     </view>
   </view>
 

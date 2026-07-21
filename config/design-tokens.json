@@ -1,0 +1,42 @@
+{
+  "colors": {
+    "brandBlue": "#2F6DF6",
+    "navyText": "#0D1B4C",
+    "deepNavy": "#102145",
+    "mutedText": "#60708F",
+    "softMuted": "#6B7897",
+    "background": "#F5F7FC",
+    "stroke": "#DBE4F2",
+    "success": "#2DC38A",
+    "white": "#FFFFFF"
+  },
+  "radiiRpx": {
+    "mainCard": 32,
+    "innerCard": 24,
+    "button": 24,
+    "pill": 999
+  },
+  "spacingRpx": {
+    "page": 32,
+    "section": 32,
+    "card": 24,
+    "item": 20,
+    "compact": 12
+  },
+  "imageDisplayRpx": {
+    "heroMark": 260,
+    "platformLogo": 72,
+    "serviceIcon": 64,
+    "capabilityIcon": 56,
+    "tabIcon": 54
+  },
+  "breakpointsCssPx": {
+    "smallMax": 350,
+    "standardMax": 400,
+    "largeMax": 430
+  },
+  "imageMode": {
+    "logos": "aspectFit",
+    "covers": "aspectFill"
+  }
+}

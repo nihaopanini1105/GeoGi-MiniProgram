@@ -1,5 +1,6 @@
 .DS_Store
 node_modules/
+.pnpm-store/
 miniprogram_npm/
 dist/
 coverage/
@@ -7,3 +8,5 @@ output/
 *.log
 project.private.config.json
 server/.env
+server/data/
+server/uploads/

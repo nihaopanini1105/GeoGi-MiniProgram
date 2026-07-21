@@ -1,3 +1,5 @@
+const { get, isApiConfigured } = require('../../utils/request');
+
 const articles = {
   'what-is-geo': {
     category: 'GEO 基础',
@@ -11,7 +13,7 @@ const articles = {
       },
       {
         title: 'GeoGi 如何检测',
-        body: 'GeoGi 会结合品牌研究、关键词与热门问题建模、跨平台人工测试和证据追溯，判断品牌在豆包、腾讯元宝、通义千问、DeepSeek、Kimi 等平台中的表现。'
+        body: 'GeoGi 会结合品牌研究、问题建模、跨平台人工测试和证据追溯，判断品牌在豆包、元宝、千问、DeepSeek、Kimi 等平台中的表现。'
       }
     ]
   },
@@ -52,6 +54,7 @@ const articles = {
 Page({
   data: {
     article: articles['what-is-geo'],
+    loading: false,
     related: [
       { id: 'what-is-geo', title: '什么是 GEO：AI 搜索时代的品牌增长方法' },
       { id: 'brand-entity', title: '品牌实体画像：让 AI 知道你是谁' },
@@ -60,8 +63,26 @@ Page({
   },
 
   onLoad(options) {
-    const article = articles[options.id] || articles['what-is-geo'];
-    this.setData({ article });
+    const id = options.id || 'what-is-geo';
+    this.setData({ article: articles[id] || articles['what-is-geo'] });
+    this.loadRemoteArticle(id);
+  },
+
+  loadRemoteArticle(id) {
+    if (!isApiConfigured()) return;
+
+    this.setData({ loading: true });
+    get(`/api/articles/${id}`)
+      .then((result) => {
+        if (result && result.ok && result.article) {
+          this.setData({
+            article: normalizeRemoteArticle(result.article)
+          });
+        }
+      })
+      .finally(() => {
+        this.setData({ loading: false });
+      });
   },
 
   onShareAppMessage() {
@@ -78,6 +99,18 @@ Page({
   openArticle(event) {
     const id = event.currentTarget.dataset.id;
     this.setData({ article: articles[id] || articles['what-is-geo'] });
+    this.loadRemoteArticle(id);
     wx.pageScrollTo({ scrollTop: 0, duration: 200 });
   }
 });
+
+function normalizeRemoteArticle(article) {
+  const body = article.body || article.desc || '';
+  return {
+    ...article,
+    sections: article.sections || body.split('\n').filter(Boolean).map((paragraph) => ({
+      title: '',
+      body: paragraph
+    }))
+  };
+}

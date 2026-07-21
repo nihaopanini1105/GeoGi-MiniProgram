@@ -1,27 +1,25 @@
 <view class="page">
   <view class="contact-hero card">
-    <text class="eyebrow">CONTACT</text>
-    <text class="h1">预约一次 AI 可见度诊断</text>
-    <text class="lead">告诉我们你的品牌和当前目标，我们会先判断最值得优先优化的 AI 可见度问题。</text>
+    <text class="h1">联系 GeoGi 顾问</text>
+    <text class="lead">需要确认诊断范围、交付周期或资料填写方式，可以先联系顾问沟通。</text>
   </view>
 
-  <form bindsubmit="submitForm" class="section form-card card">
-    <view class="field" wx:for="{{fields}}" wx:key="name">
-      <text class="field-label">{{item.label}}</text>
-      <input name="{{item.name}}" placeholder="{{item.placeholder}}" placeholder-class="placeholder" />
-    </view>
-
-    <view class="field">
-      <text class="field-label">当前需求</text>
-      <textarea name="message" placeholder="例如：想知道品牌是否能被 AI 搜到，或希望做 GEO 诊断报告" placeholder-class="placeholder" />
-    </view>
-
-    <button formType="submit" class="primary-button submit-button">提交咨询需求</button>
-  </form>
+  <view class="section info-card card">
+    <text class="info-title">企业微信</text>
+    <text class="info-copy">{{wechatId}}</text>
+    <text class="info-hint">复制后可在微信中搜索添加。正式发布时可替换为企业微信二维码原图。</text>
+    <button class="primary-button copy-button" bindtap="copyWechat">复制企业微信</button>
+  </view>
 
   <view class="section info-card card">
-    <text class="info-title">也可以直接联系</text>
+    <text class="info-title">邮箱</text>
     <text class="info-copy">{{email}}</text>
     <button class="secondary-button copy-button" bindtap="copyEmail">复制邮箱</button>
+  </view>
+
+  <view class="section info-card card">
+    <text class="info-title">工作时间</text>
+    <text class="info-copy">{{workHours}}</text>
+    <button class="secondary-button copy-button" bindtap="goDiagnosis">提交品牌诊断资料</button>
   </view>
 </view>

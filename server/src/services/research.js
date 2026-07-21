@@ -39,7 +39,10 @@ async function getResearchArticles(query) {
 
     return {
       ok: true,
-      articles
+      items: articles,
+      articles,
+      page: 1,
+      hasMore: false
     };
   } catch (error) {
     console.error('getResearchArticles failed', error);
@@ -47,6 +50,30 @@ async function getResearchArticles(query) {
       ok: false,
       userMessage: '研究中心加载失败',
       articles: []
+    };
+  }
+}
+
+async function getResearchArticle(id) {
+  try {
+    const result = await getResearchArticles({ limit: 100 });
+    if (!result.ok) return result;
+    const article = result.items.find((item) => item.id === id || item.recordId === id);
+    if (!article) {
+      return {
+        ok: false,
+        userMessage: '文章不存在'
+      };
+    }
+    return {
+      ok: true,
+      article
+    };
+  } catch (error) {
+    console.error('getResearchArticle failed', error);
+    return {
+      ok: false,
+      userMessage: '文章加载失败'
     };
   }
 }
@@ -59,11 +86,13 @@ function normalizeArticle(record) {
     desc: text(fields.摘要),
     category: text(fields.分类 || 'GEO 基础'),
     date: text(fields.发布日期 || fields.更新时间),
+    updatedAt: text(fields.更新时间 || fields.发布日期),
     author: text(fields.作者 || 'GeoGi Research'),
     status: text(fields.状态 || '草稿'),
     body: text(fields.正文),
     keywords: text(fields.关键词),
     source: text(fields.参考来源),
+    canonicalUrl: text(fields.官网原文链接 || fields.canonical_url || fields.URL || fields.url),
     recordId: record.record_id
   };
 }
@@ -83,5 +112,6 @@ function text(value) {
 }
 
 module.exports = {
-  getResearchArticles
+  getResearchArticles,
+  getResearchArticle
 };

@@ -43,11 +43,20 @@
 }
 
 .source-title,
+.source-link,
 .related-title {
   margin-bottom: 16rpx;
   color: #102145;
   font-size: 32rpx;
   font-weight: 950;
+}
+
+.source-link {
+  margin-top: 12rpx;
+  color: #2f6df6;
+  font-size: 24rpx;
+  line-height: 1.45;
+  word-break: break-all;
 }
 
 .related-row {

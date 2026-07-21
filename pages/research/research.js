@@ -23,6 +23,7 @@ const fallbackArticles = [
 ];
 
 const { get, isApiConfigured } = require('../../utils/request');
+const { track } = require('../../utils/analytics');
 
 Page({
   data: {
@@ -50,12 +51,13 @@ Page({
     }
 
     this.setData({ loading: true });
-    get('/api/research/articles', {
+    get('/api/articles', {
       limit: 50
     })
       .then((result) => {
-        const articles = result && result.ok && result.articles && result.articles.length
-          ? result.articles
+        const remoteItems = result && result.ok ? (result.items || result.articles) : [];
+        const articles = remoteItems && remoteItems.length
+          ? remoteItems
           : fallbackArticles;
 
         this.setData({
@@ -94,6 +96,11 @@ Page({
 
   openArticle(event) {
     const id = event.currentTarget.dataset.id;
+    const article = this.data.articles.find((item) => item.id === id);
+    track('research_card_click', {
+      article_id: id,
+      category: article ? article.category : ''
+    });
     wx.navigateTo({ url: `/pages/research-detail/research-detail?id=${id}` });
   }
 });

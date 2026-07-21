@@ -1,152 +1,100 @@
 <view class="page index-page">
+  <view class="top-safe"></view>
+
   <view class="hero">
-    <view class="brand-line">
-      <view class="brand-left">
-        <view class="brand-mark">G</view>
-        <view>
-          <text class="brand-name">GeoGi</text>
-          <text class="brand-sub">品牌 AI 可见度诊断</text>
-        </view>
-      </view>
-      <button class="nav-pill" bindtap="goResearch">研究中心</button>
-    </view>
-
-    <view class="hero-main">
-      <text class="eyebrow">AI VISIBILITY CHECK</text>
+    <view class="hero-copy">
       <text class="h1 hero-title">AI 会推荐你的品牌吗？</text>
-      <text class="lead hero-lead">一次诊断，看清品牌在主流 AI 平台里的出现、推荐与竞品表现。</text>
+      <text class="lead hero-lead">一次诊断，看清品牌在主流 AI 平台的出现、推荐与竞品表现</text>
 
-      <navigator class="diagnosis-entry" url="/pages/diagnosis/diagnosis" open-type="switchTab">
-        <view>
-          <text class="entry-title">2 分钟提交资料</text>
-          <text class="entry-copy">无需理解 GEO 术语</text>
+      <view class="hero-tips">
+        <view class="tip">
+          <image src="{{assets.icons.checkCircle}}" mode="aspectFit"></image>
+          <text>2 分钟提交资料</text>
         </view>
-        <view class="entry-button">开始</view>
-      </navigator>
-
-      <view class="hero-links">
-        <button bindtap="goServices">服务方案</button>
-        <button bindtap="goReport">示例报告</button>
-        <button bindtap="goContact">联系顾问</button>
+        <view class="tip">
+          <image src="{{assets.icons.checkCircle}}" mode="aspectFit"></image>
+          <text>无需理解 GEO 术语</text>
+        </view>
       </view>
+
+      <button class="primary-button hero-button" bindtap="goDiagnosis">
+        <text>开始品牌诊断</text>
+        <image src="{{assets.icons.arrowRight}}" mode="aspectFit"></image>
+      </button>
     </view>
 
-    <view class="hero-proof">
-      <view class="proof-item">
-        <text class="proof-value">豆包</text>
-      </view>
-      <view class="proof-divider"></view>
-      <view class="proof-item">
-        <text class="proof-value">元宝</text>
-      </view>
-      <view class="proof-divider"></view>
-      <view class="proof-item">
-        <text class="proof-value">通义</text>
-      </view>
-      <view class="proof-divider"></view>
-      <view class="proof-item">
-        <text class="proof-value">DeepSeek</text>
-      </view>
-      <view class="proof-divider"></view>
-      <view class="proof-item">
-        <text class="proof-value">Kimi</text>
+    <image class="hero-mark" src="{{assets.hero.mark}}" mode="aspectFit"></image>
+  </view>
+
+  <view class="section platform-card card">
+    <text class="section-title">覆盖主流 AI 平台</text>
+    <view class="platform-grid">
+      <view class="platform-item" wx:for="{{platforms}}" wx:key="key">
+        <image class="platform-logo" src="{{item.icon}}" mode="aspectFit"></image>
+        <text>{{item.name}}</text>
       </view>
     </view>
   </view>
 
-  <view class="section pain-card card">
-    <text class="eyebrow">WHY GEO</text>
-    <text class="h2">先看三个信号</text>
-    <view class="pain-list">
-      <view class="pain-item" wx:for="{{pains}}" wx:key="*this">
-        <view class="dot"></view>
-        <text>{{item}}</text>
-      </view>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="section-head">
-      <text class="eyebrow">CAPABILITY</text>
-      <text class="h2">核心检测能力</text>
-      <text class="body">覆盖识别、推荐、准确性、竞品和信源。</text>
-    </view>
-    <view class="ability-grid">
-      <view class="ability-card card" wx:for="{{abilities}}" wx:key="*this">{{item}}</view>
-    </view>
-  </view>
-
-  <view class="section stats-row">
-    <view class="metric card" wx:for="{{metrics}}" wx:key="label">
-      <text class="metric-value">{{item.value}}</text>
-      <text class="metric-label">{{item.label}}</text>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="section-head">
-      <text class="eyebrow">SERVICES</text>
-      <text class="h2">从诊断到持续优化</text>
-      <text class="body">从一次快检开始，逐步建立品牌 GEO 优化路径。</text>
-    </view>
-    <view class="list">
-      <view class="service-card card" wx:for="{{services}}" wx:key="title">
-        <text class="pill">{{item.tag}}</text>
+  <view class="section entry-grid">
+    <view class="entry-card card" wx:for="{{entries}}" wx:key="title" data-action="{{item.action}}" bindtap="openEntry">
+      <image class="entry-icon" src="{{item.icon}}" mode="aspectFit"></image>
+      <view class="entry-text">
         <text class="card-title">{{item.title}}</text>
-        <text class="body">{{item.desc}}</text>
+        <text class="card-desc">{{item.desc}}</text>
+      </view>
+      <image class="entry-arrow" src="{{assets.icons.arrowRight}}" mode="aspectFit"></image>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head compact">
+      <text class="section-title">GeoGi 可以帮你了解</text>
+    </view>
+    <view class="value-grid">
+      <view class="value-card card" wx:for="{{values}}" wx:key="text">
+        <image src="{{item.icon}}" mode="aspectFit"></image>
+        <text>{{item.text}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section research-section">
+    <view class="section-row">
+      <text class="section-title">研究中心 · 最新洞察</text>
+      <button class="text-button" bindtap="goResearch">查看全部</button>
+    </view>
+    <view class="article-list card">
+      <view class="article-item" wx:for="{{latestArticles}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
+        <view class="article-main">
+          <text class="pill">{{item.category}}</text>
+          <text class="article-title">{{item.title}}</text>
+          <text class="article-date">{{item.date}}</text>
+        </view>
+        <image src="{{assets.icons.arrowRight}}" mode="aspectFit"></image>
       </view>
     </view>
   </view>
 
   <view class="section flow-card card">
-    <text class="eyebrow">PROCESS</text>
-    <text class="h2">服务流程清楚可预期</text>
+    <view class="section-row">
+      <text class="section-title">服务流程</text>
+      <button class="text-button" bindtap="goDiagnosis">了解更多</button>
+    </view>
     <view class="flow-list">
       <view class="flow-item" wx:for="{{flow}}" wx:key="*this">
-        <text class="flow-num">0{{index + 1}}</text>
+        <text class="flow-num">{{index + 1}}</text>
         <text class="flow-title">{{item}}</text>
       </view>
     </view>
   </view>
 
-  <view class="section report-card card">
+  <view class="section contact-card">
     <view>
-      <text class="eyebrow">SAMPLE REPORT</text>
-      <text class="h2">先看报告长什么样</text>
-      <text class="body">示例报告展示检测维度、证据截图、平台表现和优化路线，正式客户报告会做脱敏和人工复核。</text>
+      <text class="contact-title">需要帮助？联系 GeoGi 顾问</text>
+      <text class="contact-copy">不确定怎么填资料，也可以先沟通业务场景。</text>
     </view>
-    <button class="secondary-button report-button" bindtap="goReport">查看示例报告</button>
-  </view>
-
-  <view class="section">
-    <view class="section-head">
-      <text class="eyebrow">RESEARCH</text>
-      <text class="h2">GeoGi 研究中心</text>
-    </view>
-    <view class="list">
-      <view class="article-card card" wx:for="{{latestArticles}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
-        <text class="pill">{{item.category}}</text>
-        <text class="card-title">{{item.title}}</text>
-        <text class="body">{{item.desc}}</text>
-        <text class="article-date">{{item.date}}</text>
-      </view>
-    </view>
-  </view>
-
-  <view class="section faq-card card">
-    <text class="eyebrow">FAQ</text>
-    <text class="h2">常见问题</text>
-    <view class="faq-item" wx:for="{{faqs}}" wx:key="q">
-      <text class="faq-q">{{item.q}}</text>
-      <text class="body">{{item.a}}</text>
-    </view>
-  </view>
-
-  <view class="section cta-card">
-    <text class="cta-title">先判断品牌是否已经进入 AI 答案</text>
-    <text class="cta-copy">用一次轻量诊断，找到当前最值得补强的品牌内容和信源缺口。</text>
-    <button class="primary-button cta-button" bindtap="goDiagnosis">开始品牌诊断</button>
-    <button class="text-link" bindtap="goResearch">查看研究方法</button>
+    <button class="secondary-button contact-button" bindtap="goContact">联系顾问</button>
   </view>
 
   <view class="safe-bottom"></view>
