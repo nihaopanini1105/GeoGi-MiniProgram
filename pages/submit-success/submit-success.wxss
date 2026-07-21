@@ -27,6 +27,17 @@
   font-weight: 950;
 }
 
+.success-id {
+  display: block;
+  margin-top: 22rpx;
+  padding: 16rpx 18rpx;
+  border-radius: 18rpx;
+  background: #f5f8ff;
+  color: #2f6df6;
+  font-size: 25rpx;
+  font-weight: 900;
+}
+
 .next-row,
 .article-row {
   display: flex;

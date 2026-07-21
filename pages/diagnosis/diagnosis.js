@@ -120,21 +120,64 @@ Page({
 
     this.setData({ submitting: true });
     const submittedAt = new Date().toISOString();
-    wx.setStorageSync('geogi_last_submission', {
+    const payload = {
       ...this.data.form,
       submittedAt
-    });
-    wx.removeStorageSync('geogi_diagnosis_draft');
+    };
 
-    setTimeout(() => {
+    if (!wx.cloud || !wx.cloud.callFunction) {
+      wx.showToast({
+        title: '请先开通云开发环境',
+        icon: 'none'
+      });
+      this.setData({ submitting: false });
+      return;
+    }
+
+    wx.cloud.callFunction({
+      name: 'submitDiagnosis',
+      data: {
+        form: payload,
+        source: 'wechat_miniprogram'
+      },
+      success: ({ result }) => {
+        if (!result || !result.ok) {
+          wx.showToast({
+            title: result && result.userMessage ? result.userMessage : '提交失败，请稍后重试',
+            icon: 'none'
+          });
+          return;
+        }
+
+        wx.setStorageSync('geogi_last_submission', {
+          ...payload,
+          clientId: result.clientId,
+          projectId: result.projectId,
+          recordUrl: result.recordUrl || ''
+        });
+        wx.removeStorageSync('geogi_diagnosis_draft');
+        this.resetForm();
+        wx.navigateTo({ url: '/pages/submit-success/submit-success' });
+      },
+      fail: () => {
+        wx.showToast({
+          title: '提交失败，资料已保留',
+          icon: 'none'
+        });
+      },
+      complete: () => {
+        this.setData({ submitting: false });
+      }
+    });
+  },
+
+  resetForm() {
       this.setData({
         submitting: false,
         form: { ...initialForm },
         goalOptions: this.syncGoalOptions([]),
         step: 1
       });
-      wx.navigateTo({ url: '/pages/submit-success/submit-success' });
-    }, 450);
   },
 
   goPrivacy() {

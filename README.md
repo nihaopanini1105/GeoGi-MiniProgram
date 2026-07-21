@@ -18,6 +18,12 @@
 - 研究中心：分类列表、文章详情、分享入口和诊断 CTA。
 - 辅助页面：服务方案、示例报告、提交成功、联系顾问、隐私说明。
 
+## 正式集成
+
+- 飞书配置手册：[Feishu_Production_Setup.md](docs/Feishu_Production_Setup.md)
+- 飞书字段字典：[Feishu_Bitable_Field_Dictionary.md](docs/Feishu_Bitable_Field_Dictionary.md)
+- 云函数：`cloudfunctions/submitDiagnosis`、`cloudfunctions/getResearchArticles`
+
 ## 本地打开
 
 使用微信开发者工具打开本目录：

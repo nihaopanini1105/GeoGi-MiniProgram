@@ -2,7 +2,8 @@
   <view class="success-card card">
     <view class="success-icon">✓</view>
     <text class="h1">已收到诊断申请</text>
-    <text class="lead">你的资料已保存在本地演示记录中。正式接入后，这里会同步创建飞书客户记录并通知负责人。</text>
+    <text class="lead">我们已收到你的品牌资料，并会同步进入 GeoGi 诊断工作台。负责人会在 24 小时内完成初步审核。</text>
+    <text wx:if="{{submission.clientId}}" class="success-id">客户编号：{{submission.clientId}}</text>
   </view>
 
   <view class="section card next-card">

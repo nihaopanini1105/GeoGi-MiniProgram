@@ -1,42 +1,91 @@
+const fallbackArticles = [
+  {
+    id: 'what-is-geo',
+    category: 'GEO 基础',
+    title: '什么是 GEO：AI 搜索时代的品牌增长方法',
+    desc: '理解生成式引擎优化如何影响品牌被发现、被解释和被推荐。',
+    date: '2026-07-21'
+  },
+  {
+    id: 'brand-entity',
+    category: '品牌诊断',
+    title: '品牌实体画像：让 AI 知道你是谁',
+    desc: '从名称、业务、受众、优势和证据五个维度建立稳定的品牌识别。',
+    date: '2026-07-21'
+  },
+  {
+    id: 'source-chain',
+    category: '指标与方法',
+    title: 'AI 答案里的证据链：内容与权威信源如何协同',
+    desc: '品牌要进入 AI 答案，不只需要内容，还需要可验证、可引用的信任结构。',
+    date: '2026-07-21'
+  }
+];
+
 Page({
   data: {
     activeCategory: '全部',
     categories: ['全部', 'GEO 基础', '品牌诊断', '行业研究', 'AI 平台', '指标与方法'],
-    articles: [
-      {
-        id: 'what-is-geo',
-        category: 'GEO 基础',
-        title: '什么是 GEO：AI 搜索时代的品牌增长方法',
-        desc: '理解生成式引擎优化如何影响品牌被发现、被解释和被推荐。',
-        date: '2026-07-21'
-      },
-      {
-        id: 'brand-entity',
-        category: '品牌诊断',
-        title: '品牌实体画像：让 AI 知道你是谁',
-        desc: '从名称、业务、受众、优势和证据五个维度建立稳定的品牌识别。',
-        date: '2026-07-21'
-      },
-      {
-        id: 'source-chain',
-        category: '指标与方法',
-        title: 'AI 答案里的证据链：内容与权威信源如何协同',
-        desc: '品牌要进入 AI 答案，不只需要内容，还需要可验证、可引用的信任结构。',
-        date: '2026-07-21'
-      }
-    ],
-    filteredArticles: []
+    articles: fallbackArticles,
+    filteredArticles: fallbackArticles,
+    loading: false,
+    usingFallback: true
   },
 
   onLoad() {
-    this.setData({ filteredArticles: this.data.articles });
+    this.loadArticles();
+  },
+
+  loadArticles() {
+    if (!wx.cloud || !wx.cloud.callFunction) {
+      this.setData({
+        articles: fallbackArticles,
+        filteredArticles: fallbackArticles,
+        usingFallback: true,
+        loading: false
+      });
+      return;
+    }
+
+    this.setData({ loading: true });
+    wx.cloud.callFunction({
+      name: 'getResearchArticles',
+      data: {
+        limit: 50
+      },
+      success: ({ result }) => {
+        const articles = result && result.ok && result.articles && result.articles.length
+          ? result.articles
+          : fallbackArticles;
+
+        this.setData({
+          articles,
+          usingFallback: articles === fallbackArticles
+        });
+        this.applyCategory(this.data.activeCategory, articles);
+      },
+      fail: () => {
+        this.setData({
+          articles: fallbackArticles,
+          usingFallback: true
+        });
+        this.applyCategory(this.data.activeCategory, fallbackArticles);
+      },
+      complete: () => {
+        this.setData({ loading: false });
+      }
+    });
   },
 
   changeCategory(event) {
     const category = event.currentTarget.dataset.category;
+    this.applyCategory(category, this.data.articles);
+  },
+
+  applyCategory(category, articles) {
     const filteredArticles = category === '全部'
-      ? this.data.articles
-      : this.data.articles.filter((article) => article.category === category);
+      ? articles
+      : articles.filter((article) => article.category === category);
 
     this.setData({
       activeCategory: category,
