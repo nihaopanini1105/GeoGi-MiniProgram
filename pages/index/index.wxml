@@ -16,13 +16,13 @@
       <text class="h1 hero-title">AI 会推荐你的品牌吗？</text>
       <text class="lead hero-lead">一次诊断，看清品牌在主流 AI 平台里的出现、推荐与竞品表现。</text>
 
-      <view class="diagnosis-entry">
+      <navigator class="diagnosis-entry" url="/pages/diagnosis/diagnosis" open-type="switchTab">
         <view>
           <text class="entry-title">2 分钟提交资料</text>
           <text class="entry-copy">无需理解 GEO 术语</text>
         </view>
-        <button class="entry-button" bindtap="goDiagnosis">开始</button>
-      </view>
+        <view class="entry-button">开始</view>
+      </navigator>
 
       <view class="hero-links">
         <button bindtap="goServices">服务方案</button>
