@@ -65,12 +65,19 @@
 - 客户与品牌
 - 诊断项目
 - 全网信源
-- 品牌档案与核验
+- 品牌基础档案
 - 品牌关键词
 - 行业热门问题
 - AI 检测问题
 - 平台测试记录
 - 回答分析结果
+- 报告管理
+
+当前正式流程中，客户提交后会自动写入：
+
+- `客户与品牌`：保留客户原始提交内容
+- `诊断项目`：创建内部跟进项目
+- `品牌基础档案`：生成待核验的品牌信息档案
 
 ## 4. 客户与品牌表字段
 
@@ -203,6 +210,20 @@ FEISHU_LEADS_TABLE_ID=客户与品牌表 table_id
 FEISHU_RECORD_URL_TEMPLATE=飞书记录链接模板，可选
 ```
 
+诊断工作台表：
+
+```text
+FEISHU_PROJECTS_TABLE_ID=诊断项目表 table_id
+FEISHU_BRAND_PROFILE_TABLE_ID=品牌基础档案表 table_id
+FEISHU_SOURCES_TABLE_ID=全网信源表 table_id
+FEISHU_KEYWORDS_TABLE_ID=品牌关键词表 table_id
+FEISHU_QUESTIONS_TABLE_ID=行业热门问题表 table_id
+FEISHU_AI_QUESTION_TABLE_ID=AI 检测问题表 table_id
+FEISHU_TEST_RECORDS_TABLE_ID=平台测试记录表 table_id
+FEISHU_ANALYSIS_TABLE_ID=回答分析结果表 table_id
+FEISHU_REPORTS_TABLE_ID=报告管理表 table_id
+```
+
 通知二选一即可：
 
 ### 方案 A：自定义机器人 Webhook
@@ -303,10 +324,12 @@ table=<table_id>
 4. 提交后确认小程序进入提交成功页
 5. 检查成功页是否显示客户编号
 6. 打开飞书客户表，确认新增记录
-7. 检查负责人是否收到飞书通知
-8. 在研究中心文章表新增一篇 `已发布` 文章
-9. 重新打开小程序研究中心，确认文章出现
-10. 把文章状态改为 `已下线`，确认小程序不再展示
+7. 打开 `诊断项目` 表，确认自动生成同项目编号的项目记录
+8. 打开 `品牌基础档案` 表，确认自动生成同项目编号的品牌档案
+9. 检查负责人是否收到飞书通知，通知中应包含工作台状态
+10. 在研究中心文章表新增一篇 `已发布` 文章
+11. 重新打开小程序研究中心，确认文章出现
+12. 把文章状态改为 `已下线`，确认小程序不再展示
 
 ## 12. 常见问题
 
@@ -379,15 +402,17 @@ table=<table_id>
 - `GET /api/articles/:id`
 - `GET /api/config`
 - `GET /api/sample-report`
+- `pnpm setup:feishu-fields`
+- `pnpm setup:diagnosis-workbench`
 - 表单提交正式链路
+- 客户提交后自动创建诊断项目与品牌基础档案
 - 研究中心官网直连
 - 飞书配置文档
 
 待你在后台配置：
 
-- 微信正式 AppID
 - 自有服务器和 HTTPS 域名
-- 飞书自建应用
-- 多维表格字段
+- 生产服务器环境变量
+- 微信正式版服务器域名
 - 服务器环境变量
 - 飞书机器人或负责人私聊通知

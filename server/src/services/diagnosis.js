@@ -77,6 +77,14 @@ async function submitDiagnosis(input) {
       appToken: process.env.FEISHU_BASE_APP_TOKEN,
       tableId: process.env.FEISHU_LEADS_TABLE_ID
     });
+    const workbench = await initializeWorkbench({
+      tenantToken,
+      form,
+      clientId,
+      projectId,
+      submittedAt,
+      leadRecordUrl: recordUrl
+    });
 
     const notification = await notifyWithRetry({
       tenantToken,
@@ -84,7 +92,8 @@ async function submitDiagnosis(input) {
       clientId,
       projectId,
       submittedAt,
-      recordUrl
+      recordUrl,
+      workbench
     });
 
     if (recordId) {
@@ -94,6 +103,8 @@ async function submitDiagnosis(input) {
         tableId: process.env.FEISHU_LEADS_TABLE_ID,
         recordId,
         fields: {
+          当前状态: workbench.ok ? '已转项目' : '新提交',
+          下一步动作: workbench.ok ? '进入诊断项目审核' : '审核资料并补建工作台项目',
           通知状态: notification.status,
           通知发送时间: notification.sentAt,
           通知错误: notification.error,
@@ -106,9 +117,10 @@ async function submitDiagnosis(input) {
       ok: true,
       clientId,
       projectId,
-      status: '新提交',
+      status: workbench.ok ? '已转项目' : '新提交',
       submittedAt,
       notificationStatus: notification.status,
+      workbenchStatus: workbench.status,
       recordId,
       recordUrl
     };
@@ -195,6 +207,84 @@ function buildLeadFields({ form, clientId, projectId, submittedAt, source }) {
   };
 }
 
+async function initializeWorkbench({ tenantToken, form, clientId, projectId, submittedAt, leadRecordUrl }) {
+  const appToken = process.env.FEISHU_BASE_APP_TOKEN;
+  const projectTableId = process.env.FEISHU_PROJECTS_TABLE_ID;
+  const brandProfileTableId = process.env.FEISHU_BRAND_PROFILE_TABLE_ID;
+
+  if (!projectTableId || !brandProfileTableId) {
+    return {
+      ok: false,
+      status: '未配置工作台表ID'
+    };
+  }
+
+  try {
+    const projectRecord = await createBitableRecord({
+      tenantToken,
+      appToken,
+      tableId: projectTableId,
+      fields: buildProjectFields({ form, clientId, projectId, submittedAt, leadRecordUrl })
+    });
+    const brandProfileRecord = await createBitableRecord({
+      tenantToken,
+      appToken,
+      tableId: brandProfileTableId,
+      fields: buildBrandProfileFields({ form, clientId, projectId, submittedAt })
+    });
+
+    return {
+      ok: true,
+      status: '已创建项目与品牌档案',
+      projectRecordId: projectRecord && projectRecord.record && projectRecord.record.record_id,
+      brandProfileRecordId: brandProfileRecord && brandProfileRecord.record && brandProfileRecord.record.record_id
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: `工作台初始化失败：${(error && error.message ? error.message : String(error)).slice(0, 300)}`
+    };
+  }
+}
+
+function buildProjectFields({ form, clientId, projectId, submittedAt, leadRecordUrl }) {
+  return {
+    项目编号: projectId,
+    客户编号: clientId,
+    品牌名称: form.brandName,
+    项目类型: 'GEO 诊断',
+    当前阶段: '待资料审核',
+    优先级: '普通',
+    负责人: process.env.DEFAULT_OWNER || 'GeoGi 负责人',
+    开始时间: submittedAt,
+    预计交付时间: '',
+    实际交付时间: '',
+    客户确认范围: form.goals.join('、'),
+    内部备注: leadRecordUrl ? `客户提交记录：${leadRecordUrl}` : '由小程序提交自动创建'
+  };
+}
+
+function buildBrandProfileFields({ form, clientId, projectId, submittedAt }) {
+  return {
+    项目编号: projectId,
+    客户编号: clientId,
+    品牌标准名称: form.brandName,
+    所属企业: form.companyName,
+    行业: form.industry,
+    细分业务: form.segment,
+    目标市场: form.targetMarket.concat(form.targetMarketOther ? [form.targetMarketOther] : []).join('、'),
+    '核心产品/服务': form.offerings,
+    主要客户: form.audiences,
+    品牌优势: form.advantages,
+    官方渠道: form.officialChannel,
+    公开信源: form.officialChannel,
+    竞品品牌: form.competitors,
+    风险备注: '',
+    档案状态: '待核验',
+    最后更新: submittedAt
+  };
+}
+
 async function findExistingSubmission({ tenantToken, submissionId }) {
   if (!submissionId) return null;
   const records = await listBitableRecords({
@@ -243,7 +333,7 @@ async function notifyWithRetry(payload) {
   };
 }
 
-async function notify({ tenantToken, form, clientId, projectId, submittedAt, recordUrl }) {
+async function notify({ tenantToken, form, clientId, projectId, submittedAt, recordUrl, workbench }) {
   const textBody = [
     '【GeoGi 新客户提交】收到新的品牌 AI 可见度诊断申请。',
     `品牌：${form.brandName}`,
@@ -255,7 +345,8 @@ async function notify({ tenantToken, form, clientId, projectId, submittedAt, rec
     `提交时间：${submittedAt}`,
     `客户编号：${clientId}`,
     `项目编号：${projectId}`,
-    '下一步动作：审核资料并联系客户。',
+    workbench && workbench.status ? `工作台：${workbench.status}` : '',
+    `下一步动作：${workbench && workbench.ok ? '进入诊断项目审核。' : '审核资料并联系客户。'}`,
     recordUrl ? `飞书记录：${recordUrl}` : ''
   ].filter(Boolean).join('\n');
 
