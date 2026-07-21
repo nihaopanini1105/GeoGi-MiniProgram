@@ -1,44 +1,62 @@
 <view class="page index-page">
-  <view class="hero card">
+  <view class="hero">
     <view class="brand-line">
-      <view class="brand-mark">G</view>
-      <view>
-        <text class="brand-name">GeoGi 几何智引</text>
-        <text class="brand-sub">AI 时代的品牌可见度增长系统</text>
+      <view class="brand-left">
+        <view class="brand-mark">G</view>
+        <view>
+          <text class="brand-name">GeoGi</text>
+          <text class="brand-sub">品牌 AI 可见度诊断</text>
+        </view>
+      </view>
+      <button class="nav-pill" bindtap="goResearch">研究中心</button>
+    </view>
+
+    <view class="hero-main">
+      <text class="eyebrow">AI VISIBILITY CHECK</text>
+      <text class="h1 hero-title">AI 会推荐你的品牌吗？</text>
+      <text class="lead hero-lead">一次诊断，看清品牌在主流 AI 平台里的出现、推荐与竞品表现。</text>
+
+      <view class="diagnosis-entry">
+        <view>
+          <text class="entry-title">2 分钟提交资料</text>
+          <text class="entry-copy">无需理解 GEO 术语</text>
+        </view>
+        <button class="entry-button" bindtap="goDiagnosis">开始</button>
+      </view>
+
+      <view class="hero-links">
+        <button bindtap="goServices">服务方案</button>
+        <button bindtap="goReport">示例报告</button>
+        <button bindtap="goContact">联系顾问</button>
       </view>
     </view>
 
-    <text class="eyebrow">AI VISIBILITY SYSTEM</text>
-    <text class="h1">让品牌在 AI 时代被看见、被理解、被选择</text>
-    <text class="lead">GeoGi 帮助企业诊断并提升在 AI 问答、智能搜索和生成式推荐场景中的品牌呈现质量。</text>
-
-    <view class="actions">
-      <button class="primary-button" bindtap="goDiagnosis">开始品牌诊断</button>
-      <button class="secondary-button" bindtap="goServices">查看服务</button>
-    </view>
-
-    <view class="signal-panel">
-      <view class="signal-orbit">
-        <view class="signal-core">
-          <text>GeoGi</text>
-          <text>AI Visibility</text>
-        </view>
-        <view class="signal-chip chip-a">品牌</view>
-        <view class="signal-chip chip-b">内容</view>
-        <view class="signal-chip chip-c">信源</view>
+    <view class="hero-proof">
+      <view class="proof-item">
+        <text class="proof-value">豆包</text>
       </view>
-      <view class="signal-list">
-        <view class="signal-item" wx:for="{{signals}}" wx:key="*this">
-          <view class="dot"></view>
-          <text>{{item}}</text>
-        </view>
+      <view class="proof-divider"></view>
+      <view class="proof-item">
+        <text class="proof-value">元宝</text>
+      </view>
+      <view class="proof-divider"></view>
+      <view class="proof-item">
+        <text class="proof-value">通义</text>
+      </view>
+      <view class="proof-divider"></view>
+      <view class="proof-item">
+        <text class="proof-value">DeepSeek</text>
+      </view>
+      <view class="proof-divider"></view>
+      <view class="proof-item">
+        <text class="proof-value">Kimi</text>
       </view>
     </view>
   </view>
 
   <view class="section pain-card card">
     <text class="eyebrow">WHY GEO</text>
-    <text class="h2">当用户问 AI 时，AI 会推荐你吗？</text>
+    <text class="h2">先看三个信号</text>
     <view class="pain-list">
       <view class="pain-item" wx:for="{{pains}}" wx:key="*this">
         <view class="dot"></view>
@@ -51,7 +69,7 @@
     <view class="section-head">
       <text class="eyebrow">CAPABILITY</text>
       <text class="h2">核心检测能力</text>
-      <text class="body">不只看“有没有出现”，还会看是否被正确理解、是否被主动推荐，以及答案背后的信源是否可靠。</text>
+      <text class="body">覆盖识别、推荐、准确性、竞品和信源。</text>
     </view>
     <view class="ability-grid">
       <view class="ability-card card" wx:for="{{abilities}}" wx:key="*this">{{item}}</view>
@@ -69,7 +87,7 @@
     <view class="section-head">
       <text class="eyebrow">SERVICES</text>
       <text class="h2">从诊断到持续优化</text>
-      <text class="body">首版小程序聚焦咨询转化与专业信任建设，后续可继续加入报告查询、客户案例和内容订阅。</text>
+      <text class="body">从一次快检开始，逐步建立品牌 GEO 优化路径。</text>
     </view>
     <view class="list">
       <view class="service-card card" wx:for="{{services}}" wx:key="title">
@@ -131,6 +149,5 @@
     <button class="text-link" bindtap="goResearch">查看研究方法</button>
   </view>
 
-  <button class="sticky-cta" bindtap="goContact">联系顾问</button>
   <view class="safe-bottom"></view>
 </view>
