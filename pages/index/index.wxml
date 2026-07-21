@@ -1,0 +1,67 @@
+<view class="page index-page">
+  <view class="hero card">
+    <view class="brand-line">
+      <view class="brand-mark">G</view>
+      <view>
+        <text class="brand-name">GeoGi 几何智引</text>
+        <text class="brand-sub">AI 时代的品牌可见度增长系统</text>
+      </view>
+    </view>
+
+    <text class="eyebrow">AI VISIBILITY SYSTEM</text>
+    <text class="h1">让品牌在 AI 时代被看见、被理解、被选择</text>
+    <text class="lead">GeoGi 帮助企业诊断并提升在 AI 问答、智能搜索和生成式推荐场景中的品牌呈现质量。</text>
+
+    <view class="actions">
+      <button class="primary-button" bindtap="goContact">预约诊断</button>
+      <button class="secondary-button" bindtap="goServices">查看服务</button>
+    </view>
+
+    <view class="signal-panel">
+      <view class="signal-orbit">
+        <view class="signal-core">
+          <text>GeoGi</text>
+          <text>AI Visibility</text>
+        </view>
+        <view class="signal-chip chip-a">品牌</view>
+        <view class="signal-chip chip-b">内容</view>
+        <view class="signal-chip chip-c">信源</view>
+      </view>
+      <view class="signal-list">
+        <view class="signal-item" wx:for="{{signals}}" wx:key="*this">
+          <view class="dot"></view>
+          <text>{{item}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section stats-row">
+    <view class="metric card" wx:for="{{metrics}}" wx:key="label">
+      <text class="metric-value">{{item.value}}</text>
+      <text class="metric-label">{{item.label}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="eyebrow">SERVICES</text>
+      <text class="h2">从诊断到持续优化</text>
+      <text class="body">首版小程序聚焦咨询转化与专业信任建设，后续可继续加入报告查询、客户案例和内容订阅。</text>
+    </view>
+    <view class="list">
+      <view class="service-card card" wx:for="{{services}}" wx:key="title">
+        <text class="pill">GeoGi</text>
+        <text class="card-title">{{item.title}}</text>
+        <text class="body">{{item.desc}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section cta-card">
+    <text class="cta-title">先判断品牌是否已经进入 AI 答案</text>
+    <text class="cta-copy">用一次轻量诊断，找到当前最值得补强的品牌内容和信源缺口。</text>
+    <button class="primary-button cta-button" bindtap="goContact">开始咨询</button>
+    <button class="text-link" bindtap="goResearch">查看研究方法</button>
+  </view>
+</view>

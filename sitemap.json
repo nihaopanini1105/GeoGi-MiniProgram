@@ -1,0 +1,9 @@
+{
+  "desc": "GeoGi MiniProgram sitemap",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}

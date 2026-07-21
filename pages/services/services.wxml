@@ -1,0 +1,36 @@
+<view class="page">
+  <view class="section-head">
+    <text class="eyebrow">SERVICE SYSTEM</text>
+    <text class="h1">GeoGi 服务体系</text>
+    <text class="lead">围绕 AI 可见度，从一次诊断到持续增长，帮助品牌建立能被 AI 识别、理解和推荐的内容与信源系统。</text>
+  </view>
+
+  <view class="process card">
+    <view class="process-step" wx:for="{{process}}" wx:key="*this">
+      <text class="process-index">0{{index + 1}}</text>
+      <text class="process-title">{{item}}</text>
+    </view>
+  </view>
+
+  <view class="section list">
+    <view class="service-card card" wx:for="{{services}}" wx:key="title">
+      <view class="service-top">
+        <text class="pill">{{item.label}}</text>
+      </view>
+      <text class="service-title">{{item.title}}</text>
+      <text class="body">{{item.desc}}</text>
+      <view class="point-list">
+        <view class="point-item" wx:for="{{item.points}}" wx:for-item="point" wx:key="*this">
+          <view class="dot"></view>
+          <text>{{point}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section action-panel">
+    <text class="action-title">不确定适合哪项服务？</text>
+    <text class="action-copy">先从 AI 可见度诊断开始，确认品牌当前最关键的问题。</text>
+    <button class="primary-button" bindtap="goContact">预约一次诊断</button>
+  </view>
+</view>

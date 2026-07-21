@@ -1,0 +1,107 @@
+.research-hero {
+  padding: 30rpx 0 8rpx;
+}
+
+.category-row {
+  display: flex;
+  gap: 14rpx;
+  margin-top: 30rpx;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.category-pill {
+  flex: 0 0 auto;
+  min-height: 64rpx;
+  padding: 0 24rpx;
+  border: 1rpx solid rgba(219, 228, 242, 0.95);
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.78);
+  color: #6b7897;
+  font-size: 25rpx;
+  font-weight: 850;
+}
+
+.category-pill.active {
+  border-color: rgba(47, 109, 246, 0.22);
+  background: rgba(47, 109, 246, 0.1);
+  color: #2f6df6;
+}
+
+.article-card {
+  padding: 28rpx;
+}
+
+.article-cover {
+  display: flex;
+  align-items: flex-end;
+  height: 150rpx;
+  margin-bottom: 20rpx;
+  padding: 22rpx;
+  border-radius: 28rpx;
+  border: 1rpx solid rgba(219, 228, 242, 0.95);
+  background: linear-gradient(135deg, rgba(47, 109, 246, 0.16), rgba(255, 255, 255, 0.9));
+  color: #2f6df6;
+  font-size: 25rpx;
+  font-weight: 900;
+}
+
+.article-date,
+.article-title,
+.article-link,
+.path-title,
+.path-num,
+.path-copy {
+  display: block;
+}
+
+.article-date {
+  color: #6b7897;
+  font-size: 24rpx;
+}
+
+.article-title {
+  margin: 12rpx 0 12rpx;
+  color: #102145;
+  font-size: 34rpx;
+  font-weight: 950;
+  line-height: 1.32;
+}
+
+.article-link {
+  margin-top: 20rpx;
+  color: #2f6df6;
+  font-size: 26rpx;
+  font-weight: 900;
+}
+
+.path-card {
+  padding: 30rpx;
+}
+
+.path-title {
+  margin-bottom: 18rpx;
+  color: #102145;
+  font-size: 34rpx;
+  font-weight: 950;
+}
+
+.path-row {
+  display: flex;
+  gap: 18rpx;
+  padding: 18rpx 0;
+  border-top: 1rpx solid #ecf1fa;
+}
+
+.path-num {
+  color: #2f6df6;
+  font-size: 26rpx;
+  font-weight: 950;
+}
+
+.path-copy {
+  flex: 1;
+  color: #51617f;
+  font-size: 27rpx;
+  line-height: 1.55;
+}

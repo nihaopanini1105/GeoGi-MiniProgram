@@ -1,0 +1,209 @@
+.hero {
+  padding: 36rpx 30rpx 30rpx;
+  overflow: hidden;
+}
+
+.brand-line {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-bottom: 34rpx;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #2f6df6, #204fcb);
+  color: #ffffff;
+  font-size: 38rpx;
+  font-weight: 900;
+  box-shadow: 0 14rpx 30rpx rgba(47, 109, 246, 0.25);
+}
+
+.brand-name,
+.brand-sub {
+  display: block;
+}
+
+.brand-name {
+  color: #102145;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.brand-sub {
+  margin-top: 6rpx;
+  color: #6b7897;
+  font-size: 22rpx;
+}
+
+.signal-panel {
+  margin-top: 34rpx;
+  padding: 24rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  border: 1rpx solid rgba(219, 228, 242, 0.95);
+}
+
+.signal-orbit {
+  position: relative;
+  height: 300rpx;
+  border-radius: 28rpx;
+  background: radial-gradient(circle at center, rgba(47, 109, 246, 0.16), rgba(47, 109, 246, 0.05) 44%, rgba(255, 255, 255, 0.9) 72%);
+  border: 1rpx solid rgba(47, 109, 246, 0.12);
+}
+
+.signal-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 188rpx;
+  height: 188rpx;
+  margin-left: -94rpx;
+  margin-top: -94rpx;
+  border-radius: 999rpx;
+  background: #2f6df6;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 900;
+  box-shadow: 0 20rpx 48rpx rgba(47, 109, 246, 0.26);
+}
+
+.signal-core text + text {
+  margin-top: 6rpx;
+  font-size: 20rpx;
+  opacity: 0.86;
+}
+
+.signal-chip {
+  position: absolute;
+  min-width: 108rpx;
+  padding: 12rpx 18rpx;
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: #2f6df6;
+  font-size: 24rpx;
+  font-weight: 900;
+  text-align: center;
+  box-shadow: 0 10rpx 28rpx rgba(17, 47, 122, 0.08);
+}
+
+.chip-a {
+  left: 34rpx;
+  top: 50rpx;
+}
+
+.chip-b {
+  right: 34rpx;
+  top: 82rpx;
+}
+
+.chip-c {
+  left: 50%;
+  bottom: 34rpx;
+  margin-left: -54rpx;
+}
+
+.signal-list {
+  margin-top: 22rpx;
+}
+
+.signal-item {
+  display: flex;
+  gap: 14rpx;
+  color: #4f5f7d;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+.signal-item + .signal-item {
+  margin-top: 10rpx;
+}
+
+.stats-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.metric {
+  flex: 1;
+  padding: 24rpx 14rpx;
+  text-align: center;
+}
+
+.metric-value,
+.metric-label,
+.card-title,
+.cta-title,
+.cta-copy {
+  display: block;
+}
+
+.metric-value {
+  color: #2f6df6;
+  font-size: 38rpx;
+  font-weight: 950;
+}
+
+.metric-label {
+  margin-top: 8rpx;
+  color: #6b7897;
+  font-size: 22rpx;
+}
+
+.service-card {
+  padding: 28rpx;
+}
+
+.card-title {
+  margin: 18rpx 0 10rpx;
+  color: #102145;
+  font-size: 34rpx;
+  font-weight: 900;
+  line-height: 1.28;
+}
+
+.cta-card {
+  padding: 34rpx 30rpx;
+  border-radius: 34rpx;
+  background: linear-gradient(135deg, #0f2d89, #2f6df6);
+  color: #ffffff;
+  box-shadow: 0 22rpx 54rpx rgba(23, 59, 175, 0.28);
+}
+
+.cta-title {
+  font-size: 40rpx;
+  font-weight: 950;
+  line-height: 1.18;
+}
+
+.cta-copy {
+  margin-top: 16rpx;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 28rpx;
+  line-height: 1.75;
+}
+
+.cta-button {
+  width: 100%;
+  margin-top: 28rpx;
+  background: #ffffff;
+  color: #1236a9;
+  box-shadow: none;
+}
+
+.text-link {
+  width: 100%;
+  margin-top: 20rpx;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 27rpx;
+  font-weight: 850;
+}

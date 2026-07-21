@@ -1,0 +1,41 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/services/services",
+    "pages/research/research",
+    "pages/contact/contact"
+  ],
+  "window": {
+    "navigationBarTitleText": "GeoGi 几何智引",
+    "navigationBarBackgroundColor": "#f5f7fc",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f5f7fc",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#6b7897",
+    "selectedColor": "#2f6df6",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/services/services",
+        "text": "服务"
+      },
+      {
+        "pagePath": "pages/research/research",
+        "text": "研究"
+      },
+      {
+        "pagePath": "pages/contact/contact",
+        "text": "联系"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

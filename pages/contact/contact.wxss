@@ -1,0 +1,74 @@
+.contact-hero {
+  padding: 34rpx 30rpx;
+}
+
+.form-card {
+  padding: 30rpx;
+}
+
+.field + .field {
+  margin-top: 24rpx;
+}
+
+.field-label,
+.info-title,
+.info-copy {
+  display: block;
+}
+
+.field-label {
+  margin-bottom: 12rpx;
+  color: #102145;
+  font-size: 27rpx;
+  font-weight: 900;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1rpx solid #dbe4f2;
+  border-radius: 24rpx;
+  background: #f8fbff;
+  color: #0d1b4c;
+  font-size: 28rpx;
+}
+
+input {
+  height: 88rpx;
+  padding: 0 24rpx;
+}
+
+textarea {
+  min-height: 180rpx;
+  padding: 22rpx 24rpx;
+  line-height: 1.6;
+}
+
+.placeholder {
+  color: #9aa8c0;
+}
+
+.submit-button {
+  width: 100%;
+  margin-top: 30rpx;
+}
+
+.info-card {
+  padding: 30rpx;
+}
+
+.info-title {
+  color: #102145;
+  font-size: 34rpx;
+  font-weight: 950;
+}
+
+.info-copy {
+  margin: 12rpx 0 24rpx;
+  color: #60708f;
+  font-size: 28rpx;
+}
+
+.copy-button {
+  width: 100%;
+}

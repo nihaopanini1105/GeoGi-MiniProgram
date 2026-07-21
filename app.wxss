@@ -1,0 +1,152 @@
+page {
+  min-height: 100%;
+  background: linear-gradient(180deg, #f7f9fd 0%, #eef3fb 100%);
+  color: #0d1b4c;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+view,
+text,
+button,
+input,
+textarea {
+  box-sizing: border-box;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  line-height: 1;
+}
+
+button::after {
+  border: 0;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 32rpx 28rpx 64rpx;
+}
+
+.section {
+  margin-top: 44rpx;
+}
+
+.section-head {
+  margin-bottom: 24rpx;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 52rpx;
+  padding: 0 24rpx;
+  border: 1rpx solid rgba(47, 109, 246, 0.16);
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.78);
+  color: #2f6df6;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.h1 {
+  display: block;
+  margin-top: 24rpx;
+  color: #0d1b4c;
+  font-size: 64rpx;
+  font-weight: 900;
+  line-height: 1.08;
+}
+
+.h2 {
+  display: block;
+  color: #102145;
+  font-size: 42rpx;
+  font-weight: 900;
+  line-height: 1.18;
+}
+
+.lead {
+  display: block;
+  margin-top: 20rpx;
+  color: #576684;
+  font-size: 30rpx;
+  line-height: 1.75;
+}
+
+.body {
+  color: #60708f;
+  font-size: 28rpx;
+  line-height: 1.78;
+}
+
+.muted {
+  color: #6b7897;
+}
+
+.card {
+  border: 1rpx solid rgba(219, 228, 242, 0.95);
+  border-radius: 32rpx;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 16rpx 42rpx rgba(17, 47, 122, 0.05);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48rpx;
+  padding: 0 20rpx;
+  border-radius: 999rpx;
+  background: rgba(47, 109, 246, 0.1);
+  color: #2f6df6;
+  font-size: 23rpx;
+  font-weight: 800;
+}
+
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88rpx;
+  padding: 0 30rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 850;
+}
+
+.primary-button {
+  background: #2f6df6;
+  color: #ffffff;
+  box-shadow: 0 16rpx 34rpx rgba(47, 109, 246, 0.24);
+}
+
+.secondary-button {
+  border: 1rpx solid rgba(47, 109, 246, 0.2);
+  background: rgba(255, 255, 255, 0.86);
+  color: #0d1b4c;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18rpx;
+  margin-top: 30rpx;
+}
+
+.list {
+  display: grid;
+  gap: 20rpx;
+}
+
+.dot {
+  width: 14rpx;
+  height: 14rpx;
+  margin-top: 13rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #2dc38a, #73d8b3);
+  flex: 0 0 auto;
+}

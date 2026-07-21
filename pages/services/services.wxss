@@ -1,0 +1,92 @@
+.process {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  padding: 24rpx;
+}
+
+.process-step {
+  flex: 1 1 190rpx;
+  min-height: 126rpx;
+  padding: 20rpx;
+  border: 1rpx solid #e3ebf7;
+  border-radius: 24rpx;
+  background: #f8fbff;
+}
+
+.process-index,
+.process-title,
+.service-title,
+.action-title,
+.action-copy {
+  display: block;
+}
+
+.process-index {
+  color: #2f6df6;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.process-title {
+  margin-top: 12rpx;
+  color: #102145;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.service-card {
+  padding: 30rpx;
+}
+
+.service-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.service-title {
+  margin: 20rpx 0 12rpx;
+  color: #102145;
+  font-size: 38rpx;
+  font-weight: 950;
+  line-height: 1.22;
+}
+
+.point-list {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx dashed #d9e3f2;
+}
+
+.point-item {
+  display: flex;
+  gap: 14rpx;
+  color: #51617f;
+  font-size: 26rpx;
+  line-height: 1.7;
+}
+
+.point-item + .point-item {
+  margin-top: 8rpx;
+}
+
+.action-panel {
+  padding: 34rpx 30rpx;
+  border-radius: 34rpx;
+  background: linear-gradient(135deg, rgba(47, 109, 246, 0.1), rgba(255, 255, 255, 0.96));
+  border: 1rpx solid rgba(47, 109, 246, 0.16);
+}
+
+.action-title {
+  color: #102145;
+  font-size: 38rpx;
+  font-weight: 950;
+}
+
+.action-copy {
+  margin: 14rpx 0 24rpx;
+  color: #60708f;
+  font-size: 28rpx;
+  line-height: 1.75;
+}
