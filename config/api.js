@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://your-api-domain.com';
+const API_BASE_URL = 'https://api.geogi.cn';
 
 function isApiConfigured() {
   return !API_BASE_URL.includes('your-api-domain.com');
