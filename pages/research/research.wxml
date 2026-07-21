@@ -11,14 +11,14 @@
       wx:key="*this"
       data-category="{{item}}"
       bindtap="changeCategory"
-      class="category-pill {{activeCategory === item ? 'active' : ''}}"
+      class="category-pill {{activeCategory == item ? 'active' : ''}}"
     >
       {{item}}
     </button>
   </view>
 
   <view class="section list">
-    <view class="article-card card" wx:for="{{filteredArticles}}" wx:key="title">
+    <view class="article-card card" wx:for="{{filteredArticles}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
       <view class="article-cover">
         <text>{{item.category}}</text>
       </view>

@@ -1,0 +1,115 @@
+<view class="page diagnosis-page">
+  <view class="hero-card card">
+    <text class="eyebrow">BRAND DIAGNOSIS</text>
+    <text class="h1">2–3 分钟提交品牌资料</text>
+    <text class="lead">不需要懂 GEO。只要告诉我们品牌、业务、目标和联系方式，后续由 GeoGi 完成品牌研究与诊断设计。</text>
+    <button class="secondary-button service-link" bindtap="goServices">先看服务方案</button>
+  </view>
+
+  <view class="step-card card">
+    <view class="step-header">
+      <view class="step-dot {{step >= 1 ? 'active' : ''}}">1</view>
+      <view class="step-line {{step >= 2 ? 'active' : ''}}"></view>
+      <view class="step-dot {{step >= 2 ? 'active' : ''}}">2</view>
+      <view class="step-line {{step >= 3 ? 'active' : ''}}"></view>
+      <view class="step-dot {{step >= 3 ? 'active' : ''}}">3</view>
+    </view>
+    <view class="step-labels">
+      <text>品牌信息</text>
+      <text>业务目标</text>
+      <text>联系授权</text>
+    </view>
+  </view>
+
+  <view class="form-card card" wx:if="{{step == 1}}">
+    <text class="form-title">第一步：告诉我们你是谁</text>
+    <view class="field">
+      <text class="field-label">您的品牌名称是？</text>
+      <input value="{{form.brandName}}" data-key="brandName" bindinput="updateField" placeholder="例如：GeoGi 几何智引" placeholder-class="placeholder" />
+    </view>
+    <view class="field">
+      <text class="field-label">品牌所属企业或机构</text>
+      <input value="{{form.companyName}}" data-key="companyName" bindinput="updateField" placeholder="可选，品牌名与企业名一致可不填" placeholder-class="placeholder" />
+    </view>
+    <view class="field">
+      <text class="field-label">您的品牌主要属于哪个行业？</text>
+      <view class="chip-grid">
+        <button
+          wx:for="{{industries}}"
+          wx:key="*this"
+          data-value="{{item}}"
+          bindtap="chooseIndustry"
+          class="select-chip {{form.industry == item ? 'active' : ''}}"
+        >
+          {{item}}
+        </button>
+      </view>
+    </view>
+    <view class="field">
+      <text class="field-label">具体从事哪类业务？</text>
+      <input value="{{form.segment}}" data-key="segment" bindinput="updateField" placeholder="例如：高端定制旅行 / 企业 AI 培训" placeholder-class="placeholder" />
+    </view>
+    <view class="field">
+      <text class="field-label">在哪里可以了解您的品牌？</text>
+      <input value="{{form.officialChannel}}" data-key="officialChannel" bindinput="updateField" placeholder="官网、公众号、店铺链接；暂无也可以写暂无" placeholder-class="placeholder" />
+    </view>
+  </view>
+
+  <view class="form-card card" wx:if="{{step == 2}}">
+    <text class="form-title">第二步：说明业务和诊断目标</text>
+    <view class="field">
+      <text class="field-label">核心产品或服务</text>
+      <textarea value="{{form.offerings}}" maxlength="150" data-key="offerings" bindinput="updateField" placeholder="用普通话说明即可，150 字以内" placeholder-class="placeholder" />
+    </view>
+    <view class="field">
+      <text class="field-label">主要客户是谁？</text>
+      <input value="{{form.audiences}}" data-key="audiences" bindinput="updateField" placeholder="例如：亲子家庭 / 企业市场部 / 本地商户" placeholder-class="placeholder" />
+    </view>
+    <view class="field">
+      <text class="field-label">您关注的竞品或对标品牌</text>
+      <input value="{{form.competitors}}" data-key="competitors" bindinput="updateField" placeholder="最多 3 个，没有也可以写暂无" placeholder-class="placeholder" />
+    </view>
+    <view class="field">
+      <text class="field-label">本次最想诊断什么？最多选 3 项</text>
+      <view class="chip-grid">
+        <button
+          wx:for="{{goalOptions}}"
+          wx:key="label"
+          data-value="{{item.label}}"
+          bindtap="toggleGoal"
+          class="select-chip {{item.selected ? 'active' : ''}}"
+        >
+          {{item.label}}
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <view class="form-card card" wx:if="{{step == 3}}">
+    <text class="form-title">第三步：留下联系方式</text>
+    <view class="field">
+      <text class="field-label">联系人</text>
+      <input value="{{form.contactName}}" data-key="contactName" bindinput="updateField" placeholder="请输入联系人姓名" placeholder-class="placeholder" />
+    </view>
+    <view class="field">
+      <text class="field-label">联系方式</text>
+      <input value="{{form.contactMethod}}" data-key="contactMethod" bindinput="updateField" placeholder="手机号或微信号" placeholder-class="placeholder" />
+    </view>
+    <view class="field">
+      <text class="field-label">补充说明</text>
+      <textarea value="{{form.message}}" maxlength="150" data-key="message" bindinput="updateField" placeholder="可写服务目标、上线时间、希望优先检测的平台等" placeholder-class="placeholder" />
+    </view>
+    <view class="privacy-row" bindtap="togglePrivacy">
+      <view class="check {{form.privacyAccepted ? 'checked' : ''}}"></view>
+      <text>我同意 GeoGi 为品牌诊断与服务沟通使用以上信息</text>
+    </view>
+    <button class="privacy-link" bindtap="goPrivacy">查看隐私说明</button>
+  </view>
+
+  <view class="bottom-actions">
+    <button wx:if="{{step > 1}}" class="secondary-button half-button" bindtap="prevStep">上一步</button>
+    <button wx:if="{{step < 3}}" class="primary-button grow-button" bindtap="nextStep">下一步</button>
+    <button wx:if="{{step == 3}}" class="primary-button grow-button" loading="{{submitting}}" bindtap="submit">提交诊断申请</button>
+  </view>
+  <view class="safe-bottom"></view>
+</view>

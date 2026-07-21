@@ -143,7 +143,9 @@
 .metric-label,
 .card-title,
 .cta-title,
-.cta-copy {
+.cta-copy,
+.faq-q,
+.article-date {
   display: block;
 }
 
@@ -161,6 +163,106 @@
 
 .service-card {
   padding: 28rpx;
+}
+
+.pain-card,
+.flow-card,
+.report-card,
+.faq-card {
+  padding: 30rpx;
+}
+
+.pain-list {
+  margin-top: 24rpx;
+}
+
+.pain-item {
+  display: flex;
+  gap: 14rpx;
+  color: #51617f;
+  font-size: 27rpx;
+  line-height: 1.72;
+}
+
+.pain-item + .pain-item {
+  margin-top: 14rpx;
+}
+
+.ability-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+
+.ability-card {
+  min-height: 112rpx;
+  padding: 26rpx 18rpx;
+  color: #102145;
+  font-size: 28rpx;
+  font-weight: 900;
+  text-align: center;
+}
+
+.flow-list {
+  display: grid;
+  gap: 14rpx;
+  margin-top: 24rpx;
+}
+
+.flow-item {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 20rpx;
+  border-radius: 24rpx;
+  background: #f8fbff;
+  border: 1rpx solid #e3ebf7;
+}
+
+.flow-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 999rpx;
+  background: #2f6df6;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.flow-title {
+  color: #102145;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.report-button {
+  width: 100%;
+  margin-top: 24rpx;
+}
+
+.article-card {
+  padding: 28rpx;
+}
+
+.article-date {
+  margin-top: 18rpx;
+  color: #6b7897;
+  font-size: 24rpx;
+}
+
+.faq-item {
+  padding: 22rpx 0;
+  border-top: 1rpx solid #ecf1fa;
+}
+
+.faq-q {
+  margin-bottom: 8rpx;
+  color: #102145;
+  font-size: 29rpx;
+  font-weight: 950;
 }
 
 .card-title {

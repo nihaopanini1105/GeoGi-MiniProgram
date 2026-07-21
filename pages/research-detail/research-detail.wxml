@@ -1,0 +1,32 @@
+<view class="page">
+  <view class="article-hero card">
+    <text class="eyebrow">{{article.category}}</text>
+    <text class="h1">{{article.title}}</text>
+    <text class="lead">{{article.desc}}</text>
+    <text class="article-meta">GeoGi Research · {{article.date}}</text>
+  </view>
+
+  <view class="article-body card">
+    <view class="article-section" wx:for="{{article.sections}}" wx:key="title">
+      <text class="section-title">{{item.title}}</text>
+      <text class="body">{{item.body}}</text>
+    </view>
+    <view class="source-box">
+      <text class="source-title">说明</text>
+      <text class="body">小程序首版使用内置示例内容。正式上线后，研究中心文章会由飞书内容表或统一 CMS 维护。</text>
+    </view>
+  </view>
+
+  <view class="section related-card card">
+    <text class="related-title">相关文章</text>
+    <view class="related-row" wx:for="{{related}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
+      <text>{{item.title}}</text>
+      <text class="arrow">›</text>
+    </view>
+  </view>
+
+  <view class="section cta-panel">
+    <text class="cta-title">想知道你的品牌是否进入 AI 答案？</text>
+    <button class="primary-button full-button" bindtap="goDiagnosis">申请品牌诊断</button>
+  </view>
+</view>

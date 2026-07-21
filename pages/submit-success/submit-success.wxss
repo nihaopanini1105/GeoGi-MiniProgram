@@ -1,0 +1,63 @@
+.success-card,
+.next-card,
+.contact-card,
+.article-card {
+  padding: 32rpx 30rpx;
+}
+
+.success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96rpx;
+  height: 96rpx;
+  margin-bottom: 20rpx;
+  border-radius: 999rpx;
+  background: #2dc38a;
+  color: #ffffff;
+  font-size: 54rpx;
+  font-weight: 900;
+}
+
+.block-title {
+  display: block;
+  margin-bottom: 20rpx;
+  color: #102145;
+  font-size: 34rpx;
+  font-weight: 950;
+}
+
+.next-row,
+.article-row {
+  display: flex;
+  gap: 18rpx;
+  padding: 18rpx 0;
+  border-top: 1rpx solid #ecf1fa;
+  color: #51617f;
+  font-size: 27rpx;
+  line-height: 1.55;
+}
+
+.next-num {
+  color: #2f6df6;
+  font-weight: 950;
+}
+
+.full-button {
+  width: 100%;
+  margin-top: 24rpx;
+}
+
+.article-row {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.arrow {
+  color: #2f6df6;
+  font-size: 42rpx;
+}
+
+.home-button {
+  margin-top: 34rpx;
+}

@@ -1,0 +1,11 @@
+.privacy-card {
+  padding: 32rpx 30rpx;
+}
+
+.privacy-title {
+  display: block;
+  margin-bottom: 14rpx;
+  color: #102145;
+  font-size: 34rpx;
+  font-weight: 950;
+}

@@ -13,7 +13,7 @@
     <text class="lead">GeoGi 帮助企业诊断并提升在 AI 问答、智能搜索和生成式推荐场景中的品牌呈现质量。</text>
 
     <view class="actions">
-      <button class="primary-button" bindtap="goContact">预约诊断</button>
+      <button class="primary-button" bindtap="goDiagnosis">开始品牌诊断</button>
       <button class="secondary-button" bindtap="goServices">查看服务</button>
     </view>
 
@@ -36,6 +36,28 @@
     </view>
   </view>
 
+  <view class="section pain-card card">
+    <text class="eyebrow">WHY GEO</text>
+    <text class="h2">当用户问 AI 时，AI 会推荐你吗？</text>
+    <view class="pain-list">
+      <view class="pain-item" wx:for="{{pains}}" wx:key="*this">
+        <view class="dot"></view>
+        <text>{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="eyebrow">CAPABILITY</text>
+      <text class="h2">核心检测能力</text>
+      <text class="body">不只看“有没有出现”，还会看是否被正确理解、是否被主动推荐，以及答案背后的信源是否可靠。</text>
+    </view>
+    <view class="ability-grid">
+      <view class="ability-card card" wx:for="{{abilities}}" wx:key="*this">{{item}}</view>
+    </view>
+  </view>
+
   <view class="section stats-row">
     <view class="metric card" wx:for="{{metrics}}" wx:key="label">
       <text class="metric-value">{{item.value}}</text>
@@ -51,17 +73,64 @@
     </view>
     <view class="list">
       <view class="service-card card" wx:for="{{services}}" wx:key="title">
-        <text class="pill">GeoGi</text>
+        <text class="pill">{{item.tag}}</text>
         <text class="card-title">{{item.title}}</text>
         <text class="body">{{item.desc}}</text>
       </view>
     </view>
   </view>
 
+  <view class="section flow-card card">
+    <text class="eyebrow">PROCESS</text>
+    <text class="h2">服务流程清楚可预期</text>
+    <view class="flow-list">
+      <view class="flow-item" wx:for="{{flow}}" wx:key="*this">
+        <text class="flow-num">0{{index + 1}}</text>
+        <text class="flow-title">{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section report-card card">
+    <view>
+      <text class="eyebrow">SAMPLE REPORT</text>
+      <text class="h2">先看报告长什么样</text>
+      <text class="body">示例报告展示检测维度、证据截图、平台表现和优化路线，正式客户报告会做脱敏和人工复核。</text>
+    </view>
+    <button class="secondary-button report-button" bindtap="goReport">查看示例报告</button>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="eyebrow">RESEARCH</text>
+      <text class="h2">GeoGi 研究中心</text>
+    </view>
+    <view class="list">
+      <view class="article-card card" wx:for="{{latestArticles}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
+        <text class="pill">{{item.category}}</text>
+        <text class="card-title">{{item.title}}</text>
+        <text class="body">{{item.desc}}</text>
+        <text class="article-date">{{item.date}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section faq-card card">
+    <text class="eyebrow">FAQ</text>
+    <text class="h2">常见问题</text>
+    <view class="faq-item" wx:for="{{faqs}}" wx:key="q">
+      <text class="faq-q">{{item.q}}</text>
+      <text class="body">{{item.a}}</text>
+    </view>
+  </view>
+
   <view class="section cta-card">
     <text class="cta-title">先判断品牌是否已经进入 AI 答案</text>
     <text class="cta-copy">用一次轻量诊断，找到当前最值得补强的品牌内容和信源缺口。</text>
-    <button class="primary-button cta-button" bindtap="goContact">开始咨询</button>
+    <button class="primary-button cta-button" bindtap="goDiagnosis">开始品牌诊断</button>
     <button class="text-link" bindtap="goResearch">查看研究方法</button>
   </view>
+
+  <button class="sticky-cta" bindtap="goContact">联系顾问</button>
+  <view class="safe-bottom"></view>
 </view>

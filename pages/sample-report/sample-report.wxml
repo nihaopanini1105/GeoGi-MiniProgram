@@ -1,0 +1,33 @@
+<view class="page">
+  <view class="report-hero card">
+    <text class="eyebrow">SAMPLE REPORT</text>
+    <text class="h1">GeoGi 诊断报告示例</text>
+    <text class="lead">这里展示脱敏后的报告结构。正式报告会保留问题、平台回答、截图、引用和人工复核记录，保证结论可追溯。</text>
+  </view>
+
+  <view class="section score-card card">
+    <text class="score-label">综合可见度</text>
+    <text class="score-value">56</text>
+    <text class="body">示例品牌已被部分 AI 平台识别，但主动推荐不足，信源证据偏弱，需要优先补强品牌实体页和第三方可信来源。</text>
+  </view>
+
+  <view class="section list">
+    <view class="dimension-card card" wx:for="{{dimensions}}" wx:key="name">
+      <view class="dimension-top">
+        <text class="dimension-name">{{item.name}}</text>
+        <text class="dimension-score">{{item.score}}</text>
+      </view>
+      <text class="body">{{item.desc}}</text>
+    </view>
+  </view>
+
+  <view class="section outline-card card">
+    <text class="outline-title">报告目录</text>
+    <view class="outline-row" wx:for="{{outline}}" wx:key="*this">
+      <text class="outline-num">0{{index + 1}}</text>
+      <text>{{item}}</text>
+    </view>
+  </view>
+
+  <button class="primary-button full-button" bindtap="goDiagnosis">申请自己的品牌诊断</button>
+</view>

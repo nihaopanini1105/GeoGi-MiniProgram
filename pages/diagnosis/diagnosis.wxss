@@ -1,0 +1,176 @@
+.hero-card,
+.step-card,
+.form-card {
+  padding: 30rpx;
+}
+
+.service-link {
+  width: 100%;
+  margin-top: 26rpx;
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+}
+
+.step-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54rpx;
+  height: 54rpx;
+  border-radius: 999rpx;
+  background: #edf4ff;
+  color: #6b7897;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.step-dot.active {
+  background: #2f6df6;
+  color: #ffffff;
+}
+
+.step-line {
+  flex: 1;
+  height: 4rpx;
+  background: #dbe4f2;
+}
+
+.step-line.active {
+  background: #2f6df6;
+}
+
+.step-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 14rpx;
+  color: #6b7897;
+  font-size: 23rpx;
+}
+
+.form-card {
+  margin-top: 24rpx;
+}
+
+.form-title,
+.field-label {
+  display: block;
+}
+
+.form-title {
+  color: #102145;
+  font-size: 36rpx;
+  font-weight: 950;
+}
+
+.field {
+  margin-top: 26rpx;
+}
+
+.field-label {
+  margin-bottom: 12rpx;
+  color: #102145;
+  font-size: 27rpx;
+  font-weight: 900;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1rpx solid #dbe4f2;
+  border-radius: 24rpx;
+  background: #f8fbff;
+  color: #0d1b4c;
+  font-size: 28rpx;
+}
+
+input {
+  height: 88rpx;
+  padding: 0 24rpx;
+}
+
+textarea {
+  min-height: 170rpx;
+  padding: 22rpx 24rpx;
+  line-height: 1.6;
+}
+
+.placeholder {
+  color: #9aa8c0;
+}
+
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+
+.select-chip {
+  min-height: 64rpx;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(219, 228, 242, 0.95);
+  background: #ffffff;
+  color: #51617f;
+  font-size: 25rpx;
+  font-weight: 850;
+}
+
+.select-chip.active {
+  border-color: rgba(47, 109, 246, 0.24);
+  background: rgba(47, 109, 246, 0.1);
+  color: #2f6df6;
+}
+
+.privacy-row {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 26rpx;
+  color: #51617f;
+  font-size: 25rpx;
+  line-height: 1.55;
+}
+
+.check {
+  width: 34rpx;
+  height: 34rpx;
+  margin-top: 3rpx;
+  border-radius: 10rpx;
+  border: 2rpx solid #b8c5d8;
+  flex: 0 0 auto;
+}
+
+.check.checked {
+  border-color: #2f6df6;
+  background: #2f6df6;
+}
+
+.privacy-link {
+  margin-top: 18rpx;
+  color: #2f6df6;
+  font-size: 25rpx;
+  font-weight: 900;
+}
+
+.bottom-actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  gap: 18rpx;
+  padding: 20rpx 28rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1rpx solid rgba(219, 228, 242, 0.95);
+}
+
+.half-button {
+  width: 210rpx;
+}
+
+.grow-button {
+  flex: 1;
+}

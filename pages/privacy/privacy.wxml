@@ -1,0 +1,22 @@
+<view class="page">
+  <view class="privacy-card card">
+    <text class="eyebrow">PRIVACY</text>
+    <text class="h1">GeoGi 隐私说明</text>
+    <text class="lead">我们只会把你提交的信息用于品牌 AI 可见度诊断、服务沟通、报告制作和后续复测。</text>
+  </view>
+
+  <view class="section privacy-card card">
+    <text class="privacy-title">我们会如何使用资料</text>
+    <text class="body">品牌名称、行业、业务、官方渠道、竞品和联系方式会用于品牌档案核验、测试问题设计、五平台人工测试和报告解读。</text>
+  </view>
+
+  <view class="section privacy-card card">
+    <text class="privacy-title">我们不会做什么</text>
+    <text class="body">未经单独授权，不公开客户名称、内部资料、联系人、未发布产品或原始诊断报告。案例展示会先脱敏或取得授权。</text>
+  </view>
+
+  <view class="section privacy-card card">
+    <text class="privacy-title">数据安全边界</text>
+    <text class="body">正式版本中，飞书令牌、Webhook 和访问密钥不会写入小程序前端；所有写入与通知会通过云函数或后端完成。</text>
+  </view>
+</view>

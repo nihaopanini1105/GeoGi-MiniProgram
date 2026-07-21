@@ -36,6 +36,6 @@ Page({
   },
 
   goContact() {
-    wx.switchTab({ url: '/pages/contact/contact' });
+    wx.navigateTo({ url: '/pages/contact/contact' });
   }
 });

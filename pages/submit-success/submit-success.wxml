@@ -1,0 +1,31 @@
+<view class="page">
+  <view class="success-card card">
+    <view class="success-icon">✓</view>
+    <text class="h1">已收到诊断申请</text>
+    <text class="lead">你的资料已保存在本地演示记录中。正式接入后，这里会同步创建飞书客户记录并通知负责人。</text>
+  </view>
+
+  <view class="section card next-card">
+    <text class="block-title">接下来会发生什么</text>
+    <view class="next-row" wx:for="{{nextSteps}}" wx:key="*this">
+      <text class="next-num">0{{index + 1}}</text>
+      <text>{{item}}</text>
+    </view>
+  </view>
+
+  <view class="section card contact-card">
+    <text class="block-title">建议添加企业微信</text>
+    <text class="body">提交后不要干等。添加顾问可以更快确认品牌主体、服务范围和报告交付周期。</text>
+    <button class="primary-button full-button" bindtap="goContact">联系顾问</button>
+  </view>
+
+  <view class="section card article-card">
+    <text class="block-title">等待期间可以先读</text>
+    <view class="article-row" wx:for="{{articles}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
+      <text>{{item.title}}</text>
+      <text class="arrow">›</text>
+    </view>
+  </view>
+
+  <button class="secondary-button full-button home-button" bindtap="goHome">返回首页</button>
+</view>

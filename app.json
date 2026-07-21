@@ -1,8 +1,13 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/diagnosis/diagnosis",
+    "pages/submit-success/submit-success",
     "pages/services/services",
+    "pages/sample-report/sample-report",
     "pages/research/research",
+    "pages/research-detail/research-detail",
+    "pages/privacy/privacy",
     "pages/contact/contact"
   ],
   "window": {
@@ -23,16 +28,12 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/services/services",
-        "text": "服务"
+        "pagePath": "pages/diagnosis/diagnosis",
+        "text": "品牌诊断"
       },
       {
         "pagePath": "pages/research/research",
-        "text": "研究"
-      },
-      {
-        "pagePath": "pages/contact/contact",
-        "text": "联系"
+        "text": "研究中心"
       }
     ]
   },
