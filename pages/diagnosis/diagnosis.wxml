@@ -77,29 +77,34 @@
 
       <view class="field">
         <text class="field-label">您的品牌主要属于哪个行业？</text>
-        <view class="chip-grid">
-          <button wx:for="{{industries}}" wx:key="*this" data-value="{{item}}" bindtap="chooseIndustry" class="select-chip {{form.industry == item ? 'active' : ''}}">{{item}}</button>
-        </view>
+        <picker mode="selector" range="{{industries}}" value="{{industryIndex}}" bindchange="chooseIndustry">
+          <view class="select-field {{form.industry ? '' : 'empty'}}">
+            <text>{{form.industry || '请选择所属行业'}}</text>
+            <view class="select-arrow"></view>
+          </view>
+        </picker>
         <text wx:if="{{fieldErrors.industry}}" class="field-error">{{fieldErrors.industry}}</text>
       </view>
 
       <view class="field">
         <text class="field-label">您的品牌具体从事哪一类业务？</text>
-        <input value="{{form.segment}}" data-key="segment" bindinput="updateField" placeholder="例如：高端定制旅行 / 企业 AI 培训" placeholder-class="placeholder" />
+        <picker mode="selector" range="{{segmentOptions}}" value="{{segmentIndex}}" bindchange="chooseSegment">
+          <view class="select-field {{form.segment ? '' : 'empty'}}">
+            <text>{{form.segment || '请选择细分业务领域'}}</text>
+            <view class="select-arrow"></view>
+          </view>
+        </picker>
         <text wx:if="{{fieldErrors.segment}}" class="field-error">{{fieldErrors.segment}}</text>
       </view>
 
       <view class="field">
-        <text class="field-label">在哪里可以了解您的品牌？</text>
-        <input value="{{form.officialChannel}}" data-key="officialChannel" bindinput="updateField" placeholder="官网、公众号、店铺链接；暂无可不填" placeholder-class="placeholder" />
-      </view>
-
-      <view class="field">
         <text class="field-label">您的产品或服务主要面向哪些市场？</text>
-        <view class="chip-grid">
-          <button wx:for="{{markets}}" wx:key="label" data-value="{{item.label}}" bindtap="toggleMarket" class="select-chip {{item.selected ? 'active' : ''}}">{{item.label}}</button>
-        </view>
-        <input class="field-extra" value="{{form.targetMarketOther}}" data-key="targetMarketOther" bindinput="updateField" placeholder="其他市场可补充填写" placeholder-class="placeholder" />
+        <picker mode="selector" range="{{marketOptions}}" value="{{marketIndex}}" bindchange="chooseMarket">
+          <view class="select-field {{form.targetMarket.length ? '' : 'empty'}}">
+            <text>{{form.targetMarket.length ? form.targetMarket[0] : '请选择主要市场'}}</text>
+            <view class="select-arrow"></view>
+          </view>
+        </picker>
         <text wx:if="{{fieldErrors.targetMarket}}" class="field-error">{{fieldErrors.targetMarket}}</text>
       </view>
     </view>
@@ -109,19 +114,19 @@
 
       <view class="field">
         <text class="field-label">您最希望 AI 了解或推荐哪些产品与服务？</text>
-        <textarea value="{{form.offerings}}" maxlength="300" data-key="offerings" bindinput="updateField" placeholder="用普通经营语言说明即可" placeholder-class="placeholder" />
+        <textarea class="auto-textarea" auto-height="{{true}}" show-confirm-bar="{{false}}" value="{{form.offerings}}" maxlength="300" data-key="offerings" bindinput="updateField" placeholder="用普通经营语言说明即可" placeholder-class="placeholder" />
         <text wx:if="{{fieldErrors.offerings}}" class="field-error">{{fieldErrors.offerings}}</text>
       </view>
 
       <view class="field">
         <text class="field-label">您的主要客户是谁？他们通常希望解决什么问题？</text>
-        <textarea value="{{form.audiences}}" maxlength="300" data-key="audiences" bindinput="updateField" placeholder="例如：亲子家庭希望节省行程规划时间" placeholder-class="placeholder" />
+        <textarea class="auto-textarea" auto-height="{{true}}" show-confirm-bar="{{false}}" value="{{form.audiences}}" maxlength="300" data-key="audiences" bindinput="updateField" placeholder="例如：亲子家庭希望节省行程规划时间" placeholder-class="placeholder" />
         <text wx:if="{{fieldErrors.audiences}}" class="field-error">{{fieldErrors.audiences}}</text>
       </view>
 
       <view class="field">
         <text class="field-label">客户通常因为什么选择您？</text>
-        <textarea value="{{form.advantages}}" maxlength="260" data-key="advantages" bindinput="updateField" placeholder="可选，例如服务经验、价格、案例或资源优势" placeholder-class="placeholder" />
+        <textarea class="auto-textarea" auto-height="{{true}}" show-confirm-bar="{{false}}" value="{{form.advantages}}" maxlength="260" data-key="advantages" bindinput="updateField" placeholder="可选，例如服务经验、价格、案例或资源优势" placeholder-class="placeholder" />
       </view>
 
       <view class="field">
@@ -171,7 +176,7 @@
 
       <view class="field">
         <text class="field-label">补充说明</text>
-        <textarea value="{{form.message}}" maxlength="150" data-key="message" bindinput="updateField" placeholder="可写期望上线时间或优先关注的问题" placeholder-class="placeholder" />
+        <textarea class="auto-textarea" auto-height="{{true}}" show-confirm-bar="{{false}}" value="{{form.message}}" maxlength="150" data-key="message" bindinput="updateField" placeholder="可写期望上线时间或优先关注的问题" placeholder-class="placeholder" />
       </view>
 
       <view class="privacy-row" bindtap="togglePrivacy">

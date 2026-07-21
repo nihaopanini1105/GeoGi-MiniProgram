@@ -13,7 +13,6 @@ const initialForm = {
   segment: '',
   officialChannel: '',
   targetMarket: [],
-  targetMarketOther: '',
   offerings: '',
   audiences: '',
   advantages: '',
@@ -33,6 +32,9 @@ Page({
     submitting: false,
     fieldErrors: {},
     form: { ...initialForm },
+    industryIndex: 0,
+    segmentIndex: 0,
+    marketIndex: 0,
     assets,
     platforms: platforms.filter((item) => item.enabled),
     checks: [
@@ -44,13 +46,17 @@ Page({
     ],
     deliveries: ['品牌基础研究', '跨平台检测证据', '诊断结论', '优化建议'],
     industries: ['旅游与文旅', '企业服务', '软件与互联网', '消费品与零售', '教育培训', '医疗健康', '其他行业'],
-    markets: [
-      { label: '全国市场', selected: false },
-      { label: '本地市场', selected: false },
-      { label: '海外市场', selected: false },
-      { label: 'B2B 企业客户', selected: false },
-      { label: 'C 端消费者', selected: false }
-    ],
+    industrySegments: {
+      '旅游与文旅': ['定制旅行', '目的地服务', '景区/乐园', '酒店民宿', '文旅营销', '研学/亲子游', '其他文旅服务'],
+      '企业服务': ['品牌营销', '咨询服务', '人力资源', '财税法务', '销售获客', '企业培训', '其他企业服务'],
+      '软件与互联网': ['SaaS 软件', 'AI 工具', '数据服务', '电商平台', '内容社区', '开发者服务', '其他软件互联网'],
+      '消费品与零售': ['食品饮料', '美妆个护', '服饰配饰', '母婴亲子', '家居生活', '线下零售', '其他消费零售'],
+      '教育培训': ['职业教育', '企业培训', 'K12/素质教育', '留学语培', '知识付费', '教育科技', '其他教育培训'],
+      '医疗健康': ['健康管理', '医疗服务', '医美口腔', '营养保健', '康复护理', '医疗科技', '其他医疗健康'],
+      '其他行业': ['本地生活', '专业服务', '制造业', '房地产/空间', '公益/机构', '其他业务']
+    },
+    segmentOptions: ['定制旅行', '目的地服务', '景区/乐园', '酒店民宿', '文旅营销', '研学/亲子游', '其他文旅服务'],
+    marketOptions: ['全国市场', '本地市场', '全球市场', '海外市场', 'B2B 企业客户', 'C 端消费者'],
     goalOptions: [
       { label: 'AI 是否会主动推荐我的品牌', selected: false },
       { label: '检查品牌信息是否准确', selected: false },
@@ -67,7 +73,10 @@ Page({
       this.setData({
         started: Boolean(options.start) || this.hasDraftContent(form),
         form,
-        markets: this.syncMarketOptions(form.targetMarket),
+        industryIndex: this.getOptionIndex(this.data.industries, form.industry),
+        segmentOptions: this.getSegmentOptions(form.industry),
+        segmentIndex: this.getOptionIndex(this.getSegmentOptions(form.industry), form.segment),
+        marketIndex: this.getOptionIndex(this.data.marketOptions, form.targetMarket[0]),
         goalOptions: this.syncGoalOptions(form.goals)
       });
     } else if (options.start) {
@@ -80,7 +89,7 @@ Page({
       ...this.data.form,
       submissionId: this.data.form.submissionId || this.makeSubmissionId()
     };
-    this.setData({ started: true, form });
+    this.setData({ started: true, form }, this.scrollToTop);
     wx.setStorageSync(draftKey, form);
     track('form_start', { source: 'diagnosis_entry' });
   },
@@ -92,20 +101,25 @@ Page({
   },
 
   chooseIndustry(event) {
-    this.setFormValue('industry', event.currentTarget.dataset.value);
+    const index = Number(event.detail.value);
+    const industry = this.data.industries[index];
+    const segmentOptions = this.getSegmentOptions(industry);
+    this.setData({ industryIndex: index });
+    this.setData({ segmentOptions, segmentIndex: 0 });
+    this.setFormValue('industry', industry);
+    this.setFormValue('segment', '');
   },
 
-  toggleMarket(event) {
-    const value = event.currentTarget.dataset.value;
-    const targetMarket = [...this.data.form.targetMarket];
-    const index = targetMarket.indexOf(value);
-    if (index >= 0) {
-      targetMarket.splice(index, 1);
-    } else {
-      targetMarket.push(value);
-    }
-    this.setFormValue('targetMarket', targetMarket);
-    this.setData({ markets: this.syncMarketOptions(targetMarket) });
+  chooseSegment(event) {
+    const index = Number(event.detail.value);
+    this.setData({ segmentIndex: index });
+    this.setFormValue('segment', this.data.segmentOptions[index]);
+  },
+
+  chooseMarket(event) {
+    const index = Number(event.detail.value);
+    this.setData({ marketIndex: index });
+    this.setFormValue('targetMarket', [this.data.marketOptions[index]]);
   },
 
   toggleGoal(event) {
@@ -204,21 +218,23 @@ Page({
     }));
   },
 
-  syncMarketOptions(selectedMarkets) {
-    return this.data.markets.map((item) => ({
-      ...item,
-      selected: selectedMarkets.indexOf(item.label) >= 0
-    }));
+  getOptionIndex(options, value) {
+    const index = options.indexOf(value);
+    return index >= 0 ? index : 0;
+  },
+
+  getSegmentOptions(industry) {
+    return this.data.industrySegments[industry] || this.data.industrySegments['其他行业'];
   },
 
   nextStep() {
     if (!this.validateStep(this.data.step)) return;
     track('form_step_complete', { step: this.data.step });
-    this.setData({ step: Math.min(this.data.step + 1, 3), fieldErrors: {} });
+    this.setData({ step: Math.min(this.data.step + 1, 3), fieldErrors: {} }, this.scrollToTop);
   },
 
   prevStep() {
-    this.setData({ step: Math.max(this.data.step - 1, 1), fieldErrors: {} });
+    this.setData({ step: Math.max(this.data.step - 1, 1), fieldErrors: {} }, this.scrollToTop);
   },
 
   validateStep(step) {
@@ -229,7 +245,7 @@ Page({
       if (!form.brandName) errors.brandName = '请填写品牌名称';
       if (!form.industry) errors.industry = '请选择所属行业';
       if (!form.segment) errors.segment = '请填写细分业务领域';
-      if (!form.targetMarket.length && !form.targetMarketOther) errors.targetMarket = '请选择或填写主要市场';
+      if (!form.targetMarket.length) errors.targetMarket = '请选择主要市场';
     }
 
     if (step === 2) {
@@ -333,11 +349,13 @@ Page({
   },
 
   normalizeForm(form) {
+    const normalized = { ...form };
+    delete normalized.targetMarketOther;
     return {
-      ...form,
-      targetMarket: Array.isArray(form.targetMarket) ? form.targetMarket : [],
-      goals: Array.isArray(form.goals) ? form.goals : [],
-      uploads: Array.isArray(form.uploads) ? form.uploads : []
+      ...normalized,
+      targetMarket: Array.isArray(normalized.targetMarket) ? normalized.targetMarket : [],
+      goals: Array.isArray(normalized.goals) ? normalized.goals : [],
+      uploads: Array.isArray(normalized.uploads) ? normalized.uploads : []
     };
   },
 
@@ -362,9 +380,19 @@ Page({
       submitting: false,
       fieldErrors: {},
       form: { ...initialForm },
-      markets: this.syncMarketOptions([]),
+      industryIndex: 0,
+      segmentIndex: 0,
+      segmentOptions: this.getSegmentOptions(this.data.industries[0]),
+      marketIndex: 0,
       goalOptions: this.syncGoalOptions([]),
       step: 1
+    });
+  },
+
+  scrollToTop() {
+    wx.pageScrollTo({
+      scrollTop: 0,
+      duration: 180
     });
   },
 

@@ -230,7 +230,8 @@
 }
 
 input,
-textarea {
+textarea,
+.select-field {
   width: 100%;
   border: 1rpx solid #dbe4f2;
   border-radius: 24rpx;
@@ -245,13 +246,37 @@ input {
 }
 
 textarea {
-  min-height: 176rpx;
-  padding: 22rpx 24rpx;
-  line-height: 1.6;
+  min-height: 92rpx;
+  padding: 25rpx 24rpx;
+  line-height: 1.45;
 }
 
-.field-extra {
-  margin-top: 16rpx;
+.auto-textarea {
+  max-height: 260rpx;
+}
+
+.select-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  min-height: 92rpx;
+  padding: 0 24rpx;
+  color: #0d1b4c;
+  font-size: 28rpx;
+}
+
+.select-field.empty {
+  color: #9aa8c0;
+}
+
+.select-arrow {
+  width: 16rpx;
+  height: 16rpx;
+  border-right: 3rpx solid #6b7897;
+  border-bottom: 3rpx solid #6b7897;
+  transform: rotate(45deg);
+  flex: 0 0 auto;
 }
 
 .placeholder {
