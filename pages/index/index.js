@@ -81,7 +81,7 @@ Page({
       article_id: id,
       category: article ? article.category : ''
     });
-    wx.navigateTo({ url: `/pages/research-detail/research-detail?id=${id}` });
+    wx.switchTab({ url: '/pages/research/research' });
   },
 
   openEntry(event) {

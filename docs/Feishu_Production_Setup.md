@@ -15,10 +15,10 @@
 
 研究中心正式链路为：
 
-1. 运营在飞书内容表维护文章
-2. 小程序请求你的 HTTPS 服务器接口 `GET /api/articles`
-3. 服务器读取飞书多维表格中 `已发布` 的文章
-4. 小程序展示分类列表和文章入口
+1. 运营在 GeoGi 官网维护研究中心内容
+2. 小程序 `研究中心` Tab 通过 `web-view` 直接打开 `https://www.geogi.cn`
+3. 微信公众平台需要配置业务域名 `www.geogi.cn`
+4. 飞书内容表接口保留为后续备用方案
 
 重要原则：
 
@@ -349,16 +349,16 @@ table=<table_id>
 - 签名密钥是否填入 `FEISHU_NOTIFY_SECRET`
 - 如果使用应用机器人，接收人 ID 类型是否正确
 
-### 研究中心仍显示示例内容
+### 研究中心官网打不开
 
-说明 `GET /api/articles` 未读取到飞书文章。
+说明小程序 `web-view` 无法打开 `https://www.geogi.cn`。
 
 检查：
 
-- `FEISHU_CONTENT_APP_TOKEN`
-- `FEISHU_ARTICLES_TABLE_ID`
-- 文章状态是否为 `已发布`
-- 标题、摘要、分类、发布日期字段是否存在
+- 微信公众平台是否配置业务域名 `www.geogi.cn`
+- 官网是否已经开启 HTTPS
+- 官网域名是否完成微信业务域名校验文件上传
+- 开发者工具是否临时勾选了“不校验合法域名、web-view 域名”
 
 ## 13. 安全要求
 
@@ -380,7 +380,7 @@ table=<table_id>
 - `GET /api/config`
 - `GET /api/sample-report`
 - 表单提交正式链路
-- 研究中心飞书读取兜底逻辑
+- 研究中心官网直连
 - 飞书配置文档
 
 待你在后台配置：

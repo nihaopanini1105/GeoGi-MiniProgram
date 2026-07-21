@@ -29,6 +29,6 @@ Page({
   },
 
   openArticle(event) {
-    wx.navigateTo({ url: `/pages/research-detail/research-detail?id=${event.currentTarget.dataset.id}` });
+    wx.switchTab({ url: '/pages/research/research' });
   }
 });
