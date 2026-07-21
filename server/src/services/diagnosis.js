@@ -97,7 +97,7 @@ async function submitDiagnosis(input) {
           通知状态: notification.status,
           通知发送时间: notification.sentAt,
           通知错误: notification.error,
-          通知重试次数: notification.retryCount
+          通知重试次数: String(notification.retryCount)
         }
       });
     }
@@ -182,7 +182,7 @@ function buildLeadFields({ form, clientId, projectId, submittedAt, source }) {
     联系人: form.contactName,
     联系方式: form.contactMethod,
     补充说明: form.message,
-    隐私授权: form.privacyAccepted,
+    隐私授权: form.privacyAccepted ? 'true' : 'false',
     提交时间: submittedAt,
     当前状态: '新提交',
     负责人: process.env.DEFAULT_OWNER || 'GeoGi 负责人',
@@ -190,7 +190,7 @@ function buildLeadFields({ form, clientId, projectId, submittedAt, source }) {
     通知状态: '待发送',
     通知发送时间: '',
     通知错误: '',
-    通知重试次数: 0,
+    通知重试次数: '0',
     来源: source
   };
 }
