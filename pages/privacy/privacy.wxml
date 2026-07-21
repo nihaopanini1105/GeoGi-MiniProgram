@@ -17,6 +17,6 @@
 
   <view class="section privacy-card card">
     <text class="privacy-title">数据安全边界</text>
-    <text class="body">正式版本中，飞书令牌、Webhook 和访问密钥不会写入小程序前端；所有写入与通知会通过云函数或后端完成。</text>
+    <text class="body">正式版本中，飞书令牌、Webhook 和访问密钥不会写入小程序前端；所有写入与通知会通过你的服务器后端完成。</text>
   </view>
 </view>

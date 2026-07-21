@@ -14,6 +14,8 @@ const initialForm = {
   privacyAccepted: false
 };
 
+const { post, isApiConfigured } = require('../../utils/request');
+
 Page({
   data: {
     step: 1,
@@ -125,22 +127,20 @@ Page({
       submittedAt
     };
 
-    if (!wx.cloud || !wx.cloud.callFunction) {
+    if (!isApiConfigured()) {
       wx.showToast({
-        title: '请先开通云开发环境',
+        title: '请先配置服务器域名',
         icon: 'none'
       });
       this.setData({ submitting: false });
       return;
     }
 
-    wx.cloud.callFunction({
-      name: 'submitDiagnosis',
-      data: {
+    post('/api/diagnosis/submit', {
         form: payload,
         source: 'wechat_miniprogram'
-      },
-      success: ({ result }) => {
+      })
+      .then((result) => {
         if (!result || !result.ok) {
           wx.showToast({
             title: result && result.userMessage ? result.userMessage : '提交失败，请稍后重试',
@@ -158,17 +158,19 @@ Page({
         wx.removeStorageSync('geogi_diagnosis_draft');
         this.resetForm();
         wx.navigateTo({ url: '/pages/submit-success/submit-success' });
-      },
-      fail: () => {
+      })
+      .catch((error) => {
+        const message = error && error.message === 'API_BASE_URL_NOT_CONFIGURED'
+          ? '请先配置服务器域名'
+          : '提交失败，资料已保留';
         wx.showToast({
-          title: '提交失败，资料已保留',
+          title: message,
           icon: 'none'
         });
-      },
-      complete: () => {
+      })
+      .finally(() => {
         this.setData({ submitting: false });
-      }
-    });
+      });
   },
 
   resetForm() {

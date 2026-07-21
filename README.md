@@ -22,7 +22,8 @@
 
 - 飞书配置手册：[Feishu_Production_Setup.md](docs/Feishu_Production_Setup.md)
 - 飞书字段字典：[Feishu_Bitable_Field_Dictionary.md](docs/Feishu_Bitable_Field_Dictionary.md)
-- 云函数：`cloudfunctions/submitDiagnosis`、`cloudfunctions/getResearchArticles`
+- 自有服务器接口：`server/`
+- 小程序接口域名配置：`config/api.js`
 
 ## 本地打开
 

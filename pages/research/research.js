@@ -22,6 +22,8 @@ const fallbackArticles = [
   }
 ];
 
+const { get, isApiConfigured } = require('../../utils/request');
+
 Page({
   data: {
     activeCategory: '全部',
@@ -37,7 +39,7 @@ Page({
   },
 
   loadArticles() {
-    if (!wx.cloud || !wx.cloud.callFunction) {
+    if (!isApiConfigured()) {
       this.setData({
         articles: fallbackArticles,
         filteredArticles: fallbackArticles,
@@ -48,12 +50,10 @@ Page({
     }
 
     this.setData({ loading: true });
-    wx.cloud.callFunction({
-      name: 'getResearchArticles',
-      data: {
-        limit: 50
-      },
-      success: ({ result }) => {
+    get('/api/research/articles', {
+      limit: 50
+    })
+      .then((result) => {
         const articles = result && result.ok && result.articles && result.articles.length
           ? result.articles
           : fallbackArticles;
@@ -63,18 +63,17 @@ Page({
           usingFallback: articles === fallbackArticles
         });
         this.applyCategory(this.data.activeCategory, articles);
-      },
-      fail: () => {
+      })
+      .catch(() => {
         this.setData({
           articles: fallbackArticles,
           usingFallback: true
         });
         this.applyCategory(this.data.activeCategory, fallbackArticles);
-      },
-      complete: () => {
+      })
+      .finally(() => {
         this.setData({ loading: false });
-      }
-    });
+      });
   },
 
   changeCategory(event) {
