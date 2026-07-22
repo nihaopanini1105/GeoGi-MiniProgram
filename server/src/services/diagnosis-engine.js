@@ -163,9 +163,13 @@ function inferCategoryProfile(context) {
 function generateSources({ context, projectId, submittedAt }) {
   const records = [];
   const officialUrls = extractUrls(context.officialChannel);
+  let order = 0;
+  const addRecord = (layer, fields) => {
+    records.push(withWorkbenchMeta({ context, projectId, layer, order: order += 1, fields }));
+  };
 
   if (context.officialChannel) {
-    records.push({
+    addRecord('01 官方与主体', {
       项目编号: projectId,
       品牌名称: context.brandName,
       信源名称: officialUrls.length ? '客户提供的官方渠道' : '客户提供的官方渠道说明',
@@ -178,7 +182,7 @@ function generateSources({ context, projectId, submittedAt }) {
       采集时间: submittedAt
     });
   } else {
-    records.push({
+    addRecord('01 官方与主体', {
       项目编号: projectId,
       品牌名称: context.brandName,
       信源名称: `${context.brandName} 官方渠道检索`,
@@ -193,7 +197,7 @@ function generateSources({ context, projectId, submittedAt }) {
   }
 
   for (const upload of context.uploads.slice(0, 3)) {
-    records.push({
+    addRecord('01 官方与主体', {
       项目编号: projectId,
       品牌名称: context.brandName,
       信源名称: upload.name || upload.fileId || '客户上传资料',
@@ -213,6 +217,14 @@ function generateSources({ context, projectId, submittedAt }) {
     [`${context.brandName} ${context.profile.productWord}`, '品牌品类检索', `核验品牌与${context.profile.productWord}的关联是否清晰`]
   ];
 
+  if (context.profile.featuredProduct) {
+    searchTasks.push(
+      [`${context.brandName} ${context.profile.featuredProduct} 官方`, '产品归属检索', `核验“${context.profile.featuredProduct}”是否为${context.brandName}官方产品、系列或服务`],
+      [`${context.profile.featuredProduct} ${context.brandName} 口碑 价格 卖点`, '产品卖点检索', `了解“${context.profile.featuredProduct}”的产品特性、市场卖点、用户评价和风险点`],
+      [`${context.profile.featuredProduct} 是什么 ${context.profile.productWord}`, '产品品类检索', `判断“${context.profile.featuredProduct}”属于具体产品、系列名还是行业通用品类`]
+    );
+  }
+
   for (const [angle, type, note] of context.profile.sourceAngles) {
     searchTasks.push([`${context.brandName} ${angle}`, type, note]);
   }
@@ -231,12 +243,12 @@ function generateSources({ context, projectId, submittedAt }) {
 
   for (const [query, type, note] of searchTasks) {
     if (!query.trim()) continue;
-    records.push({
+    addRecord(layerFromSourceType(type), {
       项目编号: projectId,
       品牌名称: context.brandName,
       信源名称: query,
       信源类型: type,
-      链接: '',
+      链接: buildSearchUrl(query),
       是否官方: '待核验',
       可信度: '待核验',
       核心信息摘要: `围绕${context.profile.categoryName}自动生成的待检索任务：${query}`,
@@ -250,10 +262,17 @@ function generateSources({ context, projectId, submittedAt }) {
 
 function generateKeywords({ context, projectId }) {
   const records = [];
+  let order = 0;
   const add = (keyword, type, intent, priority = '中', note = 'P1 自动生成，待人工审核') => {
     const cleanKeyword = normalizeKeyword(keyword);
     if (!cleanKeyword) return;
-    records.push({
+    order += 1;
+    records.push(withWorkbenchMeta({
+      context,
+      projectId,
+      layer: layerFromKeywordType(type),
+      order,
+      fields: {
       项目编号: projectId,
       品牌名称: context.brandName,
       关键词: cleanKeyword,
@@ -261,7 +280,8 @@ function generateKeywords({ context, projectId }) {
       用户意图: intent,
       优先级: priority,
       备注: note
-    });
+      }
+    }));
   };
 
   add(context.brandName, '品牌词', '用户直接查询品牌', '高');
@@ -322,9 +342,16 @@ function generateIndustryQuestions({ context, projectId }) {
   const market = context.markets[0] || '中国市场';
   const globalMarket = context.markets.find((item) => /全球|海外|国际|出海/.test(item)) || '海外市场';
   const records = [];
+  let order = 0;
 
   const add = (question, type, scene, priority = '中', included = '是') => {
-    records.push({
+    order += 1;
+    records.push(withWorkbenchMeta({
+      context,
+      projectId,
+      layer: layerFromQuestionType(type),
+      order,
+      fields: {
       项目编号: projectId,
       行业: industry,
       问题: question,
@@ -333,7 +360,8 @@ function generateIndustryQuestions({ context, projectId }) {
       优先级: priority,
       是否纳入检测: included,
       备注: `P1 自动生成，基于${profile.categoryName}品类画像和客户真实决策场景，需人工审核`
-    });
+      }
+    }));
   };
 
   const scenario = profile.scenarios[0] || '日常选择';
@@ -386,7 +414,12 @@ function generateAiQuestions({ industryQuestions, context, projectId }) {
 
   selected.forEach((question, questionIndex) => {
     DEFAULT_PLATFORMS.forEach((platform, platformIndex) => {
-      records.push({
+      records.push(withWorkbenchMeta({
+        context,
+        projectId,
+        layer: `05 AI检测/${platform}`,
+        order: questionIndex * DEFAULT_PLATFORMS.length + platformIndex + 1,
+        fields: {
         项目编号: projectId,
         问题编号: `Q${String(questionIndex + 1).padStart(3, '0')}-${String(platformIndex + 1).padStart(2, '0')}`,
         检测问题: question.问题,
@@ -396,7 +429,8 @@ function generateAiQuestions({ industryQuestions, context, projectId }) {
         检测状态: '待测试',
         负责人: process.env.DEFAULT_OWNER || 'GeoGi 负责人',
         备注: 'P1 自动生成。测试时需记录AI原始回答、是否提及品牌、是否主动推荐、引用信源。'
-      });
+        }
+      }));
     });
   });
 
@@ -417,6 +451,54 @@ function buildExpectedSignal(context, question) {
   return signals.join('；');
 }
 
+function withWorkbenchMeta({ context, projectId, layer, order, fields }) {
+  return {
+    品牌分组: brandGroup(context, projectId),
+    排序键: sortKey(context, projectId, layer, order),
+    信息层级: layer,
+    审核状态: '待人工审核',
+    ...fields
+  };
+}
+
+function brandGroup(context, projectId) {
+  return `${context.brandName || '未命名品牌'}｜${projectId}`;
+}
+
+function sortKey(context, projectId, layer, order) {
+  return [
+    context.brandName || '未命名品牌',
+    projectId,
+    layer || '99',
+    String(order || 0).padStart(3, '0')
+  ].join('｜');
+}
+
+function layerFromSourceType(type) {
+  if (/官方|官网|企业|资质/.test(type)) return '01 官方与主体';
+  if (/产品/.test(type)) return '02 产品与品类';
+  if (/用户|口碑|体验|趋势|渠道|成分|案例/.test(type)) return '03 用户决策';
+  if (/竞品/.test(type)) return '04 竞品对比';
+  if (/风险|舆情/.test(type)) return '06 风险核验';
+  return '03 用户决策';
+}
+
+function layerFromKeywordType(type) {
+  if (/品牌/.test(type)) return '01 品牌词';
+  if (/品类|产品|业务|行业/.test(type)) return '02 品类产品词';
+  if (/热门|决策|场景|优势/.test(type)) return '03 用户需求词';
+  if (/竞品/.test(type)) return '04 竞品词';
+  return '05 诊断词';
+}
+
+function layerFromQuestionType(type) {
+  if (/品牌|产品/.test(type)) return '01 品牌产品理解';
+  if (/推荐|选购|场景/.test(type)) return '02 用户决策问题';
+  if (/比较|竞品/.test(type)) return '03 竞品比较问题';
+  if (/信任|信源|准确/.test(type)) return '04 信源准确问题';
+  return '02 用户决策问题';
+}
+
 function normalizeKeyword(value) {
   return clean(value)
     .replace(/\bAI\s+/gi, 'AI')
@@ -434,6 +516,10 @@ function normalizeQuestionPhrase(value) {
 
 function extractUrls(value) {
   return String(value || '').match(/https?:\/\/[^\s，,、；;]+/g) || [];
+}
+
+function buildSearchUrl(query) {
+  return `https://www.baidu.com/s?wd=${encodeURIComponent(query)}`;
 }
 
 function extractPhrases(value) {

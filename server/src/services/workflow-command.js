@@ -311,13 +311,24 @@ function buildBrandProfileFields({ form, projectId, submittedAt }) {
     ...context.profile.purchaseCriteria.slice(0, 4).map((criterion) => `${context.brandName} ${context.profile.productWord} ${criterion}`)
   ];
   const riskNotes = context.profile.riskChecks.map((item) => `需核验${item}`).join('；');
+  const featuredProduct = context.profile.featuredProduct || form.offerings || '';
   return {
+    品牌分组: brandGroup(form, projectId),
+    排序键: sortKey(form, projectId, '02 品牌基础档案', 1),
     项目编号: projectId,
     客户编号: form.clientId,
     品牌标准名称: form.brandName,
     所属企业: form.companyName,
     行业: form.industry,
     细分业务: form.segment,
+    品类定位: context.profile.categoryName,
+    客户提供产品: featuredProduct,
+    产品归属判断: featuredProduct ? `“${featuredProduct}”按客户资料暂定为${form.brandName}的产品、系列或服务候选，不作为行业通用品类；需通过官方渠道和公开信源核验。` : '客户未单独提供产品名称，按核心产品/服务进行核验。',
+    产品核验任务: featuredProduct ? [
+      `${form.brandName} ${featuredProduct} 官方`,
+      `${featuredProduct} ${form.brandName} 价格 口碑 卖点`,
+      `${featuredProduct} 是什么 ${context.profile.productWord}`
+    ].join('\n') : `${form.brandName} ${context.profile.productWord} 官方 产品 服务`,
     目标市场: form.targetMarket.join('、'),
     '核心产品/服务': form.offerings,
     主要客户: form.audiences,
@@ -327,7 +338,9 @@ function buildBrandProfileFields({ form, projectId, submittedAt }) {
     竞品品牌: form.competitors || `待人工补充同品类${context.profile.productWord}品牌，用于对比AI推荐结果`,
     风险备注: riskNotes || '需核验官方主体、公开信息一致性、客户口碑和竞品压制情况',
     档案状态: '待核验',
-    最后更新: submittedAt
+    最后更新: submittedAt,
+    信息层级: '02 品牌基础档案',
+    审核状态: '待人工审核'
   };
 }
 
@@ -338,6 +351,8 @@ function buildTestRecord({ item, index, form, projectId, testedAt }) {
     ? `【链接读取状态】${item.extractionStatus}${item.extractionNote ? `：${item.extractionNote}` : ''}\n`
     : '';
   return {
+    品牌分组: brandGroup(form, projectId),
+    排序键: sortKey(form, projectId, `06 平台测试/${item.platform || '未标注平台'}`, index + 1),
     项目编号: projectId,
     问题编号: item.questionId || `MANUAL-${String(index + 1).padStart(2, '0')}`,
     平台: item.platform || '未标注平台',
@@ -350,7 +365,9 @@ function buildTestRecord({ item, index, form, projectId, testedAt }) {
     引用或信源: item.link || '',
     '证据截图/链接': item.link || '',
     测试时间: testedAt,
-    测试人: 'GeoGi 工作流'
+    测试人: 'GeoGi 工作流',
+    信息层级: `06 平台测试/${item.platform || '未标注平台'}`,
+    审核状态: '待人工审核'
   };
 }
 
@@ -362,6 +379,8 @@ function buildAnalysisRecord({ item, form, projectId }) {
   const competitorMentions = findCompetitors(answer, form.competitors);
 
   return {
+    品牌分组: brandGroup(form, projectId),
+    排序键: sortKey(form, projectId, `07 回答分析/${item.platform || '未标注平台'}`, 1),
     项目编号: projectId,
     平台: item.platform || '未标注平台',
     品牌识别得分: answer ? String(mentioned ? 80 : 20) : '待补充',
@@ -371,7 +390,9 @@ function buildAnalysisRecord({ item, form, projectId }) {
     信源可信度: buildSourceCredibility(item),
     核心问题: answer ? buildCoreIssue({ mentioned, recommended, accurate }) : buildMissingAnswerIssue(item),
     优化建议: buildOptimizationAdvice({ form, mentioned, recommended, accurate, hasAnswer: Boolean(answer) }),
-    分析状态: answer ? (item.extractionStatus ? `已生成初步分析（${item.extractionStatus}）` : '已生成初步分析') : '待补充回答原文'
+    分析状态: answer ? (item.extractionStatus ? `已生成初步分析（${item.extractionStatus}）` : '已生成初步分析') : '待补充回答原文',
+    信息层级: `07 回答分析/${item.platform || '未标注平台'}`,
+    审核状态: answer ? '待人工审核' : '待补充材料'
   };
 }
 
@@ -387,6 +408,8 @@ function buildReportFields({ conversations, analyses, form, projectId, testedAt 
   ].join('\n');
 
   return {
+    品牌分组: brandGroup(form, projectId),
+    排序键: sortKey(form, projectId, '08 报告管理', 1),
     项目编号: projectId,
     客户编号: form.clientId,
     品牌名称: form.brandName,
@@ -401,7 +424,9 @@ function buildReportFields({ conversations, analyses, form, projectId, testedAt 
       '确认AI回答中说错、漏说或被竞品压制的内容，形成正式优化清单。'
     ].join('\n'),
     创建时间: testedAt,
-    更新时间: testedAt
+    更新时间: testedAt,
+    信息层级: '08 报告管理',
+    审核状态: answered ? '待人工审核' : '待补充材料'
   };
 }
 
@@ -611,6 +636,19 @@ function yesNo(value) {
 function findCompetitors(answer, competitors) {
   const names = splitList(competitors);
   return names.filter((name) => answer && answer.includes(name)).join('、');
+}
+
+function brandGroup(form, projectId) {
+  return `${form.brandName || '未命名品牌'}｜${projectId}`;
+}
+
+function sortKey(form, projectId, layer, order) {
+  return [
+    form.brandName || '未命名品牌',
+    projectId,
+    layer || '99',
+    String(order || 0).padStart(3, '0')
+  ].join('｜');
 }
 
 function hasUsableAnswer(item) {

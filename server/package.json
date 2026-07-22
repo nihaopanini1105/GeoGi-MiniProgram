@@ -8,6 +8,7 @@
     "dev": "node src/server.js",
     "setup:feishu-fields": "node src/scripts/setup-feishu-fields.js",
     "setup:diagnosis-workbench": "node src/scripts/setup-diagnosis-workbench.js",
+    "clear:workbench": "node src/scripts/clear-workbench-data.js --confirm",
     "workflow:command": "node src/scripts/run-workflow-command.js"
   },
   "dependencies": {

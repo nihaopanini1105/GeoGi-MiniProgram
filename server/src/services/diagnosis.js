@@ -212,6 +212,8 @@ function validateForm(form) {
 
 function buildLeadFields({ form, clientId, projectId, submittedAt, source }) {
   return {
+    品牌分组: brandGroup(form, projectId),
+    排序键: sortKey(form, projectId, '01 客户提交', 1),
     提交ID: form.submissionId,
     客户编号: clientId,
     项目编号: projectId,
@@ -239,7 +241,8 @@ function buildLeadFields({ form, clientId, projectId, submittedAt, source }) {
     通知发送时间: '',
     通知错误: '',
     通知重试次数: '0',
-    来源: source
+    来源: source,
+    审核状态: '待人工审核'
   };
 }
 
@@ -312,6 +315,8 @@ async function findExistingProject({ tenantToken, tableId, projectId }) {
 
 function buildProjectFields({ form, clientId, projectId, submittedAt, leadRecordUrl }) {
   return {
+    品牌分组: brandGroup(form, projectId),
+    排序键: sortKey(form, projectId, '01 诊断项目', 1),
     项目编号: projectId,
     客户编号: clientId,
     品牌名称: form.brandName,
@@ -323,7 +328,9 @@ function buildProjectFields({ form, clientId, projectId, submittedAt, leadRecord
     预计交付时间: '',
     实际交付时间: '',
     客户确认范围: form.goals.join('、'),
-    内部备注: leadRecordUrl ? `客户提交记录：${leadRecordUrl}\n审核后在飞书群触发：开始品牌信息补齐和问题生成 项目编号 ${projectId}` : '由小程序提交自动创建'
+    内部备注: leadRecordUrl ? `客户提交记录：${leadRecordUrl}\n审核后在飞书群触发：开始品牌信息补齐和问题生成 项目编号 ${projectId}` : '由小程序提交自动创建',
+    信息层级: '01 诊断项目',
+    审核状态: '待人工审核'
   };
 }
 
@@ -420,6 +427,19 @@ function splitCompetitors(value) {
     .split(/[、,，\n]/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function brandGroup(form, projectId) {
+  return `${form.brandName || '未命名品牌'}｜${projectId}`;
+}
+
+function sortKey(form, projectId, layer, order) {
+  return [
+    form.brandName || '未命名品牌',
+    projectId,
+    layer || '99',
+    String(order || 0).padStart(3, '0')
+  ].join('｜');
 }
 
 function text(value) {

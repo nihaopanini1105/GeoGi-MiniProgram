@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const https = require('https');
 
 const fields = [
+  '品牌分组',
+  '排序键',
   '提交ID',
   '客户编号',
   '项目编号',
@@ -32,7 +34,8 @@ const fields = [
   '通知错误',
   '通知重试次数',
   '来源',
-  '小程序OpenID'
+  '小程序OpenID',
+  '审核状态'
 ];
 
 async function main() {
