@@ -3,6 +3,7 @@ const {
   createBitableRecord,
   createBitableRecords,
   updateBitableRecord,
+  deleteBitableRecords,
   listBitableRecords,
   sendWebhookText
 } = require('./feishu');
@@ -142,10 +143,10 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     projectId,
     testedAt
   }));
-  await createBitableRecords({
+  const testReplace = await replaceProjectRecords({
     tenantToken,
-    appToken: process.env.FEISHU_BASE_APP_TOKEN,
     tableId: process.env.FEISHU_TEST_RECORDS_TABLE_ID,
+    projectId,
     records: testRecords
   });
 
@@ -154,10 +155,10 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     form,
     projectId
   }));
-  await createBitableRecords({
+  const analysisReplace = await replaceProjectRecords({
     tenantToken,
-    appToken: process.env.FEISHU_BASE_APP_TOKEN,
     tableId: process.env.FEISHU_ANALYSIS_TABLE_ID,
+    projectId,
     records: analyses
   });
 
@@ -182,6 +183,11 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     report.交付说明 = `${report.交付说明}\nPDF生成状态：${pdfResult.userMessage || '生成失败，需检查服务器PDF依赖。'}`;
   }
 
+  const removedReports = await clearProjectRecords({
+    tenantToken,
+    tableId: process.env.FEISHU_REPORTS_TABLE_ID,
+    projectId
+  });
   const reportResult = await createBitableRecord({
     tenantToken,
     appToken: process.env.FEISHU_BASE_APP_TOKEN,
@@ -227,6 +233,7 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     `已读取AI平台分享链接：${linkedConversations.length} 条`,
     `已拆分问答记录：${conversations.length} 条`,
     `已生成分析结果：${analyses.length} 条`,
+    `飞书记录刷新：平台测试删除旧版 ${testReplace.deleted} 条，回答分析删除旧版 ${analysisReplace.deleted} 条，报告删除旧版 ${removedReports} 条`,
     extracted ? `自动读取分享链接：${extracted} 条` : '',
     partial ? `部分平台读取受限或只读到摘要：${partial} 条` : '',
     needsAnswerText ? `提醒：有 ${needsAnswerText} 条链接未读取到回答正文，报告结论已标记为待补充。` : 'AI回答原文已纳入分析。',
@@ -672,6 +679,35 @@ async function refreshGeneratedRecords({ tenantToken, tableId, projectId, record
     updated,
     skipped: Math.max(existing.length - records.length, 0)
   };
+}
+
+async function replaceProjectRecords({ tenantToken, tableId, projectId, records }) {
+  const deleted = await clearProjectRecords({ tenantToken, tableId, projectId });
+  await createBitableRecords({
+    tenantToken,
+    appToken: process.env.FEISHU_BASE_APP_TOKEN,
+    tableId,
+    records
+  });
+  return {
+    created: records.length,
+    deleted
+  };
+}
+
+async function clearProjectRecords({ tenantToken, tableId, projectId }) {
+  if (!tableId) return 0;
+  const existing = await listByProject({ tenantToken, tableId, projectId });
+  const recordIds = existing.map((record) => record.record_id).filter(Boolean);
+  for (let index = 0; index < recordIds.length; index += 100) {
+    await deleteBitableRecords({
+      tenantToken,
+      appToken: process.env.FEISHU_BASE_APP_TOKEN,
+      tableId,
+      recordIds: recordIds.slice(index, index + 100)
+    });
+  }
+  return recordIds.length;
 }
 
 async function findOneByProject({ tenantToken, tableId, projectId }) {
