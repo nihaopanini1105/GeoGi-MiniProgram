@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const {
   getTenantAccessToken,
   createBitableRecord,
+  createBitableRecords,
   updateBitableRecord,
   listBitableRecords,
   sendWebhookText,
@@ -9,6 +10,7 @@ const {
   buildRecordUrl
 } = require('./feishu');
 const { nextMonthlyId } = require('./counter');
+const { generateDiagnosisAssets } = require('./diagnosis-engine');
 
 const REQUIRED_ENV = [
   'FEISHU_APP_ID',
@@ -232,12 +234,20 @@ async function initializeWorkbench({ tenantToken, form, clientId, projectId, sub
       tableId: brandProfileTableId,
       fields: buildBrandProfileFields({ form, clientId, projectId, submittedAt })
     });
+    const engineResult = await initializeDiagnosisEngine({
+      tenantToken,
+      appToken,
+      form,
+      projectId,
+      submittedAt
+    });
 
     return {
       ok: true,
-      status: '已创建项目与品牌档案',
+      status: engineResult.ok ? '已创建项目、品牌档案与P1诊断候选' : `已创建项目与品牌档案，${engineResult.status}`,
       projectRecordId: projectRecord && projectRecord.record && projectRecord.record.record_id,
-      brandProfileRecordId: brandProfileRecord && brandProfileRecord.record && brandProfileRecord.record.record_id
+      brandProfileRecordId: brandProfileRecord && brandProfileRecord.record && brandProfileRecord.record.record_id,
+      engine: engineResult
     };
   } catch (error) {
     return {
@@ -245,6 +255,107 @@ async function initializeWorkbench({ tenantToken, form, clientId, projectId, sub
       status: `工作台初始化失败：${(error && error.message ? error.message : String(error)).slice(0, 300)}`
     };
   }
+}
+
+async function initializeDiagnosisEngine({ tenantToken, appToken, form, projectId, submittedAt }) {
+  const tableMap = {
+    sources: process.env.FEISHU_SOURCES_TABLE_ID,
+    keywords: process.env.FEISHU_KEYWORDS_TABLE_ID,
+    industryQuestions: process.env.FEISHU_QUESTIONS_TABLE_ID,
+    aiQuestions: process.env.FEISHU_AI_QUESTION_TABLE_ID
+  };
+  const missing = Object.entries(tableMap)
+    .filter(([, tableId]) => !tableId)
+    .map(([name]) => name);
+
+  if (missing.length) {
+    return {
+      ok: false,
+      status: `P1候选未配置表ID：${missing.join('、')}`
+    };
+  }
+
+  try {
+    const assets = generateDiagnosisAssets({ form, projectId, submittedAt });
+    const writeResults = {
+      sources: await createRecords({
+        tenantToken,
+        appToken,
+        tableId: tableMap.sources,
+        records: assets.sources
+      }),
+      keywords: await createRecords({
+        tenantToken,
+        appToken,
+        tableId: tableMap.keywords,
+        records: assets.keywords
+      }),
+      industryQuestions: await createRecords({
+        tenantToken,
+        appToken,
+        tableId: tableMap.industryQuestions,
+        records: assets.industryQuestions
+      }),
+      aiQuestions: await createRecords({
+        tenantToken,
+        appToken,
+        tableId: tableMap.aiQuestions,
+        records: assets.aiQuestions
+      })
+    };
+    const failed = Object.entries(writeResults)
+      .filter(([, result]) => result.failed > 0)
+      .map(([name, result]) => `${name}:${result.failed}`);
+
+    return {
+      ok: failed.length === 0,
+      status: failed.length ? `P1候选部分写入失败：${failed.join('、')}` : 'P1候选已生成',
+      summary: assets.summary,
+      writeResults
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: `P1候选生成失败：${(error && error.message ? error.message : String(error)).slice(0, 300)}`
+    };
+  }
+}
+
+async function createRecords({ tenantToken, appToken, tableId, records }) {
+  const result = {
+    total: records.length,
+    created: 0,
+    failed: 0,
+    errors: []
+  };
+
+  try {
+    await createBitableRecords({
+      tenantToken,
+      appToken,
+      tableId,
+      records
+    });
+    result.created = records.length;
+  } catch (error) {
+    result.errors.push(`batch: ${(error && error.message ? error.message : String(error)).slice(0, 200)}`);
+    for (const fields of records) {
+      try {
+        await createBitableRecord({
+          tenantToken,
+          appToken,
+          tableId,
+          fields
+        });
+        result.created += 1;
+      } catch (singleError) {
+        result.failed += 1;
+        result.errors.push((singleError && singleError.message ? singleError.message : String(singleError)).slice(0, 200));
+      }
+    }
+  }
+
+  return result;
 }
 
 function buildProjectFields({ form, clientId, projectId, submittedAt, leadRecordUrl }) {
@@ -346,6 +457,7 @@ async function notify({ tenantToken, form, clientId, projectId, submittedAt, rec
     `客户编号：${clientId}`,
     `项目编号：${projectId}`,
     workbench && workbench.status ? `工作台：${workbench.status}` : '',
+    workbench && workbench.engine && workbench.engine.summary ? `P1候选：信源${workbench.engine.summary.sources}条，关键词${workbench.engine.summary.keywords}条，行业问题${workbench.engine.summary.industryQuestions}条，AI检测任务${workbench.engine.summary.aiQuestions}条` : '',
     `下一步动作：${workbench && workbench.ok ? '进入诊断项目审核。' : '审核资料并联系客户。'}`,
     recordUrl ? `飞书记录：${recordUrl}` : ''
   ].filter(Boolean).join('\n');
