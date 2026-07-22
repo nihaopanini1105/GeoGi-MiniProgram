@@ -95,6 +95,27 @@ async function deleteBitableRecord({ tenantToken, appToken, tableId, recordId })
   return result.data;
 }
 
+async function deleteBitableRecords({ tenantToken, appToken, tableId, recordIds }) {
+  if (!recordIds.length) return { records: [] };
+
+  const result = await requestJson({
+    method: 'POST',
+    hostname: 'open.feishu.cn',
+    path: `/open-apis/bitable/v1/apps/${appToken}/tables/${tableId}/records/batch_delete`,
+    headers: {
+      Authorization: `Bearer ${tenantToken}`
+    },
+    body: {
+      records: recordIds
+    }
+  });
+
+  if (result.code !== 0) {
+    throw new Error(`batch delete records failed: ${JSON.stringify(result)}`);
+  }
+  return result.data;
+}
+
 async function listBitableRecords({ tenantToken, appToken, tableId, pageSize = 100 }) {
   const items = [];
   let pageToken = '';
@@ -228,6 +249,7 @@ module.exports = {
   createBitableRecords,
   updateBitableRecord,
   deleteBitableRecord,
+  deleteBitableRecords,
   listBitableRecords,
   sendWebhookText,
   sendBotText,

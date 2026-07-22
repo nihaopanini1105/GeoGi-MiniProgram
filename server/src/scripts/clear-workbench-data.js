@@ -3,7 +3,8 @@ require('dotenv').config();
 const {
   getTenantAccessToken,
   listBitableRecords,
-  deleteBitableRecord
+  deleteBitableRecord,
+  deleteBitableRecords
 } = require('../services/feishu');
 
 const tables = [
@@ -41,21 +42,51 @@ async function main() {
       pageSize: 100
     });
 
+    console.log(`${name}: 待删除 ${records.length} 条`);
     let deleted = 0;
-    for (const record of records) {
-      await deleteBitableRecord({
-        tenantToken,
-        appToken: process.env.FEISHU_BASE_APP_TOKEN,
-        tableId,
-        recordId: record.record_id
-      });
-      deleted += 1;
+    const chunks = chunk(records.map((record) => record.record_id), 500);
+
+    for (const ids of chunks) {
+      try {
+        await deleteBitableRecords({
+          tenantToken,
+          appToken: process.env.FEISHU_BASE_APP_TOKEN,
+          tableId,
+          recordIds: ids
+        });
+      } catch (error) {
+        console.log(`${name}: 批量删除失败，降级为逐条删除`);
+        for (const id of ids) {
+          try {
+            await deleteBitableRecord({
+              tenantToken,
+              appToken: process.env.FEISHU_BASE_APP_TOKEN,
+              tableId,
+              recordId: id
+            });
+          } catch (singleError) {
+            if (!String(singleError && singleError.message).includes('RecordIdNotFound')) {
+              throw singleError;
+            }
+          }
+        }
+      }
+      deleted += ids.length;
+      console.log(`${name}: 已删除 ${deleted}/${records.length}`);
     }
 
     result.push({ table: name, status: '已清空', deleted });
   }
 
   console.log(JSON.stringify({ ok: true, result }, null, 2));
+}
+
+function chunk(items, size) {
+  const result = [];
+  for (let index = 0; index < items.length; index += size) {
+    result.push(items.slice(index, index + size));
+  }
+  return result;
 }
 
 main().catch((error) => {
