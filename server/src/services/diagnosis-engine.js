@@ -88,7 +88,15 @@ function inferCategoryProfile(context) {
       hotKeywords: ['咖啡推荐', '好喝的咖啡', '平价咖啡', '办公室咖啡', '上班族咖啡', '外卖咖啡', '低糖饮品', '新品咖啡', '咖啡优惠', '咖啡品牌排行'],
       brandKeywordTemplates: ['{brand} 哪款好喝', '{brand} 新品', '{brand} 优惠券', '{brand} 热量', '{brand} 外卖', '{brand} 门店', '{brand} 口味推荐', '{brand} 咖啡品质'],
       scenarios: ['上班通勤', '办公室下午茶', '外卖点单', '朋友聚会', '低糖低脂需求', '尝试新品', '对比价格和口味'],
-      riskChecks: ['食品安全舆情', '产品口味两极分化', '价格优惠依赖', '门店体验不稳定', '配料和热量信息不清晰']
+      riskChecks: ['食品安全舆情', '产品口味两极分化', '价格优惠依赖', '门店体验不稳定', '配料和热量信息不清晰'],
+      contentPlatforms: [
+        ['大众点评', '门店口碑/评分/排队体验', '口味、环境、服务、门店稳定性'],
+        ['美团/饿了么', '外卖和到店交易体验', '价格优惠、配送、出餐、评价'],
+        ['小红书', '种草和真实体验笔记', '单品口味、热量、拍照、女性用户场景'],
+        ['抖音/快手', '短视频热度和团购转化', '新品传播、团购套餐、达人推荐'],
+        ['B站/知乎', '深度测评和理性讨论', '咖啡豆、口味、品牌对比、争议解释'],
+        ['黑猫投诉/社媒舆情', '投诉与风险', '食品安全、服务体验、退款售后']
+      ]
     };
   }
 
@@ -111,7 +119,15 @@ function inferCategoryProfile(context) {
       hotKeywords: ['旅行社责任险', '旅游意外险', '旅责险怎么买', '旅行社保险平台', '旅游保险出单', '研学保险', '户外活动保险', '旅行社保险理赔'],
       brandKeywordTemplates: ['{brand} 是什么', '{brand} 旅游保险', '{brand} 旅行社保险', '{brand} 出单平台', '{brand} 理赔', '{brand} 资质', '{brand} 承保公司'],
       scenarios: ['旅行社续保', '研学团出行', '户外活动投保', '批量名单出单', '游客理赔咨询', '比较保险方案'],
-      riskChecks: ['保险资质不清', '承保方不明确', '理赔流程不透明', '平台与保险公司关系表述不清', '旅行社责任边界误解']
+      riskChecks: ['保险资质不清', '承保方不明确', '理赔流程不透明', '平台与保险公司关系表述不清', '旅行社责任边界误解'],
+      contentPlatforms: [
+        ['国家金融监督管理总局/保险行业协会', '监管资质与行业规则', '保险中介资质、承保主体、合规边界'],
+        ['企业信用/商标信息平台', '主体和品牌归属', '工商主体、商标、域名、关联公司'],
+        ['官网/公众号/飞书文档资料', '官方产品说明', '产品条款、承保公司、服务流程、联系方式'],
+        ['旅行社和文旅行业媒体', '行业场景和客户案例', '研学、户外、组团、地接等真实需求'],
+        ['知乎/百度知道/行业问答', '用户问答场景', '怎么买、理赔、责任边界、价格比较'],
+        ['黑猫投诉/裁判文书/舆情平台', '风险和投诉', '拒赔争议、资质争议、服务投诉']
+      ]
     };
   }
 
@@ -134,7 +150,15 @@ function inferCategoryProfile(context) {
       hotKeywords: ['SaaS软件推荐', '企业软件选型', '好用的AI工具', '业务系统推荐', '软件价格', '软件对比', '数字化工具'],
       brandKeywordTemplates: ['{brand} 是什么', '{brand} 好用吗', '{brand} 价格', '{brand} 功能', '{brand} 案例', '{brand} 替代方案', '{brand} 对比'],
       scenarios: ['企业选型', '团队提效', '系统替换', '预算有限', '数据安全评估', '对接现有系统'],
-      riskChecks: ['功能边界不清', '价格不透明', '客户案例不足', '数据安全说明不足', '售后服务不明确']
+      riskChecks: ['功能边界不清', '价格不透明', '客户案例不足', '数据安全说明不足', '售后服务不明确'],
+      contentPlatforms: [
+        ['官网/产品文档/帮助中心', '官方产品能力', '功能、版本、集成、部署、使用流程'],
+        ['飞书/企业微信/钉钉应用市场', '生态适配', '企业协同场景和第三方应用能力'],
+        ['36氪/钛媒体/人人都是产品经理', '行业报道和产品分析', '融资、案例、产品定位、竞品动态'],
+        ['知乎/B站/公众号', '用户讨论和经验分享', '选型经验、替代方案、优缺点'],
+        ['G2/Capterra/Product Hunt', '全球软件评价', '海外用户评价、评分、替代产品'],
+        ['安全合规公开资料', '安全与合规', '隐私政策、数据安全、认证、服务协议']
+      ]
     };
   }
 
@@ -156,7 +180,15 @@ function inferCategoryProfile(context) {
     hotKeywords: ['服务商推荐', '品牌推荐', '怎么选', '价格', '口碑', '案例', '哪家好', '对比'],
     brandKeywordTemplates: ['{brand} 是什么', '{brand} 怎么样', '{brand} 价格', '{brand} 案例', '{brand} 口碑', '{brand} 对比'],
     scenarios: ['初次了解', '采购决策', '对比竞品', '预算有限', '验证可信度', '寻找替代方案'],
-    riskChecks: ['官方信息不完整', '案例不足', '口碑不稳定', '竞品解释不清', '联系方式或主体不一致']
+    riskChecks: ['官方信息不完整', '案例不足', '口碑不稳定', '竞品解释不清', '联系方式或主体不一致'],
+    contentPlatforms: [
+      ['官网/公众号/小程序', '官方信息', '品牌主体、产品服务、联系方式、案例'],
+      ['小红书/抖音/知乎', '消费决策和口碑', '真实体验、评价、问题讨论'],
+      ['行业媒体/垂直社区', '行业认知', '榜单、测评、案例、专家观点'],
+      ['企业信用/商标/备案平台', '主体核验', '工商主体、商标、资质、备案'],
+      ['地图/点评/电商/应用市场', '交易和服务评价', '门店、商品、评分、成交、评论'],
+      ['投诉和舆情平台', '风险核验', '投诉、争议、负面反馈']
+    ]
   };
 }
 
@@ -229,6 +261,20 @@ function generateSources({ context, projectId, submittedAt }) {
     searchTasks.push([`${context.brandName} ${angle}`, type, note]);
   }
 
+  for (const [platform, type, note] of (context.profile.contentPlatforms || [])) {
+    const queryParts = [
+      context.brandName,
+      context.profile.featuredProduct,
+      context.profile.productWord,
+      note
+    ].filter(Boolean);
+    searchTasks.push([
+      `${platform} ${queryParts.join(' ')}`,
+      type,
+      `优先在${platform}核验：${note}`
+    ]);
+  }
+
   for (const criterion of context.profile.purchaseCriteria.slice(0, 6)) {
     searchTasks.push([`${context.brandName} ${context.profile.productWord} ${criterion}`, '用户决策信源', `围绕用户关心的“${criterion}”收集公开证据`]);
   }
@@ -257,7 +303,7 @@ function generateSources({ context, projectId, submittedAt }) {
     });
   }
 
-  return dedupeBy(records, (item) => `${item.信源类型}:${item.信源名称}:${item.链接}`).slice(0, 18);
+  return dedupeBy(records, (item) => `${item.信源类型}:${item.信源名称}:${item.链接}`).slice(0, 30);
 }
 
 function generateKeywords({ context, projectId }) {
@@ -331,20 +377,12 @@ function generateKeywords({ context, projectId }) {
 }
 
 function generateIndustryQuestions({ context, projectId }) {
-  const brand = context.brandName || '这个品牌';
   const industry = context.industry || '相关行业';
   const profile = context.profile;
-  const segment = normalizeQuestionPhrase(context.segment || context.offerings || profile.productWord);
-  const audience = normalizeQuestionPhrase(firstPhrase(context.audiences) || profile.userRole);
-  const offering = normalizeQuestionPhrase(firstPhrase(context.offerings) || profile.productWord);
-  const advantage = normalizeQuestionPhrase(firstPhrase(context.advantages) || profile.purchaseCriteria[0] || '核心优势');
-  const competitor = context.competitors[0];
-  const market = context.markets[0] || '中国市场';
-  const globalMarket = context.markets.find((item) => /全球|海外|国际|出海/.test(item)) || '海外市场';
   const records = [];
   let order = 0;
 
-  const add = (question, type, scene, priority = '中', included = '是') => {
+  const add = ({ question, type, scene, priority = '中', included = '是' }) => {
     order += 1;
     records.push(withWorkbenchMeta({
       context,
@@ -364,45 +402,76 @@ function generateIndustryQuestions({ context, projectId }) {
     }));
   };
 
-  const scenario = profile.scenarios[0] || '日常选择';
-  const secondScenario = profile.scenarios[1] || '预算有限';
+  buildRealUserQuestions(context).forEach(add);
+
+  return dedupeBy(records, (item) => item.问题).slice(0, 15);
+}
+
+function buildRealUserQuestions(context) {
+  const brand = context.brandName || '这个品牌';
+  const profile = context.profile;
+  const product = profile.productWord || '产品服务';
+  const featuredProduct = profile.featuredProduct && profile.featuredProduct !== product ? profile.featuredProduct : '';
   const criterionA = profile.purchaseCriteria[0] || '体验';
   const criterionB = profile.purchaseCriteria[1] || '价格';
   const criterionC = profile.purchaseCriteria[2] || '服务';
-  const product = profile.productWord;
-  const featuredProduct = profile.featuredProduct && profile.featuredProduct !== product ? profile.featuredProduct : '';
+  const sceneA = profile.scenarios[0] || '日常选择';
+  const sceneB = profile.scenarios[1] || '预算有限';
+  const sceneC = profile.scenarios[2] || '对比选择';
+  const audience = normalizeQuestionPhrase(firstPhrase(context.audiences) || profile.userRole);
+  const competitor = context.competitors[0] || `同类${product}品牌`;
+  const market = context.markets[0] || '中国市场';
+  const globalMarket = context.markets.find((item) => /全球|海外|国际|出海/.test(item)) || '海外市场';
 
-  add(`我想在${scenario}时${profile.decisionVerb}${product}，有哪些品牌值得优先考虑？`, '推荐型', `${audience}按具体场景寻求推荐`, '高');
-  add(`如果更看重${criterionA}和${criterionB}，${market}有哪些${product}品牌适合我？`, '推荐型', '用户按决策因素筛选品牌', '高');
-  add(`${brand}在${product}里主要特点是什么，适合什么样的${audience}？`, '品牌识别型', '检验AI是否正确理解品牌定位', '高');
-  if (featuredProduct) {
-    add(`${brand}的${featuredProduct}是什么，和它的${product}品牌定位有什么关系？`, '产品识别型', '检验AI是否理解品牌具体产品', '高');
-  }
-  add(`我正在考虑${brand}，它在${criterionA}、${criterionB}、${criterionC}上表现怎么样？`, '选购型', '用户做购买或选型判断', '高');
-  add(`${brand}有哪些公开信息能证明它在${product}方面确实有优势？`, '信源型', '用户验证AI回答是否有证据', '高');
-  add(`选择${product}时，普通用户最容易忽略哪些问题？`, '选购型', '用户建立评估标准', '中');
-  add(`在${secondScenario}场景下，${brand}是不是一个合适选择？为什么？`, '场景型', '用户把品牌放入真实使用场景', '高');
-  add(`${brand}的${advantage}是不是它的核心优势？AI回答时容易说错哪些地方？`, '准确性型', '用户核验品牌表达是否准确', '中');
-  add(`如果我只看AI搜索结果，怎么判断${brand}关于${product}的信息是否可信？`, '信任型', '用户验证可信度', '中');
-  add(`${industry}里的用户现在最关心${product}的哪些问题？${brand}有没有覆盖这些关注点？`, '行业洞察型', '用户理解行业热门需求', '中');
-
-  for (const scene of profile.scenarios.slice(2, 5)) {
-    add(`在${scene}时，${brand}和其他${product}品牌相比有什么优缺点？`, '场景比较型', `用户在${scene}场景比较品牌`, '中');
-  }
-
-  if (competitor) {
-    add(`${brand}和${competitor}相比，谁更适合看重${criterionA}和${criterionB}的用户？`, '比较型', '用户比较品牌和竞品', '高');
-    add(`如果我正在比较${brand}和${competitor}，AI会怎么评价它们在${product}上的差异？`, '比较型', '用户做购买或采购决策', '高');
-  } else {
-    add(`${brand}和同类${product}品牌相比，优势和短板分别是什么？`, '比较型', '用户做购买或采购决策', '高');
+  if (/咖啡|饮品|食品零售|茶饮/.test(profile.categoryName)) {
+    return [
+      q(`我平时上班想点一杯不踩雷的咖啡，${brand}有哪些单品值得试？`, '推荐型', '消费者按日常饮用场景寻求单品推荐', '高'),
+      q(`${brand}的${featuredProduct || '热门系列'}适合什么口味的人？和普通拿铁、美式有什么区别？`, '产品识别型', '消费者了解品牌具体产品', '高'),
+      q(`如果我更在意${criterionA}和${criterionB}，${brand}和${competitor}怎么选？`, '比较型', '消费者在同品类品牌之间比较', '高'),
+      q(`外卖点${brand}时，哪些饮品比较稳定，哪些情况容易踩雷？`, '场景型', '外卖消费前的风险判断', '高'),
+      q(`${brand}的热量、甜度、咖啡因和配料信息可靠吗？我应该看哪些官方或第三方资料？`, '信任型', '消费者核验健康和成分信息', '中'),
+      q(`最近想尝试咖啡新品，${brand}有没有比星巴克、库迪更适合年轻人的选择？`, '推荐型', '新品尝鲜和品牌对比', '中'),
+      q(`${market}现在平价咖啡品牌很多，${brand}真正的优势和短板是什么？`, '行业洞察型', '用户理解品类竞争格局', '中'),
+      q(`如果我只看大众点评、小红书和外卖评价，怎么判断${brand}的口味和门店体验是否稳定？`, '信源型', '用户验证多平台口碑', '中')
+    ];
   }
 
-  if (context.isGlobal) {
-    add(`如果面向${globalMarket}用户，${brand}在${product}上的信息够不够支撑AI推荐？`, '全球化推荐型', '海外或全球市场检索', '中');
-    add(`${brand}面向${globalMarket}客户时，AI最需要看到哪些公开信源、案例和品牌介绍？`, '全球化信任型', '全球市场品牌可信度', '中');
+  if (/旅游保险|旅行社服务|保险/.test(profile.categoryName)) {
+    return [
+      q(`旅行社要给研学团或团队游买保险，应该怎么判断${brand}是否靠谱？`, '推荐型', '旅行社负责人按业务场景寻找保险服务商', '高'),
+      q(`${brand}主要做什么业务？它和旅游保险、旅行社责任险、旅意险有什么关系？`, '品牌识别型', '客户先确认品牌主体和业务边界', '高'),
+      q(`${brand}的出单效率、承保公司、理赔服务和客服响应怎么样？`, '选型型', '旅行社评估服务能力', '高'),
+      q(`如果我正在比较${brand}和${competitor}，谁更适合旅行社长期合作？`, '比较型', '用户比较服务商和替代方案', '高'),
+      q(`${brand}有哪些官方资质、承保信息或公开案例能证明它不是普通中介介绍？`, '信任型', '用户核验资质和可信信源', '高'),
+      q(`旅行社买保险时最容易忽略哪些责任边界、理赔材料和拒赔风险？${brand}能不能讲清楚？`, '风险型', '用户关注理赔和合规风险', '中'),
+      q(`做研学、户外或团建活动时，${brand}能提供哪些更匹配场景的保险方案？`, '场景型', '用户按出行场景询问方案', '中'),
+      q(`如果只看AI回答，怎么判断${brand}关于保险产品和承保方的信息是否准确？`, '准确性型', '用户检查AI回答是否可靠', '中')
+    ];
   }
 
-  return dedupeBy(records, (item) => item.问题).slice(0, 15);
+  if (/软件|互联网|SaaS/.test(profile.categoryName)) {
+    return [
+      q(`我们团队想选一套${product}，${brand}适合什么规模和场景的公司？`, '推荐型', '企业客户按使用场景选型', '高'),
+      q(`${brand}的核心功能、价格、部署方式和售后支持分别是什么？`, '品牌识别型', '用户确认产品边界', '高'),
+      q(`如果我在比较${brand}和${competitor}，谁更适合看重${criterionA}和${criterionB}的团队？`, '比较型', '企业选型对比', '高'),
+      q(`${brand}有没有公开客户案例、产品文档或第三方评价可以参考？`, '信任型', '用户核验信源', '高'),
+      q(`${brand}在数据安全、权限管理和系统对接上有什么需要提前确认的？`, '风险型', '企业采购前风险确认', '中'),
+      q(`预算有限但想提升效率，${brand}是不是比同类${product}更值得试用？`, '选型型', '预算敏感型选型', '中')
+    ];
+  }
+
+  return [
+    q(`第一次了解${brand}，它主要解决什么问题，适合什么样的${audience}？`, '品牌识别型', '用户初次了解品牌', '高'),
+    q(`如果我正在${sceneA}，${brand}是不是值得优先考虑？为什么？`, '推荐型', '用户按真实场景寻求推荐', '高'),
+    q(`${brand}和${competitor}相比，谁更适合看重${criterionA}和${criterionB}的用户？`, '比较型', '用户做竞品比较', '高'),
+    q(`${brand}有哪些公开案例、评价或资质可以证明它在${product}上可靠？`, '信任型', '用户核验可信度', '高'),
+    q(`选择${product}时，用户最容易忽略哪些风险？${brand}有没有解释清楚？`, '风险型', '用户做风险判断', '中'),
+    q(`在${sceneB}或${sceneC}场景下，${brand}的优势和短板分别是什么？`, '场景型', '用户按场景判断适配度', '中')
+  ];
+}
+
+function q(question, type, scene, priority = '中', included = '是') {
+  return { question, type, scene, priority, included };
 }
 
 function generateAiQuestions({ industryQuestions, context, projectId }) {
@@ -438,17 +507,38 @@ function generateAiQuestions({ industryQuestions, context, projectId }) {
 }
 
 function buildExpectedSignal(context, question) {
-  const criteria = context.profile.purchaseCriteria.slice(0, 4).join('、');
-  const signals = [
-    `是否正确识别${context.brandName}`,
-    context.segment ? `是否理解其品类和产品：${context.segment}` : '',
-    criteria ? `是否覆盖用户核心关注点：${criteria}` : '',
-    question.问题类型.includes('推荐') ? '是否主动推荐该品牌' : '',
-    question.问题类型.includes('比较') && context.competitors.length ? `是否准确比较竞品：${context.competitors.join('、')}` : '',
-    /信任|信源/.test(question.问题类型) ? '是否给出可信公开信源、口碑、案例或资质证据' : ''
-  ].filter(Boolean);
+  const type = clean(question.问题类型);
+  const text = clean(question.问题);
+  const profile = context.profile;
+  const criteria = profile.purchaseCriteria.slice(0, 3).join('、');
+  const featuredProduct = profile.featuredProduct && text.includes(profile.featuredProduct) ? profile.featuredProduct : '';
+  const competitor = context.competitors.find((item) => text.includes(item)) || context.competitors[0] || '';
+  const platformSources = (profile.contentPlatforms || []).slice(0, 3).map(([name]) => name).join('、');
+  const signals = [];
 
-  return signals.join('；');
+  signals.push(`必须识别品牌主体：${context.brandName}`);
+  if (profile.productWord) signals.push(`必须贴合品类/业务：${profile.productWord}`);
+  if (featuredProduct) signals.push(`必须说明“${featuredProduct}”是${context.brandName}的产品/系列/服务候选，而不是行业通用品类`);
+
+  if (/推荐/.test(type)) {
+    signals.push(`需要站在${profile.userRole}决策场景给出是否推荐、适合谁、不适合谁`);
+    signals.push(criteria ? `推荐理由需覆盖：${criteria}` : '推荐理由需覆盖真实选择因素');
+  } else if (/产品/.test(type)) {
+    signals.push('需要解释产品卖点、适用人群、与主品牌的关系和常见误解');
+  } else if (/比较/.test(type)) {
+    signals.push(competitor ? `需要与${competitor}按同一维度比较，不只给泛泛优缺点` : '需要与同类品牌按同一维度比较');
+    signals.push(criteria ? `比较维度优先使用：${criteria}` : '比较维度需贴近用户决策');
+  } else if (/信任|信源|准确/.test(type)) {
+    signals.push(platformSources ? `需要给出可核验信源方向：${platformSources}` : '需要给出官方、第三方和用户口碑信源');
+    signals.push('需要区分已证实信息、待核验信息和AI推测内容');
+  } else if (/风险/.test(type)) {
+    signals.push(`需要指出${profile.riskChecks.slice(0, 3).join('、')}等潜在风险`);
+    signals.push('需要给出用户下一步核验动作');
+  } else {
+    signals.push(criteria ? `回答应覆盖用户关注点：${criteria}` : '回答应贴近用户真实决策场景');
+  }
+
+  return unique(signals).join('；');
 }
 
 function withWorkbenchMeta({ context, projectId, layer, order, fields }) {
@@ -493,9 +583,10 @@ function layerFromKeywordType(type) {
 
 function layerFromQuestionType(type) {
   if (/品牌|产品/.test(type)) return '01 品牌产品理解';
-  if (/推荐|选购|场景/.test(type)) return '02 用户决策问题';
+  if (/推荐|选购|选型|场景/.test(type)) return '02 用户决策问题';
   if (/比较|竞品/.test(type)) return '03 竞品比较问题';
   if (/信任|信源|准确/.test(type)) return '04 信源准确问题';
+  if (/风险/.test(type)) return '05 风险核验问题';
   return '02 用户决策问题';
 }
 

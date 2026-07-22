@@ -130,7 +130,8 @@ async function generateReport({ projectId, commandText, aiConversations }) {
   if (!parsedConversations.length) {
     return fail('没有识别到AI平台问答。请附上平台名称和会话链接，最好同时粘贴回答原文。');
   }
-  const conversations = await enrichConversationsWithSharedLinks(parsedConversations);
+  const linkedConversations = await enrichConversationsWithSharedLinks(parsedConversations);
+  const conversations = expandConversationTurns(linkedConversations);
 
   const testedAt = new Date().toISOString();
   const testRecords = conversations.map((item, index) => buildTestRecord({
@@ -189,13 +190,14 @@ async function generateReport({ projectId, commandText, aiConversations }) {
   });
 
   const needsAnswerText = conversations.filter((item) => !hasUsableAnswer(item)).length;
-  const extracted = conversations.filter((item) => item.extractionStatus === '已自动读取').length;
-  const partial = conversations.filter((item) => item.extractionStatus && item.extractionStatus !== '已自动读取').length;
+  const extracted = linkedConversations.filter((item) => item.extractionStatus === '已自动读取').length;
+  const partial = linkedConversations.filter((item) => item.extractionStatus && item.extractionStatus !== '已自动读取').length;
   const message = [
     '【GeoGi 工作流】报告初稿已生成。',
     `项目编号：${projectId}`,
     `品牌：${form.brandName}`,
-    `已整理AI平台记录：${conversations.length} 条`,
+    `已读取AI平台分享链接：${linkedConversations.length} 条`,
+    `已拆分问答记录：${conversations.length} 条`,
     `已生成分析结果：${analyses.length} 条`,
     extracted ? `自动读取分享链接：${extracted} 条` : '',
     partial ? `部分平台读取受限或只读到摘要：${partial} 条` : '',
@@ -345,11 +347,13 @@ function buildBrandProfileFields({ form, projectId, submittedAt }) {
 }
 
 function buildTestRecord({ item, index, form, projectId, testedAt }) {
+  const context = buildDiagnosisContext(form);
   const answer = clean(item.answer);
   const usableAnswer = hasUsableAnswer(item) ? answer : '';
   const mentioned = usableAnswer ? matchesBrand(usableAnswer, form) : false;
   const recommended = mentioned && hasRecommendationSignal(usableAnswer);
-  const accurate = usableAnswer ? hasAccuracySignal(usableAnswer, form) : false;
+  const accurate = usableAnswer ? hasAccuracySignal(usableAnswer, form, item.question) : false;
+  const sourceEvidence = detectSourceEvidence(usableAnswer, context);
   const extractionPrefix = item.extractionStatus
     ? `【链接读取状态】${item.extractionStatus}${item.extractionNote ? `：${item.extractionNote}` : ''}\n`
     : '';
@@ -365,7 +369,7 @@ function buildTestRecord({ item, index, form, projectId, testedAt }) {
     是否主动推荐: usableAnswer ? yesNo(recommended) : '待判断',
     信息是否准确: usableAnswer ? yesNo(accurate) : '待判断',
     提到的竞品: findCompetitors(usableAnswer, form.competitors),
-    引用或信源: item.link || '',
+    引用或信源: sourceEvidence.length ? sourceEvidence.join('、') : item.link || '',
     '证据截图/链接': item.link || '',
     测试时间: testedAt,
     测试人: 'GeoGi 工作流',
@@ -375,24 +379,32 @@ function buildTestRecord({ item, index, form, projectId, testedAt }) {
 }
 
 function buildAnalysisRecord({ item, form, projectId }) {
+  const context = buildDiagnosisContext(form);
   const answer = hasUsableAnswer(item) ? clean(item.answer) : '';
+  const question = clean(item.question);
+  const questionType = inferQuestionType(question);
   const mentioned = answer && matchesBrand(answer, form);
   const recommended = mentioned && hasRecommendationSignal(answer);
-  const accurate = answer && hasAccuracySignal(answer, form);
+  const accurate = answer && hasAccuracySignal(answer, form, question);
   const competitorMentions = findCompetitors(answer, form.competitors);
+  const sourceAssessment = assessSourceCredibility({ item, answer, context });
 
   return {
     品牌分组: brandGroup(form, projectId),
     排序键: sortKey(form, projectId, `07 回答分析/${item.platform || '未标注平台'}`, 1),
     项目编号: projectId,
     平台: item.platform || '未标注平台',
-    品牌识别得分: answer ? String(mentioned ? 80 : 20) : '待补充',
-    主动推荐得分: answer ? String(recommended ? 75 : 30) : '待补充',
-    信息准确得分: answer ? String(accurate ? 75 : 35) : '待补充',
+    问题编号: item.questionId || '',
+    提问内容: question,
+    回答摘要: answer ? summarizeAnswer(answer) : '',
+    命中证据: sourceAssessment.evidence.join('、'),
+    品牌识别得分: answer ? String(scoreBrandRecognition({ mentioned, answer, form })) : '待补充',
+    主动推荐得分: answer ? String(scoreRecommendation({ questionType, mentioned, recommended, answer })) : '待补充',
+    信息准确得分: answer ? String(scoreAccuracy({ accurate, answer, context, question })) : '待补充',
     竞品压制情况: competitorMentions ? `回答中出现竞品：${competitorMentions}` : '未发现明显竞品压制',
-    信源可信度: buildSourceCredibility(item),
-    核心问题: answer ? buildCoreIssue({ mentioned, recommended, accurate }) : buildMissingAnswerIssue(item),
-    优化建议: buildOptimizationAdvice({ form, mentioned, recommended, accurate, hasAnswer: Boolean(answer) }),
+    信源可信度: sourceAssessment.summary,
+    核心问题: answer ? buildCoreIssue({ item, form, context, questionType, mentioned, recommended, accurate, sourceAssessment }) : buildMissingAnswerIssue(item),
+    优化建议: buildOptimizationAdvice({ item, form, context, questionType, mentioned, recommended, accurate, sourceAssessment, hasAnswer: Boolean(answer) }),
     分析状态: answer ? (item.extractionStatus ? `已生成初步分析（${item.extractionStatus}）` : '已生成初步分析') : '待补充回答原文',
     信息层级: `07 回答分析/${item.platform || '未标注平台'}`,
     审核状态: answer ? '待人工审核' : '待补充材料'
@@ -403,12 +415,25 @@ function buildReportFields({ conversations, analyses, form, projectId, testedAt 
   const answered = conversations.filter(hasUsableAnswer).length;
   const mentioned = conversations.filter((item) => hasUsableAnswer(item) && matchesBrand(item.answer, form)).length;
   const recommended = conversations.filter((item) => hasUsableAnswer(item) && matchesBrand(item.answer, form) && hasRecommendationSignal(item.answer)).length;
+  const context = buildDiagnosisContext(form);
+  const professionalReport = buildProfessionalReport({
+    conversations,
+    analyses,
+    form,
+    context,
+    projectId,
+    testedAt,
+    answered,
+    mentioned,
+    recommended
+  });
   const reportSummary = [
-    `本次共收到 ${conversations.length} 条AI平台问答线索，其中 ${answered} 条包含回答原文。`,
+    `本次共拆分 ${conversations.length} 条AI问答记录，其中 ${answered} 条包含可分析回答原文。`,
     `品牌被提及 ${mentioned} 次，出现主动推荐倾向 ${recommended} 次。`,
     buildExtractionSummary(conversations),
     answered < conversations.length ? '部分平台的分享页未暴露完整正文，需要换成公开可访问链接、截图或导出内容后再生成正式报告。' : '当前回答原文已可支撑初步报告。'
   ].join('\n');
+  const targetedAdvice = unique(analyses.map((item) => text(item.优化建议)).filter(Boolean)).slice(0, 6);
 
   return {
     品牌分组: brandGroup(form, projectId),
@@ -419,13 +444,14 @@ function buildReportFields({ conversations, analyses, form, projectId, testedAt 
     报告版本: `v-${Date.now()}`,
     报告状态: answered ? '报告初稿已生成' : '待补充回答原文',
     报告链接: '',
+    报告正文: professionalReport,
     交付说明: reportSummary,
     客户反馈: '',
-    下一步建议: [
+    下一步建议: (targetedAdvice.length ? targetedAdvice : [
       '审核平台测试记录和回答分析结果。',
       `优先补充${form.brandName}的官网、案例、品牌介绍和可信第三方信源。`,
       '确认AI回答中说错、漏说或被竞品压制的内容，形成正式优化清单。'
-    ].join('\n'),
+    ]).join('\n'),
     创建时间: testedAt,
     更新时间: testedAt,
     信息层级: '08 报告管理',
@@ -481,6 +507,36 @@ function normalizeConversations({ commandText, aiConversations, form }) {
     answer: '',
     link
   }));
+}
+
+function expandConversationTurns(conversations) {
+  const expanded = [];
+
+  conversations.forEach((conversation, conversationIndex) => {
+    const turns = Array.isArray(conversation.turns) ? conversation.turns : [];
+    if (turns.length) {
+      turns.forEach((turn, turnIndex) => {
+        expanded.push({
+          ...conversation,
+          questionId: turn.questionId || `${conversation.questionId || `LINK-${conversationIndex + 1}`}-T${turnIndex + 1}`,
+          question: clean(turn.question) || clean(conversation.question),
+          answer: clean(turn.answer),
+          turnIndex: turnIndex + 1,
+          totalTurns: turns.length
+        });
+      });
+      return;
+    }
+
+    expanded.push({
+      ...conversation,
+      questionId: conversation.questionId || `MANUAL-${String(conversationIndex + 1).padStart(2, '0')}`,
+      turnIndex: 1,
+      totalTurns: 1
+    });
+  });
+
+  return expanded;
 }
 
 async function updateProjectAndLead({ tenantToken, leadRecord, projectRecord, leadFields, projectFields }) {
@@ -642,7 +698,7 @@ function normalizeToken(value) {
 
 function stripBrandNoise(value) {
   return clean(value)
-    .replace(/联调测试|测试|可删除|样例|示例|demo|Demo|DEMO/g, '')
+    .replace(/联调测试|质量测试|测试|可删除|样例|示例|demo|Demo|DEMO/g, '')
     .replace(/[（(].*?[）)]/g, '')
     .trim();
 }
@@ -676,9 +732,25 @@ function hasRecommendationSignal(answer) {
   return /推荐|优先考虑|可以考虑|适合|值得|首选|更适合|优先选择|建议|可选|常被选择|热门选择/.test(answer);
 }
 
-function hasAccuracySignal(answer, form) {
-  return matchesBrand(answer, form)
-    || [form.industry, form.segment, form.offerings].some((item) => clean(item) && answer.includes(clean(item)));
+function hasAccuracySignal(answer, form, question = '') {
+  const context = buildDiagnosisContext(form);
+  const value = clean(answer);
+  const mentioned = matchesBrand(value, form);
+  const questionType = inferQuestionType(question);
+  const categorySignals = [
+    context.profile.productWord,
+    context.profile.featuredProduct,
+    context.profile.categoryName,
+    form.industry,
+    form.segment,
+    ...context.profile.purchaseCriteria,
+    ...extractPhrases(form.offerings).slice(0, 5)
+  ].filter(Boolean);
+  const hasCategory = categorySignals.some((item) => clean(item) && value.includes(clean(item)));
+
+  if (/品牌|产品|准确|信任/.test(questionType)) return mentioned && hasCategory;
+  if (/比较/.test(questionType)) return mentioned && (hasCategory || findCompetitors(value, form.competitors));
+  return mentioned || hasCategory;
 }
 
 function yesNo(value) {
@@ -710,12 +782,76 @@ function hasUsableAnswer(item) {
   return answer.length >= 80;
 }
 
-function buildSourceCredibility(item) {
-  if (!item.link) return '未提供链接或引用来源';
-  if (item.extractionStatus === '已自动读取') return '分享链接已自动读取，可作为本次诊断依据';
-  if (item.extractionStatus === '部分读取') return `分享链接只读取到部分信息：${item.extractionNote || '未获得完整正文'}`;
-  if (item.extractionStatus === '读取受限') return `分享链接读取受限：${item.extractionNote || '需要补充截图或原文'}`;
-  return '有会话链接，需确认平台链接可访问';
+function assessSourceCredibility({ item, answer, context }) {
+  const evidence = detectSourceEvidence(answer, context);
+  const platformEvidence = evidence.filter((name) => !/分享链接/.test(name));
+  if (!answer) {
+    return {
+      level: '待补充',
+      evidence,
+      summary: item.extractionNote ? `待补充：${item.extractionNote}` : '待补充回答原文，暂不能判断信源可信度'
+    };
+  }
+  if (platformEvidence.length >= 2) {
+    return {
+      level: '较强',
+      evidence,
+      summary: `较强：回答提到${platformEvidence.slice(0, 4).join('、')}等可核验信源方向`
+    };
+  }
+  if (platformEvidence.length === 1) {
+    return {
+      level: '一般',
+      evidence,
+      summary: `一般：回答只出现${platformEvidence[0]}，仍需补充官方/第三方/用户评价交叉验证`
+    };
+  }
+  if (item.extractionStatus === '已自动读取') {
+    return {
+      level: '偏弱',
+      evidence: ['分享链接可读取'],
+      summary: '偏弱：虽然分享链接可读取，但回答本身缺少明确官方、第三方或用户评价信源'
+    };
+  }
+  if (item.extractionStatus === '部分读取') {
+    return {
+      level: '待复核',
+      evidence: ['分享链接部分读取'],
+      summary: `待复核：${item.extractionNote || '分享页只读取到部分内容'}`
+    };
+  }
+  return {
+    level: '偏弱',
+    evidence,
+    summary: item.link ? '偏弱：有会话链接，但回答未呈现可追溯信源' : '偏弱：未提供链接或引用来源'
+  };
+}
+
+function detectSourceEvidence(answer, context) {
+  const value = clean(answer);
+  if (!value) return [];
+  const evidence = [];
+  const platformPairs = [
+    ['官网/官方渠道', /官网|官方网站|官方公众号|小程序|官方旗舰店|官方客服|官方资料|官方网站|公众号/],
+    ['企业信用/工商商标', /企查查|天眼查|爱企查|工商|统一社会信用代码|商标|注册号|备案|ICP/],
+    ['监管/行业协会', /国家金融监督管理总局|银保监|保险行业协会|监管|牌照|资质|备案|承保|保险公司/],
+    ['大众点评/美团评价', /大众点评|美团|饿了么|外卖|门店评分|团购/],
+    ['小红书内容', /小红书|种草|笔记|探店|拔草/],
+    ['抖音/快手短视频', /抖音|快手|直播|短视频|达人/],
+    ['知乎/B站讨论', /知乎|B站|哔哩哔哩|测评|评测|问答/],
+    ['投诉/风险舆情', /黑猫投诉|投诉|舆情|裁判文书|负面|争议|退款|拒赔/],
+    ['行业媒体/案例', /36氪|钛媒体|人人都是产品经理|行业媒体|案例|客户案例|合作案例/],
+    ['全球软件评价', /G2|Capterra|Product Hunt|海外评价|国际评价/]
+  ];
+
+  for (const [name, re] of platformPairs) {
+    if (re.test(value)) evidence.push(name);
+  }
+  for (const [platform] of (context.profile.contentPlatforms || [])) {
+    if (platform && value.includes(platform)) evidence.push(platform);
+  }
+  if (/https?:\/\//.test(value)) evidence.push('回答含外部链接');
+  return unique(evidence);
 }
 
 function buildMissingAnswerIssue(item) {
@@ -731,26 +867,144 @@ function buildExtractionSummary(conversations) {
   return `分享链接自动读取结果：完整读取 ${extracted} 条，部分读取 ${partial} 条，读取受限 ${blocked} 条。`;
 }
 
-function buildCoreIssue({ mentioned, recommended, accurate }) {
-  if (!mentioned) return 'AI回答未提及品牌，品牌可见度不足';
-  if (!recommended) return 'AI能识别品牌，但主动推荐意愿不足';
-  if (!accurate) return 'AI提到品牌，但业务理解或描述可能不完整';
-  return 'AI已能识别品牌，需进一步强化可信信源和推荐理由';
+function buildProfessionalReport({ conversations, analyses, form, context, projectId, testedAt, answered, mentioned, recommended }) {
+  const sourceWeak = analyses.filter((item) => /偏弱|待复核|待补充|一般/.test(text(item.信源可信度))).length;
+  const competitorPressure = analyses.filter((item) => !/未发现/.test(text(item.竞品压制情况))).length;
+  const topIssues = unique(analyses.map((item) => text(item.核心问题)).filter(Boolean)).slice(0, 6);
+  const advice = unique(analyses.map((item) => text(item.优化建议)).filter(Boolean)).slice(0, 6);
+  const platformLines = analyses.slice(0, 10).map((item) => [
+    `- ${text(item.平台)}｜${text(item.问题编号) || '未编号'}`,
+    `  问题：${limitText(text(item.提问内容), 120)}`,
+    `  结论：${limitText(text(item.核心问题), 140)}`,
+    `  建议：${limitText(text(item.优化建议), 160)}`
+  ].join('\n'));
+
+  return [
+    `# ${form.brandName} AI 可见度诊断报告`,
+    '',
+    `项目编号：${projectId}`,
+    `生成时间：${testedAt}`,
+    `行业/品类：${form.industry} / ${context.profile.categoryName}`,
+    `核心产品/服务：${form.offerings}`,
+    '',
+    '## 一、诊断结论',
+    `本次共拆分 ${conversations.length} 条AI问答记录，其中 ${answered} 条可分析。${form.brandName}被提及 ${mentioned} 次，主动推荐 ${recommended} 次。`,
+    sourceWeak ? `主要短板是信源支撑不足：${sourceWeak} 条回答缺少清晰的官方、第三方或用户评价证据。` : '回答中的信源支撑相对完整，但仍需人工复核真实性。',
+    competitorPressure ? `另有 ${competitorPressure} 条回答出现竞品，需要检查是否形成竞品压制。` : '暂未发现明显竞品压制。',
+    '',
+    '## 二、关键发现',
+    ...topIssues.map((item, index) => `${index + 1}. ${item}`),
+    '',
+    '## 三、平台问答分析',
+    ...platformLines,
+    '',
+    '## 四、优化建议',
+    ...advice.map((item, index) => `${index + 1}. ${item}`),
+    '',
+    '## 五、交付前复核',
+    `1. 核对${form.brandName}官方渠道、主体资质、产品边界和联系方式。`,
+    `2. 核对${context.profile.contentPlatforms.slice(0, 5).map(([name]) => name).join('、')}等行业信源是否有真实证据。`,
+    '3. 对读取受限或部分读取的平台，补充截图、导出文本或新的公开分享链接。'
+  ].join('\n');
 }
 
-function buildOptimizationAdvice({ form, mentioned, recommended, accurate, hasAnswer }) {
+function inferQuestionType(question) {
+  const value = clean(question);
+  if (/对比|比较|相比|怎么选|谁更/.test(value)) return '比较型';
+  if (/推荐|值得|优先考虑|适合|哪款|哪些|有没有/.test(value)) return '推荐型';
+  if (/是什么|主要做什么|关系|产品|系列|单品|功能/.test(value)) return '品牌产品识别型';
+  if (/信源|证明|资料|官方|资质|可靠|靠谱|可信|准确|判断/.test(value)) return '信任准确型';
+  if (/风险|踩雷|忽略|注意|投诉|拒赔|争议/.test(value)) return '风险型';
+  if (/场景|上班|外卖|研学|户外|团队|预算|试用/.test(value)) return '场景型';
+  return '综合型';
+}
+
+function scoreBrandRecognition({ mentioned, answer, form }) {
+  if (!answer) return 0;
+  if (mentioned) return 82;
+  return brandAliases(form).some((alias) => clean(answer).includes(alias.slice(0, 2))) ? 45 : 18;
+}
+
+function scoreRecommendation({ questionType, mentioned, recommended, answer }) {
+  if (!answer) return 0;
+  if (!/推荐|比较|场景|选型/.test(questionType)) return mentioned ? 68 : 35;
+  if (mentioned && recommended) return 78;
+  if (mentioned) return 55;
+  return 25;
+}
+
+function scoreAccuracy({ accurate, answer, context, question }) {
+  if (!answer) return 0;
+  const type = inferQuestionType(question);
+  const hasRiskBoundary = /待核验|不确定|需要确认|可能|公开信息|以官方为准|不建议猜测/.test(answer);
+  const hasSpecificCriteria = context.profile.purchaseCriteria.filter((item) => answer.includes(item)).length;
+  let score = accurate ? 72 : 36;
+  if (hasSpecificCriteria >= 2) score += 8;
+  if (/信任|准确|风险/.test(type) && hasRiskBoundary) score += 8;
+  return Math.max(10, Math.min(score, 88));
+}
+
+function summarizeAnswer(answer) {
+  const textValue = clean(answer)
+    .replace(/^【链接读取状态】.*?\n/, '')
+    .replace(/\n{2,}/g, '\n');
+  return limitText(textValue, 360);
+}
+
+function buildCoreIssue({ item, form, context, questionType, mentioned, recommended, accurate, sourceAssessment }) {
+  const platform = item.platform || '该平台';
+  const question = clean(item.question);
+  if (!mentioned) {
+    return `${platform}在这个问题下没有把${form.brandName}纳入回答，说明该场景的品牌可见度不足。问题：${limitText(question, 90)}`;
+  }
+  if (/推荐|比较|场景|选型/.test(questionType) && !recommended) {
+    return `${platform}能识别${form.brandName}，但没有形成明确推荐理由，用户决策场景下的主动推荐不足。`;
+  }
+  if (!accurate) {
+    return `${platform}提到了${form.brandName}，但没有充分贴合${context.profile.productWord}、${context.profile.purchaseCriteria.slice(0, 3).join('、')}等关键判断维度。`;
+  }
+  if (/偏弱|一般|待复核|待补充/.test(sourceAssessment.summary)) {
+    return `${platform}回答基本相关，但信源支撑不足，缺少能让用户信任的官方、行业平台或第三方证据。`;
+  }
+  return `${platform}回答已覆盖品牌和问题场景，下一步重点是补强更清晰的证据链和可交付表达。`;
+}
+
+function buildOptimizationAdvice({ item, form, context, questionType, mentioned, recommended, accurate, sourceAssessment, hasAnswer }) {
   if (!hasAnswer) return '补充AI回答原文后再进行准确诊断';
   const advice = [];
-  if (!mentioned) advice.push(`补充${form.brandName}官网、品牌介绍和行业相关内容，提升AI识别概率`);
-  if (!recommended) advice.push('增加客户案例、对比内容和第三方可信信源，提高AI主动推荐理由');
-  if (!accurate) advice.push('统一品牌业务描述，减少AI误解或漏说');
-  if (!advice.length) advice.push('继续补充高质量信源，并扩大平台测试问题覆盖范围');
+  const platformSources = (context.profile.contentPlatforms || []).slice(0, 3).map(([name]) => name).join('、');
+  if (!mentioned) {
+    advice.push(`围绕“${limitText(item.question, 70)}”补充${form.brandName}的官方介绍、产品说明和${context.profile.productWord}场景内容`);
+  }
+  if (/推荐|比较|场景|选型/.test(questionType) && !recommended) {
+    advice.push(`增加面向${context.profile.userRole}的选择理由：${context.profile.purchaseCriteria.slice(0, 4).join('、')}`);
+  }
+  if (!accurate) {
+    advice.push(`统一${form.brandName}的品类定位、核心产品和服务边界，避免AI把产品系列、行业品类或竞品关系说混`);
+  }
+  if (/偏弱|一般|待复核|待补充/.test(sourceAssessment.summary)) {
+    advice.push(platformSources ? `优先补充${platformSources}上的可核验内容和证据` : '补充官方、第三方和用户口碑信源');
+  }
+  if (!advice.length) advice.push(`把这条回答沉淀为${form.brandName}的标准AI问答素材，并继续扩大同类问题覆盖`);
   return advice.join('；');
 }
 
 function appendNote(current, note) {
   const value = text(current);
   return value ? `${value}\n${note}` : note;
+}
+
+function extractPhrases(value) {
+  return unique(String(value || '')
+    .split(/[、,，;；\n\r。\.\/|]/)
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 2 && item.length <= 36));
+}
+
+function limitText(value, max) {
+  const content = clean(value);
+  if (content.length <= max) return content;
+  return `${content.slice(0, Math.max(0, max - 8))}...`;
 }
 
 function fail(userMessage) {

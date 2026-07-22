@@ -25,6 +25,7 @@ async function enrichConversationsWithSharedLinks(conversations = []) {
       conversation.extractionStatus = extracted.status;
       conversation.extractionNote = extracted.note;
       conversation.extractedTitle = extracted.title;
+      conversation.turns = extracted.turns || [];
     }
     result.push(conversation);
   }
@@ -59,14 +60,16 @@ async function extractAiShareLink(link, platformHint = '') {
     const enoughForDiagnosis = hasDiagnosticText(text);
     if (enoughForDiagnosis) {
       const partial = hasPartialPageWarning(text) || isLikelyPartialExtraction(platform, text);
+      const question = inferQuestion(text);
       return {
         ok: true,
         platform,
         title,
         status: partial ? '部分读取' : '已自动读取',
-        question: inferQuestion(text),
+        question,
         answer: limitText(text, MAX_EXTRACTED_TEXT),
-        note: partial ? '已读取到部分问答正文，建议人工复核是否包含全部提问' : '已从公开分享页自动提取问答正文'
+        note: partial ? '已读取到部分问答正文，建议人工复核是否包含全部提问' : '已从公开分享页自动提取问答正文',
+        turns: splitConversationTurns(text, question)
       };
     }
 
@@ -79,7 +82,8 @@ async function extractAiShareLink(link, platformHint = '') {
         status: '部分读取',
         question: inferQuestion(fallback),
         answer: limitText(fallback, 1200),
-        note: '分享页只暴露标题或摘要，未读取到完整问答正文'
+        note: '分享页只暴露标题或摘要，未读取到完整问答正文',
+        turns: []
       };
     }
 
@@ -355,6 +359,72 @@ function inferQuestion(value) {
   return question ? limitText(question, 180) : '分享会话自动提取，包含多轮问答';
 }
 
+function splitConversationTurns(value, fallbackQuestion = '') {
+  const lines = normalizeText(value)
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !isBoilerplateLine(line));
+  const turns = [];
+  let current = null;
+
+  for (const line of lines) {
+    const question = normalizeQuestionLine(line);
+    if (question) {
+      if (current) turns.push(finishTurn(current));
+      current = {
+        question,
+        answerLines: []
+      };
+      continue;
+    }
+
+    if (current) {
+      current.answerLines.push(line);
+    }
+  }
+
+  if (current) turns.push(finishTurn(current));
+
+  const usable = turns
+    .filter((turn) => turn.question && turn.answer.length >= 60)
+    .map((turn, index) => ({
+      questionId: `T${String(index + 1).padStart(2, '0')}`,
+      question: limitText(turn.question, 220),
+      answer: limitText(turn.answer, 2600)
+    }));
+
+  if (usable.length) return usable.slice(0, 12);
+  const fallback = clean(fallbackQuestion);
+  return fallback ? [{
+    questionId: 'T01',
+    question: limitText(fallback, 220),
+    answer: limitText(value, 2600)
+  }] : [];
+}
+
+function normalizeQuestionLine(line) {
+  const value = clean(line)
+    .replace(/^#+\s*/, '')
+    .replace(/^[-*]\s*/, '')
+    .replace(/^\d+[.、]\s*/, '')
+    .replace(/^提问[:：]\s*/, '')
+    .trim();
+  if (!value) return '';
+  if (value.length > 240) return '';
+  if (!/[？?]$/.test(value) && !/[？?]/.test(value)) return '';
+  if (/^(是否|可否|能否|有哪些|怎么|如何|什么|为什么|哪家|哪个|如果|我|我们|第一次|最近|旅行社|选择|比较|做)/.test(value)) return value;
+  if (/品牌|公司|推荐|选择|比较|区别|适合|靠谱吗|可靠吗|怎么买|怎么样|是什么|有哪些|怎么判断/.test(value)) return value;
+  return '';
+}
+
+function finishTurn(turn) {
+  return {
+    question: turn.question,
+    answer: normalizeText(turn.answerLines.join('\n'))
+  };
+}
+
 function extractTitle(html) {
   const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   return match ? normalizeText(decodeHtmlEntities(match[1])).replace(/\n/g, ' ') : '';
@@ -435,5 +505,6 @@ function clean(value) {
 
 module.exports = {
   enrichConversationsWithSharedLinks,
-  extractAiShareLink
+  extractAiShareLink,
+  splitConversationTurns
 };

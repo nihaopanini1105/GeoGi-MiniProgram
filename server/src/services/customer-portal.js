@@ -210,17 +210,28 @@ function buildDimensions(analyses) {
 }
 
 function buildPlatforms({ analyses, tests, brandName }) {
-  const analysisByPlatform = new Map(analyses.map((record) => [text(record.fields && record.fields.平台), record.fields || {}]));
+  const analysisByKey = new Map();
+  const analysisByPlatform = new Map();
+  analyses.forEach((record) => {
+    const fields = record.fields || {};
+    const platform = text(fields.平台);
+    const questionId = text(fields.问题编号);
+    if (platform && questionId) analysisByKey.set(`${platform}:${questionId}`, fields);
+    if (platform && !analysisByPlatform.has(platform)) analysisByPlatform.set(platform, fields);
+  });
+
   return tests.map((record) => {
     const fields = record.fields || {};
     const platform = text(fields.平台) || '未标注平台';
-    const analysis = analysisByPlatform.get(platform) || {};
+    const questionId = text(fields.问题编号);
+    const analysis = analysisByKey.get(`${platform}:${questionId}`) || analysisByPlatform.get(platform) || {};
     const answer = text(fields.回答原文);
     const mentioned = text(fields.是否提到品牌);
     const recommended = text(fields.是否主动推荐);
 
     return {
       name: platform,
+      questionId,
       question: text(fields.提问内容),
       answerPreview: answer.slice(0, 260),
       mentioned,
