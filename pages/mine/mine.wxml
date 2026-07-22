@@ -35,7 +35,7 @@
     </view>
   </view>
 
-  <view wx:else class="empty-card card">
+  <view wx:if="{{!orders.length}}" class="empty-card card">
     <image class="empty-icon" src="/assets/icons/png/96/report.png" mode="aspectFit"></image>
     <text class="empty-title">还没有诊断订单</text>
     <text class="body">提交品牌资料后，订单会自动出现在这里。报告生成后，也会在这里查看。</text>

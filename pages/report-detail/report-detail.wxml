@@ -85,7 +85,7 @@
         </view>
         <text class="platform-issue">{{item.issue}}</text>
       </view>
-      <view wx:else class="state-card card compact">
+      <view wx:if="{{!report.platforms.length}}" class="state-card card compact">
         <text class="state-title">平台问答待完成</text>
         <text class="body">完成五个平台问答并在飞书群触发生成报告后，这里会显示平台表现和证据。</text>
       </view>
