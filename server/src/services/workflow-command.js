@@ -7,6 +7,7 @@ const {
   sendWebhookText
 } = require('./feishu');
 const { generateDiagnosisAssets } = require('./diagnosis-engine');
+const { enrichConversationsWithSharedLinks } = require('./ai-share-extractor');
 
 const AI_PLATFORMS = ['DeepSeek', 'Kimi', '豆包', '通义千问', '腾讯元宝'];
 
@@ -125,10 +126,11 @@ async function generateReport({ projectId, commandText, aiConversations }) {
   if (!context.ok) return context;
 
   const { form, leadRecord, projectRecord } = context;
-  const conversations = normalizeConversations({ commandText, aiConversations, form });
-  if (!conversations.length) {
+  const parsedConversations = normalizeConversations({ commandText, aiConversations, form });
+  if (!parsedConversations.length) {
     return fail('没有识别到AI平台问答。请附上平台名称和会话链接，最好同时粘贴回答原文。');
   }
+  const conversations = await enrichConversationsWithSharedLinks(parsedConversations);
 
   const testedAt = new Date().toISOString();
   const testRecords = conversations.map((item, index) => buildTestRecord({
@@ -186,16 +188,20 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     }
   });
 
-  const needsAnswerText = conversations.filter((item) => !item.answer).length;
+  const needsAnswerText = conversations.filter((item) => !hasUsableAnswer(item)).length;
+  const extracted = conversations.filter((item) => item.extractionStatus === '已自动读取').length;
+  const partial = conversations.filter((item) => item.extractionStatus && item.extractionStatus !== '已自动读取').length;
   const message = [
     '【GeoGi 工作流】报告初稿已生成。',
     `项目编号：${projectId}`,
     `品牌：${form.brandName}`,
     `已整理AI平台记录：${conversations.length} 条`,
     `已生成分析结果：${analyses.length} 条`,
-    needsAnswerText ? `提醒：有 ${needsAnswerText} 条只有链接，没有回答原文，报告结论已标记为待补充。` : 'AI回答原文已纳入分析。',
+    extracted ? `自动读取分享链接：${extracted} 条` : '',
+    partial ? `部分平台读取受限或只读到摘要：${partial} 条` : '',
+    needsAnswerText ? `提醒：有 ${needsAnswerText} 条链接未读取到回答正文，报告结论已标记为待补充。` : 'AI回答原文已纳入分析。',
     '下一步：请在“报告管理”表中审核报告初稿。'
-  ].join('\n');
+  ].filter(Boolean).join('\n');
   await notify(message);
 
   return {
@@ -319,16 +325,20 @@ function buildBrandProfileFields({ form, projectId, submittedAt }) {
 
 function buildTestRecord({ item, index, form, projectId, testedAt }) {
   const answer = clean(item.answer);
+  const usableAnswer = hasUsableAnswer(item) ? answer : '';
+  const extractionPrefix = item.extractionStatus
+    ? `【链接读取状态】${item.extractionStatus}${item.extractionNote ? `：${item.extractionNote}` : ''}\n`
+    : '';
   return {
     项目编号: projectId,
     问题编号: item.questionId || `MANUAL-${String(index + 1).padStart(2, '0')}`,
     平台: item.platform || '未标注平台',
     提问内容: item.question || '从会话链接整理，提问内容待补充',
-    回答原文: answer || '已收到会话链接，需确认链接可访问或补充回答原文',
-    是否提到品牌: answer ? yesNo(answer.includes(form.brandName)) : '待判断',
-    是否主动推荐: answer ? yesNo(answer.includes(form.brandName) && /推荐|可以考虑|适合|值得/.test(answer)) : '待判断',
-    信息是否准确: answer ? yesNo(answer.includes(form.industry) || answer.includes(form.segment) || answer.includes(form.brandName)) : '待判断',
-    提到的竞品: findCompetitors(answer, form.competitors),
+    回答原文: answer ? `${extractionPrefix}${answer}` : `${extractionPrefix}已收到会话链接，但未读取到完整回答原文`,
+    是否提到品牌: usableAnswer ? yesNo(usableAnswer.includes(form.brandName)) : '待判断',
+    是否主动推荐: usableAnswer ? yesNo(usableAnswer.includes(form.brandName) && /推荐|可以考虑|适合|值得/.test(usableAnswer)) : '待判断',
+    信息是否准确: usableAnswer ? yesNo(usableAnswer.includes(form.industry) || usableAnswer.includes(form.segment) || usableAnswer.includes(form.brandName)) : '待判断',
+    提到的竞品: findCompetitors(usableAnswer, form.competitors),
     引用或信源: item.link || '',
     '证据截图/链接': item.link || '',
     测试时间: testedAt,
@@ -337,7 +347,7 @@ function buildTestRecord({ item, index, form, projectId, testedAt }) {
 }
 
 function buildAnalysisRecord({ item, form, projectId }) {
-  const answer = clean(item.answer);
+  const answer = hasUsableAnswer(item) ? clean(item.answer) : '';
   const mentioned = answer && answer.includes(form.brandName);
   const recommended = mentioned && /推荐|可以考虑|适合|值得/.test(answer);
   const accurate = answer && (answer.includes(form.industry) || answer.includes(form.segment) || answer.includes(form.brandName));
@@ -350,21 +360,22 @@ function buildAnalysisRecord({ item, form, projectId }) {
     主动推荐得分: answer ? String(recommended ? 75 : 30) : '待补充',
     信息准确得分: answer ? String(accurate ? 75 : 35) : '待补充',
     竞品压制情况: competitorMentions ? `回答中出现竞品：${competitorMentions}` : '未发现明显竞品压制',
-    信源可信度: item.link ? '有会话链接，需确认平台链接可访问' : '未提供链接或引用来源',
-    核心问题: answer ? buildCoreIssue({ mentioned, recommended, accurate }) : '目前只有会话链接，缺少回答原文，无法完成深度诊断',
+    信源可信度: buildSourceCredibility(item),
+    核心问题: answer ? buildCoreIssue({ mentioned, recommended, accurate }) : buildMissingAnswerIssue(item),
     优化建议: buildOptimizationAdvice({ form, mentioned, recommended, accurate, hasAnswer: Boolean(answer) }),
-    分析状态: answer ? '已生成初步分析' : '待补充回答原文'
+    分析状态: answer ? (item.extractionStatus ? `已生成初步分析（${item.extractionStatus}）` : '已生成初步分析') : '待补充回答原文'
   };
 }
 
 function buildReportFields({ conversations, analyses, form, projectId, testedAt }) {
-  const answered = conversations.filter((item) => item.answer).length;
-  const mentioned = conversations.filter((item) => item.answer && item.answer.includes(form.brandName)).length;
-  const recommended = conversations.filter((item) => item.answer && item.answer.includes(form.brandName) && /推荐|可以考虑|适合|值得/.test(item.answer)).length;
+  const answered = conversations.filter(hasUsableAnswer).length;
+  const mentioned = conversations.filter((item) => hasUsableAnswer(item) && item.answer.includes(form.brandName)).length;
+  const recommended = conversations.filter((item) => hasUsableAnswer(item) && item.answer.includes(form.brandName) && /推荐|可以考虑|适合|值得/.test(item.answer)).length;
   const reportSummary = [
     `本次共收到 ${conversations.length} 条AI平台问答线索，其中 ${answered} 条包含回答原文。`,
     `品牌被提及 ${mentioned} 次，出现主动推荐倾向 ${recommended} 次。`,
-    answered < conversations.length ? '部分会话仅提供链接，若链接无法公开访问，需要补充回答原文后再生成正式报告。' : '当前回答原文已可支撑初步报告。'
+    buildExtractionSummary(conversations),
+    answered < conversations.length ? '部分平台的分享页未暴露完整正文，需要换成公开可访问链接、截图或导出内容后再生成正式报告。' : '当前回答原文已可支撑初步报告。'
   ].join('\n');
 
   return {
@@ -550,6 +561,34 @@ function yesNo(value) {
 function findCompetitors(answer, competitors) {
   const names = splitList(competitors);
   return names.filter((name) => answer && answer.includes(name)).join('、');
+}
+
+function hasUsableAnswer(item) {
+  const answer = clean(item && item.answer);
+  if (!answer) return false;
+  if (item.extractionStatus === '部分读取' && answer.length < 120) return false;
+  return answer.length >= 80;
+}
+
+function buildSourceCredibility(item) {
+  if (!item.link) return '未提供链接或引用来源';
+  if (item.extractionStatus === '已自动读取') return '分享链接已自动读取，可作为本次诊断依据';
+  if (item.extractionStatus === '部分读取') return `分享链接只读取到部分信息：${item.extractionNote || '未获得完整正文'}`;
+  if (item.extractionStatus === '读取受限') return `分享链接读取受限：${item.extractionNote || '需要补充截图或原文'}`;
+  return '有会话链接，需确认平台链接可访问';
+}
+
+function buildMissingAnswerIssue(item) {
+  if (item.extractionNote) return `分享链接未读取到完整回答正文：${item.extractionNote}`;
+  return '目前只有会话链接，缺少回答原文，无法完成深度诊断';
+}
+
+function buildExtractionSummary(conversations) {
+  const extracted = conversations.filter((item) => item.extractionStatus === '已自动读取').length;
+  const partial = conversations.filter((item) => item.extractionStatus === '部分读取').length;
+  const blocked = conversations.filter((item) => item.extractionStatus === '读取受限').length;
+  if (!extracted && !partial && !blocked) return '本次使用人工提供的回答原文进行分析。';
+  return `分享链接自动读取结果：完整读取 ${extracted} 条，部分读取 ${partial} 条，读取受限 ${blocked} 条。`;
 }
 
 function buildCoreIssue({ mentioned, recommended, accurate }) {
