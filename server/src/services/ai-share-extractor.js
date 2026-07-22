@@ -2,8 +2,9 @@ const http = require('http');
 const https = require('https');
 const zlib = require('zlib');
 
-const MAX_RESPONSE_BYTES = 3 * 1024 * 1024;
-const MAX_EXTRACTED_TEXT = 6500;
+const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
+const MAX_EXTRACTED_TEXT = 50000;
+const MAX_TURN_TEXT = 50000;
 
 const PLATFORM_RULES = [
   { platform: '豆包', hosts: ['doubao.com'] },
@@ -26,6 +27,7 @@ async function enrichConversationsWithSharedLinks(conversations = []) {
       conversation.extractionNote = extracted.note;
       conversation.extractedTitle = extracted.title;
       conversation.turns = extracted.turns || [];
+      conversation.assets = extracted.assets || emptyAssets();
     }
     result.push(conversation);
   }
@@ -35,6 +37,16 @@ async function enrichConversationsWithSharedLinks(conversations = []) {
 async function extractAiShareLink(link, platformHint = '') {
   const platform = platformHint || detectPlatform(link);
   try {
+    try {
+      const apiExtracted = await extractPlatformApiShare(link, platform);
+      if (apiExtracted) return apiExtracted;
+    } catch (error) {
+      if (process.env.DEBUG_SHARE_EXTRACTOR === 'true') {
+        console.warn(`[share-extractor] platform api failed: ${platform} ${error.message}`);
+      }
+      // Continue with the public HTML fallback when a platform API changes.
+    }
+
     const response = await fetchText(link);
     if (response.statusCode >= 400) {
       return blockedResult({
@@ -47,12 +59,14 @@ async function extractAiShareLink(link, platformHint = '') {
     const html = response.body || '';
     const title = extractTitle(html);
     const meta = extractMetaDescription(html);
+    const assets = extractStructuredAssets(html, link);
     const text = extractReadableText(html, { platform, title, meta });
 
     if (isSecurityOrEmptyPage({ text, title, meta, statusCode: response.statusCode })) {
       return blockedResult({
         platform,
         title,
+        assets,
         note: '页面需要登录、验证或浏览器渲染，当前无法自动读取完整问答'
       });
     }
@@ -67,9 +81,10 @@ async function extractAiShareLink(link, platformHint = '') {
         title,
         status: partial ? '部分读取' : '已自动读取',
         question,
-        answer: limitText(text, MAX_EXTRACTED_TEXT),
+        answer: preserveText(text, MAX_EXTRACTED_TEXT),
         note: partial ? '已读取到部分问答正文，建议人工复核是否包含全部提问' : '已从公开分享页自动提取问答正文',
-        turns: splitConversationTurns(text, question)
+        turns: splitConversationTurns(text, question),
+        assets: mergeAssets(assets, { tables: extractMarkdownTables(text) })
       };
     }
 
@@ -81,15 +96,17 @@ async function extractAiShareLink(link, platformHint = '') {
         title,
         status: '部分读取',
         question: inferQuestion(fallback),
-        answer: limitText(fallback, 1200),
+        answer: preserveText(fallback, 1200),
         note: '分享页只暴露标题或摘要，未读取到完整问答正文',
-        turns: []
+        turns: [],
+        assets
       };
     }
 
     return blockedResult({
       platform,
       title,
+      assets,
       note: '分享页未暴露可读取的问答正文'
     });
   } catch (error) {
@@ -99,6 +116,204 @@ async function extractAiShareLink(link, platformHint = '') {
       note: `自动读取失败：${error.message}`
     });
   }
+}
+
+async function extractPlatformApiShare(link, platform) {
+  if (platform === '通义千问' || /qianwen\.com/.test(link)) {
+    return extractQianwenShare(link, platform);
+  }
+  if (platform === 'DeepSeek' || /deepseek\.com/.test(link)) {
+    return extractDeepSeekShare(link, platform);
+  }
+  return null;
+}
+
+async function extractQianwenShare(link, platform) {
+  const shareId = extractShareId(link);
+  if (!shareId) return null;
+  const response = await requestJson({
+    method: 'POST',
+    url: 'https://chat2-api.qianwen.com/api/v1/share/info?pr=qwen&fr=mac',
+    headers: {
+      'Content-Type': 'application/json',
+      'Origin': 'https://www.qianwen.com',
+      'Referer': link
+    },
+    body: {
+      share_id: shareId,
+      biz_id: 'ai_qwen'
+    }
+  });
+  if (!response || response.statusCode >= 400 || !response.json) return null;
+  const data = response.json.data || {};
+  const session = data.session || {};
+  const records = Array.isArray(session.record_list) ? session.record_list : [];
+  const turns = records.map((record, index) => {
+    const question = firstContent(record.request_messages);
+    const answer = bestResponseContent(record.response_messages);
+    return {
+      questionId: `T${String(index + 1).padStart(2, '0')}`,
+      question: limitText(question, 220),
+      answer: preserveText(answer, MAX_TURN_TEXT)
+    };
+  }).filter((turn) => turn.question && turn.answer);
+
+  if (!turns.length) return null;
+  const answer = turns.map((turn) => `提问：${turn.question}\n回答：${turn.answer}`).join('\n\n');
+  const assets = mergeAssets(
+    extractStructuredAssets(JSON.stringify(response.json), link),
+    { tables: extractMarkdownTables(answer) }
+  );
+  return {
+    ok: true,
+    platform,
+    title: clean(data.title || session.title || '通义千问分享会话'),
+    status: '已自动读取',
+    question: turns[0].question || '通义千问分享会话自动提取',
+    answer: preserveText(answer, MAX_EXTRACTED_TEXT),
+    note: `已通过通义千问分享接口读取 ${turns.length} 轮问答`,
+    turns,
+    assets
+  };
+}
+
+async function extractDeepSeekShare(link, platform) {
+  const shareId = extractShareId(link);
+  if (!shareId) return null;
+  const response = await requestJson({
+    method: 'GET',
+    url: `https://chat.deepseek.com/api/v0/share/content?share_id=${encodeURIComponent(shareId)}`,
+    headers: {
+      'Accept': 'application/json, text/plain, */*',
+      'Origin': 'https://chat.deepseek.com',
+      'Referer': link
+    }
+  });
+  if (!response || response.statusCode >= 400 || !response.json) return null;
+  const payload = (((response.json || {}).data || {}).biz_data) || {};
+  const messages = Array.isArray(payload.messages) ? payload.messages : [];
+  const byParent = new Map();
+  for (const message of messages) {
+    const parentId = message.parent_id == null ? '' : String(message.parent_id);
+    if (!byParent.has(parentId)) byParent.set(parentId, []);
+    byParent.get(parentId).push(message);
+  }
+  const userMessages = messages.filter((message) => message.role === 'USER');
+  const turns = userMessages.map((message, index) => {
+    const children = byParent.get(String(message.message_id)) || [];
+    const assistant = children.find((item) => item.role === 'ASSISTANT')
+      || messages.find((item) => item.role === 'ASSISTANT' && item.message_id > message.message_id);
+    return {
+      questionId: `T${String(index + 1).padStart(2, '0')}`,
+      question: limitText(message.content, 220),
+      answer: preserveText(assistant && assistant.content, MAX_TURN_TEXT)
+    };
+  }).filter((turn) => turn.question && turn.answer);
+
+  if (!turns.length) return null;
+  const answer = turns.map((turn) => `提问：${turn.question}\n回答：${turn.answer}`).join('\n\n');
+  const assets = mergeAssets(
+    extractStructuredAssets(JSON.stringify(response.json), link),
+    { tables: extractMarkdownTables(answer) }
+  );
+  return {
+    ok: true,
+    platform,
+    title: clean(payload.title || 'DeepSeek分享会话'),
+    status: '已自动读取',
+    question: turns[0].question || 'DeepSeek分享会话自动提取',
+    answer: preserveText(answer, MAX_EXTRACTED_TEXT),
+    note: `已通过DeepSeek分享接口读取 ${turns.length} 轮问答`,
+    turns,
+    assets
+  };
+}
+
+function requestJson({ method, url, headers = {}, body }) {
+  const target = new URL(url);
+  const client = target.protocol === 'http:' ? http : https;
+  const payload = body == null ? null : Buffer.from(JSON.stringify(body));
+
+  return new Promise((resolve, reject) => {
+    const req = client.request({
+      method,
+      hostname: target.hostname,
+      path: `${target.pathname}${target.search}`,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.5',
+        ...headers,
+        ...(payload ? { 'Content-Length': payload.length } : {})
+      },
+      timeout: 15000
+    }, (res) => {
+      const chunks = [];
+      let received = 0;
+      res.on('data', (chunk) => {
+        received += chunk.length;
+        if (received <= MAX_RESPONSE_BYTES) chunks.push(chunk);
+      });
+      res.on('end', () => {
+        decodeBody(Buffer.concat(chunks), res.headers['content-encoding'])
+          .then((text) => {
+            let json = null;
+            try {
+              json = JSON.parse(text);
+            } catch (error) {
+              json = null;
+            }
+            resolve({
+              statusCode: res.statusCode || 0,
+              contentType: res.headers['content-type'] || '',
+              text,
+              json
+            });
+          })
+          .catch(reject);
+      });
+    });
+
+    req.on('error', reject);
+    req.on('timeout', () => req.destroy(new Error('request timeout')));
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+function extractShareId(link) {
+  try {
+    const url = new URL(link);
+    return clean(url.searchParams.get('share_id'))
+      || clean(url.pathname.split('/').filter(Boolean).pop());
+  } catch (error) {
+    return '';
+  }
+}
+
+function firstContent(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  const message = list.find((item) => clean(item && item.content));
+  return clean(message && message.content);
+}
+
+function bestResponseContent(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  const candidates = list
+    .map((item) => ({
+      mimeType: clean(item && item.mime_type),
+      content: normalizeText(decodeHtmlEntities(decodeJsEscapes(clean(item && item.content))))
+    }))
+    .filter((item) => item.content && /[\u4e00-\u9fa5]/.test(item.content))
+    .filter((item) => !(/^<div\b/i.test(item.content) && /card_card_video|video_note_list|data-tpl/.test(item.content)))
+    .sort((a, b) => {
+      const aFinal = /multi_load|markdown|text|iframe/.test(a.mimeType) ? 1 : 0;
+      const bFinal = /multi_load|markdown|text|iframe/.test(b.mimeType) ? 1 : 0;
+      if (aFinal !== bFinal) return bFinal - aFinal;
+      return b.content.length - a.content.length;
+    })
+    .map((item) => item.content);
+  if (!candidates.length) return '';
+  return candidates[0];
 }
 
 function fetchText(link, redirectCount = 0) {
@@ -199,7 +414,7 @@ function extractConversationText(html) {
   const blocks = [];
   const re = /(?:"text"|"tts_content"|"markdown"|"answer")\s*:\s*"([\s\S]*?)"/g;
   let match;
-  while ((match = re.exec(decoded)) && blocks.length < 260) {
+  while ((match = re.exec(decoded)) && blocks.length < 900) {
     const value = normalizeText(decodeJsEscapes(match[1]));
     if (!value || value.length < 8 || !/[\u4e00-\u9fa5]/.test(value)) continue;
     if (isBoilerplateLine(value)) continue;
@@ -221,7 +436,7 @@ function extractConversationText(html) {
   for (const candidate of candidates) {
     if (selected.some((item) => item.includes(candidate) || candidate.includes(item))) continue;
     selected.push(candidate);
-    if (selected.join('\n\n').length > MAX_EXTRACTED_TEXT) break;
+    if (selected.join('\n\n').length > MAX_EXTRACTED_TEXT * 1.2) break;
   }
 
   return selected.join('\n\n');
@@ -299,7 +514,7 @@ function cleanReadableLine(line, { platform, title, meta }) {
 function scoreConversationBlock(value) {
   let score = 0;
   if (/^#|^一、|^1[.、]|^首先|^根据|^公开|^目前|^很抱歉|^无法|^可以|^建议/.test(value)) score += 4;
-  if (/旅如意|Lruyi|品牌|公司|平台|保险|旅行社|旅游/.test(value)) score += 4;
+  if (/旅如意|Lruyi|品牌|公司|平台|保险|旅行社|旅游|瑞幸|luckin|咖啡|拿铁|美式|生椰|厚乳|小黑杯|库迪|星巴克/.test(value)) score += 4;
   if (/主营|业务|关系|推荐|选择|服务商|竞品|信源|核实/.test(value)) score += 3;
   if (value.length > 400) score += 2;
   if (/搜索 \d+ 个关键词|参考 \d+ 篇资料|注册资本|统一社会信用代码|申请流程|商品服务列表/.test(value)) score -= 5;
@@ -308,7 +523,7 @@ function scoreConversationBlock(value) {
 }
 
 function isBoilerplateLine(value) {
-  const hasDiagnosticContent = /旅如意|Lruyi|旅行社|旅游保险/.test(value) && value.length > 80;
+  const hasDiagnosticContent = /旅如意|Lruyi|旅行社|旅游保险|瑞幸|luckin|咖啡|拿铁|美式|生椰|厚乳|小黑杯/.test(value) && value.length > 80;
   if (hasDiagnosticContent) return false;
   return /会话过期|重新登录|内容不准确|喜欢|不喜欢|页面资源加载异常|重新加载|DeepSeek AI,DeepSeek Chat|助力编程代码开发|点击全选以下消息|分享于\d{4}/.test(value)
     || /^[{}\[\],:"\s]+$/.test(value);
@@ -322,8 +537,8 @@ function trimNoise(value, { title, meta }) {
     return true;
   });
   const merged = meaningful.join('\n');
-  if (hasDiagnosticText(merged)) return limitText(merged, MAX_EXTRACTED_TEXT);
-  return limitText([title, meta, merged].filter(Boolean).join('\n'), MAX_EXTRACTED_TEXT);
+  if (hasDiagnosticText(merged)) return preserveText(merged, MAX_EXTRACTED_TEXT);
+  return preserveText([title, meta, merged].filter(Boolean).join('\n'), MAX_EXTRACTED_TEXT);
 }
 
 function hasDiagnosticText(value) {
@@ -392,7 +607,7 @@ function splitConversationTurns(value, fallbackQuestion = '') {
     .map((turn, index) => ({
       questionId: `T${String(index + 1).padStart(2, '0')}`,
       question: limitText(turn.question, 220),
-      answer: limitText(turn.answer, 2600)
+      answer: preserveText(turn.answer, MAX_TURN_TEXT)
     }));
 
   if (usable.length) return usable.slice(0, 12);
@@ -400,7 +615,7 @@ function splitConversationTurns(value, fallbackQuestion = '') {
   return fallback ? [{
     questionId: 'T01',
     question: limitText(fallback, 220),
-    answer: limitText(value, 2600)
+    answer: preserveText(value, MAX_TURN_TEXT)
   }] : [];
 }
 
@@ -486,6 +701,179 @@ function extractMetaDescription(html) {
   return match ? normalizeText(decodeHtmlEntities(match[1])).replace(/\n/g, ' ') : '';
 }
 
+function extractStructuredAssets(html, pageUrl = '') {
+  const decoded = decodeHtmlEntities(decodeJsEscapes(decodeHtmlEntities(html)));
+  const assets = {
+    contentTypes: ['文字'],
+    images: extractImages(decoded, pageUrl),
+    videos: extractVideos(decoded, pageUrl),
+    links: extractLinks(decoded, pageUrl),
+    tables: unique([...extractTables(decoded), ...extractMarkdownTables(htmlToText(decoded))]).slice(0, 40)
+  };
+
+  if (assets.links.length) assets.contentTypes.push('链接');
+  if (assets.images.length) assets.contentTypes.push('图片');
+  if (assets.videos.length) assets.contentTypes.push('视频');
+  if (assets.tables.length) assets.contentTypes.push('表格');
+  assets.contentTypes = unique(assets.contentTypes);
+  return assets;
+}
+
+function mergeAssets(...items) {
+  const merged = emptyAssets();
+  for (const item of items) {
+    const assets = item && typeof item === 'object' ? item : {};
+    merged.contentTypes.push(...(Array.isArray(assets.contentTypes) ? assets.contentTypes : []));
+    merged.images.push(...(Array.isArray(assets.images) ? assets.images : []));
+    merged.videos.push(...(Array.isArray(assets.videos) ? assets.videos : []));
+    merged.links.push(...(Array.isArray(assets.links) ? assets.links : []));
+    merged.tables.push(...(Array.isArray(assets.tables) ? assets.tables : []));
+  }
+  merged.images = unique(merged.images).slice(0, 120);
+  merged.videos = unique(merged.videos).slice(0, 60);
+  merged.links = unique(merged.links).slice(0, 160);
+  merged.tables = unique(merged.tables).slice(0, 60);
+  merged.contentTypes = unique([
+    '文字',
+    ...merged.contentTypes,
+    merged.links.length ? '链接' : '',
+    merged.images.length ? '图片' : '',
+    merged.videos.length ? '视频' : '',
+    merged.tables.length ? '表格' : ''
+  ]);
+  return merged;
+}
+
+function extractImages(html, pageUrl) {
+  const urls = [];
+  const tagRe = /<img\b[^>]*>/gi;
+  let tagMatch;
+  while ((tagMatch = tagRe.exec(html))) {
+    const tag = tagMatch[0];
+    ['src', 'data-src', 'data-original', 'data-url', 'poster'].forEach((attr) => {
+      const value = extractAttr(tag, attr);
+      if (value) urls.push(...splitSrcset(value));
+    });
+  }
+  const urlRe = /https?:\/\/[^"'()<>\s]+?\.(?:png|jpe?g|webp|gif|svg)(?:\?[^"'()<>\s]*)?/gi;
+  urls.push(...(html.match(urlRe) || []));
+  return unique(urls.map((url) => normalizeAssetUrl(url, pageUrl)).filter(isUsefulMediaUrl)).slice(0, 80);
+}
+
+function extractVideos(html, pageUrl) {
+  const urls = [];
+  const tagRe = /<(?:video|source)\b[^>]*>/gi;
+  let tagMatch;
+  while ((tagMatch = tagRe.exec(html))) {
+    const tag = tagMatch[0];
+    ['src', 'data-src', 'poster'].forEach((attr) => {
+      const value = extractAttr(tag, attr);
+      if (value) urls.push(...splitSrcset(value));
+    });
+  }
+  const urlRe = /https?:\/\/[^"'()<>\s]+?\.(?:mp4|m3u8|mov|webm)(?:\?[^"'()<>\s]*)?/gi;
+  urls.push(...(html.match(urlRe) || []));
+  return unique(urls.map((url) => normalizeAssetUrl(url, pageUrl)).filter(isUsefulMediaUrl)).slice(0, 40);
+}
+
+function extractLinks(html, pageUrl) {
+  const links = [];
+  const tagRe = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = tagRe.exec(html))) {
+    const url = normalizeAssetUrl(match[1], pageUrl);
+    if (!isUsefulLink(url)) continue;
+    const label = normalizeText(htmlToText(match[2])).replace(/\n/g, ' ');
+    links.push(label && label !== url ? `${label}：${url}` : url);
+  }
+  const urlRe = /https?:\/\/[^"'()<>\s，。；]+/gi;
+  for (const url of html.match(urlRe) || []) {
+    const normalized = normalizeAssetUrl(url, pageUrl);
+    if (isUsefulLink(normalized)) links.push(normalized);
+  }
+  return unique(links).slice(0, 120);
+}
+
+function extractTables(html) {
+  const tables = [];
+  const tableRe = /<table\b[\s\S]*?<\/table>/gi;
+  let tableMatch;
+  while ((tableMatch = tableRe.exec(html))) {
+    const rows = [];
+    const rowRe = /<tr\b[\s\S]*?<\/tr>/gi;
+    let rowMatch;
+    while ((rowMatch = rowRe.exec(tableMatch[0]))) {
+      const cells = [];
+      const cellRe = /<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi;
+      let cellMatch;
+      while ((cellMatch = cellRe.exec(rowMatch[0]))) {
+        const cell = normalizeText(htmlToText(cellMatch[1])).replace(/\n/g, ' ');
+        if (cell) cells.push(cell);
+      }
+      if (cells.length) rows.push(cells);
+    }
+    if (rows.length) {
+      tables.push(rows.map((row) => row.join(' | ')).join('\n'));
+    }
+  }
+  return unique(tables).slice(0, 20);
+}
+
+function extractMarkdownTables(value) {
+  const lines = normalizeText(value).split(/\n+/);
+  const tables = [];
+  let current = [];
+
+  for (const line of lines) {
+    const cellCount = (line.match(/\|/g) || []).length;
+    if (cellCount >= 2 && line.length <= 1200) {
+      current.push(line.trim());
+      continue;
+    }
+    if (current.length >= 2) tables.push(current.join('\n'));
+    current = [];
+  }
+  if (current.length >= 2) tables.push(current.join('\n'));
+
+  return unique(tables).slice(0, 40);
+}
+
+function extractAttr(tag, attr) {
+  const re = new RegExp(`${attr}=["']([^"']+)["']`, 'i');
+  const match = String(tag || '').match(re);
+  return match ? decodeHtmlEntities(match[1]) : '';
+}
+
+function splitSrcset(value) {
+  return String(value || '')
+    .split(',')
+    .map((item) => item.trim().split(/\s+/)[0])
+    .filter(Boolean);
+}
+
+function normalizeAssetUrl(value, pageUrl) {
+  const raw = clean(value).replace(/\\\//g, '/');
+  if (!raw || /^data:|^blob:|^javascript:/i.test(raw)) return '';
+  try {
+    return new URL(raw, pageUrl || undefined).toString();
+  } catch (error) {
+    return '';
+  }
+}
+
+function isUsefulMediaUrl(url) {
+  if (!url) return false;
+  if (/avatar|favicon|logo|icon|sprite|blank|placeholder|transparent/i.test(url)) return false;
+  return /^https?:\/\//.test(url);
+}
+
+function isUsefulLink(url) {
+  if (!url) return false;
+  if (!/^https?:\/\//.test(url)) return false;
+  if (/favicon|static\/js|static\/css|\.css(?:\?|$)|\.js(?:\?|$)/i.test(url)) return false;
+  return true;
+}
+
 function decodeHtmlEntities(value) {
   return String(value || '')
     .replace(/&nbsp;/g, ' ')
@@ -531,7 +919,7 @@ function detectPlatform(link) {
   }
 }
 
-function blockedResult({ platform, title, note }) {
+function blockedResult({ platform, title, note, assets }) {
   return {
     ok: false,
     platform,
@@ -539,14 +927,32 @@ function blockedResult({ platform, title, note }) {
     status: '读取受限',
     question: '分享会话自动提取，包含多轮问答',
     answer: '',
-    note
+    note,
+    turns: [],
+    assets: assets || emptyAssets()
   };
+}
+
+function preserveText(value, max) {
+  const text = clean(value);
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}\n（内容超过当前字段安全上限，已保留前 ${max} 字；原文仍需通过原分享链接复核）`;
 }
 
 function limitText(value, max) {
   const text = clean(value);
   if (text.length <= max) return text;
   return `${text.slice(0, max - 18)}\n（内容较长，已截取）`;
+}
+
+function emptyAssets() {
+  return {
+    contentTypes: ['文字'],
+    images: [],
+    videos: [],
+    links: [],
+    tables: []
+  };
 }
 
 function unique(values) {
@@ -560,5 +966,6 @@ function clean(value) {
 module.exports = {
   enrichConversationsWithSharedLinks,
   extractAiShareLink,
-  splitConversationTurns
+  splitConversationTurns,
+  extractStructuredAssets
 };

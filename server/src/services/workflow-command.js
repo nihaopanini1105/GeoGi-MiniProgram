@@ -349,6 +349,7 @@ function buildBrandProfileFields({ form, projectId, submittedAt }) {
 function buildTestRecord({ item, index, form, projectId, testedAt }) {
   const context = buildDiagnosisContext(form);
   const answer = clean(item.answer);
+  const assets = normalizeAssets(item.assets, answer);
   const usableAnswer = hasUsableAnswer(item) ? answer : '';
   const mentioned = usableAnswer ? matchesBrand(usableAnswer, form) : false;
   const recommended = mentioned && hasRecommendationSignal(usableAnswer);
@@ -365,6 +366,13 @@ function buildTestRecord({ item, index, form, projectId, testedAt }) {
     平台: item.platform || '未标注平台',
     提问内容: item.question || '从会话链接整理，提问内容待补充',
     回答原文: answer ? `${extractionPrefix}${answer}` : `${extractionPrefix}已收到会话链接，但未读取到完整回答原文`,
+    内容格式: buildContentFormat({ answer, assets }),
+    图片链接: formatAssetEntries(assets.images),
+    视频链接: formatAssetEntries(assets.videos),
+    表格内容: formatAssetEntries(assets.tables),
+    外部链接: formatAssetEntries(assets.links),
+    读取完整性: buildReadCompleteness({ item, answer, assets }),
+    原始内容长度: answer ? String(answer.length) : '0',
     是否提到品牌: usableAnswer ? yesNo(mentioned) : '待判断',
     是否主动推荐: usableAnswer ? yesNo(recommended) : '待判断',
     信息是否准确: usableAnswer ? yesNo(accurate) : '待判断',
@@ -859,6 +867,63 @@ function detectSourceEvidence(answer, context) {
   }
   if (/https?:\/\//.test(value)) evidence.push('回答含外部链接');
   return unique(evidence);
+}
+
+function normalizeAssets(assets, answer = '') {
+  const source = assets && typeof assets === 'object' ? assets : {};
+  return {
+    contentTypes: Array.isArray(source.contentTypes) ? source.contentTypes.filter(Boolean) : ['文字'],
+    images: Array.isArray(source.images) ? source.images.filter(Boolean) : [],
+    videos: Array.isArray(source.videos) ? source.videos.filter(Boolean) : [],
+    links: Array.isArray(source.links) ? source.links.filter(Boolean) : [],
+    tables: unique([
+      ...(Array.isArray(source.tables) ? source.tables.filter(Boolean) : []),
+      ...extractMarkdownTables(answer)
+    ])
+  };
+}
+
+function buildContentFormat({ answer, assets }) {
+  const formats = new Set(assets.contentTypes || []);
+  if (answer) formats.add('文字');
+  if (assets.links.length) formats.add('链接');
+  if (assets.images.length) formats.add('图片');
+  if (assets.videos.length) formats.add('视频');
+  if (assets.tables.length) formats.add('表格');
+  return Array.from(formats).join('、') || '未识别';
+}
+
+function formatAssetEntries(entries) {
+  return entries.map((entry, index) => `${index + 1}. ${entry}`).join('\n');
+}
+
+function buildReadCompleteness({ item, answer, assets }) {
+  const status = item.extractionStatus || (answer ? '人工提供' : '待补充');
+  const note = item.extractionNote ? `；${item.extractionNote}` : '';
+  const assetSummary = [
+    assets.images.length ? `图片${assets.images.length}个` : '',
+    assets.videos.length ? `视频${assets.videos.length}个` : '',
+    assets.links.length ? `链接${assets.links.length}个` : '',
+    assets.tables.length ? `表格${assets.tables.length}个` : ''
+  ].filter(Boolean).join('，') || '未发现非文本附件';
+  return `${status}${note}；正文${answer ? answer.length : 0}字；${assetSummary}`;
+}
+
+function extractMarkdownTables(value) {
+  const lines = clean(value).split(/\n+/);
+  const tables = [];
+  let current = [];
+
+  for (const line of lines) {
+    if ((line.match(/\|/g) || []).length >= 2 && line.length <= 1200) {
+      current.push(line.trim());
+      continue;
+    }
+    if (current.length >= 2) tables.push(current.join('\n'));
+    current = [];
+  }
+  if (current.length >= 2) tables.push(current.join('\n'));
+  return tables.slice(0, 40);
 }
 
 function buildMissingAnswerIssue(item) {
