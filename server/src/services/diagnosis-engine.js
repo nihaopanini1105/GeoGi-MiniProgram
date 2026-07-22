@@ -93,7 +93,7 @@ function generateSources({ context, projectId, submittedAt }) {
     [`${context.companyName || context.brandName} 企业信息`, '企业信息检索', '核验工商主体、品牌归属和可信度'],
     [`${context.brandName} ${context.industry}`, '行业曝光检索', '查找行业文章、媒体报道、榜单或测评内容'],
     [`${context.brandName} 案例 客户`, '案例检索', '查找客户案例、合作案例或公开口碑'],
-    [`${context.brandName} 推荐 可靠吗`, '口碑检索', '发现 AI 可能引用的推荐、评价和风险内容']
+    [`${context.brandName} 推荐 可靠吗`, '口碑检索', '发现AI可能引用的推荐、评价和风险内容']
   ];
 
   for (const competitor of context.competitors.slice(0, 3)) {
@@ -122,7 +122,7 @@ function generateSources({ context, projectId, submittedAt }) {
 function generateKeywords({ context, projectId }) {
   const records = [];
   const add = (keyword, type, intent, priority = '中', note = 'P1 自动生成，待人工审核') => {
-    const cleanKeyword = clean(keyword);
+    const cleanKeyword = normalizeKeyword(keyword);
     if (!cleanKeyword) return;
     records.push({
       项目编号: projectId,
@@ -156,12 +156,12 @@ function generateKeywords({ context, projectId }) {
     add(competitor, '竞品词', '用户比较竞品与替代方案', '中');
   }
   for (const goal of context.goals) {
-    add(goal, '诊断目标词', '本次 GEO 诊断关注点', '高');
+    add(goal, '诊断目标词', '本次GEO诊断关注点', '高');
   }
 
-  add('AI 搜索推荐', 'GEO 诊断词', '用户希望 AI 推荐合适品牌', '高');
-  add('品牌 AI 可见度', 'GEO 诊断词', '判断品牌是否能被 AI 正确识别', '高');
-  add('信源可信度', 'GEO 诊断词', '判断 AI 回答背后的公开依据是否可靠', '中');
+  add('AI搜索推荐', 'GEO诊断词', '用户希望AI推荐合适品牌', '高');
+  add('品牌AI可见度', 'GEO诊断词', '判断品牌是否能被AI正确识别', '高');
+  add('AI回答信源可信度', 'GEO诊断词', '判断AI回答背后的公开依据是否可靠', '中');
 
   return dedupeBy(records, (item) => item.关键词).slice(0, 24);
 }
@@ -169,10 +169,13 @@ function generateKeywords({ context, projectId }) {
 function generateIndustryQuestions({ context, projectId }) {
   const brand = context.brandName || '这个品牌';
   const industry = context.industry || '相关行业';
-  const segment = context.segment || context.offerings || '相关服务';
-  const audience = firstPhrase(context.audiences) || '企业客户';
+  const segment = normalizeQuestionPhrase(context.segment || context.offerings || '相关服务');
+  const audience = normalizeQuestionPhrase(firstPhrase(context.audiences) || '企业客户');
+  const offering = normalizeQuestionPhrase(firstPhrase(context.offerings) || segment);
+  const advantage = normalizeQuestionPhrase(firstPhrase(context.advantages) || '交付能力');
   const competitor = context.competitors[0];
   const market = context.markets[0] || '中国市场';
+  const globalMarket = context.markets.find((item) => /全球|海外|国际|出海/.test(item)) || '海外市场';
   const records = [];
 
   const add = (question, type, scene, priority = '中', included = '是') => {
@@ -184,29 +187,31 @@ function generateIndustryQuestions({ context, projectId }) {
       用户场景: scene,
       优先级: priority,
       是否纳入检测: included,
-      备注: 'P1 自动生成，需确认是否符合客户真实业务'
+      备注: 'P1 自动生成，已尽量模拟真实用户向AI提问的口吻，需人工审核'
     });
   };
 
-  add(`${industry}领域有哪些值得推荐的${segment}品牌或服务商？`, '推荐型', `${audience}寻找服务商`, '高');
-  add(`${market}做${segment}，应该优先了解哪些品牌？`, '推荐型', '用户初步选型', '高');
-  add(`如果我要解决${context.offerings || segment}相关问题，AI 会推荐${brand}吗？`, '推荐型', '检验品牌是否被主动推荐', '高');
-  add(`${brand}是做什么的？主要适合哪些客户？`, '品牌识别型', '检验 AI 是否正确理解品牌', '高');
-  add(`${brand}靠谱吗？有哪些公开信息可以参考？`, '信任型', '用户验证可信度', '高');
-  add(`选择${segment}服务时应该关注哪些能力和指标？`, '选购型', '用户建立评估标准', '中');
-  add(`${industry}企业在做 AI 搜索或品牌可见度时常见问题有哪些？`, '场景型', '用户了解行业痛点', '中');
-  add(`${audience}如果想提升 AI 推荐结果，应该怎么做？`, '场景型', '用户寻找解决方案', '中');
+  add(`我们公司想找一家做${segment}的服务商，有没有比较靠谱的推荐？`, '推荐型', `${audience}寻找服务商`, '高');
+  add(`如果预算和时间都比较有限，${market}做${segment}应该先看哪些品牌？`, '推荐型', '用户初步选型', '高');
+  add(`我们主要做${offering}，想提升被AI推荐的机会，适合找${brand}吗？`, '推荐型', '检验品牌是否被主动推荐', '高');
+  add(`我刚听说${brand}，它具体是做什么的，适合什么类型的客户？`, '品牌识别型', '检验AI是否正确理解品牌', '高');
+  add(`${brand}这家公司靠谱吗？有没有官网、案例或公开资料可以参考？`, '信任型', '用户验证可信度', '高');
+  add(`选择${segment}服务商时，除了价格，还应该重点看哪些能力？`, '选购型', '用户建立评估标准', '中');
+  add(`我们属于${industry}行业，想让AI更准确介绍自己的品牌，通常应该先补哪些资料？`, '场景型', '用户了解行业痛点', '中');
+  add(`${audience}想提高AI搜索里的品牌曝光，有哪些实际可做的步骤？`, '场景型', '用户寻找解决方案', '中');
+  add(`如果客户问AI“谁能解决${offering}的问题”，怎样才更容易出现${brand}？`, '场景型', '用户模拟客户提问', '中');
+  add(`${brand}的核心优势是不是${advantage}？AI回答时容易说错哪些地方？`, '准确性型', '用户核验品牌表达是否准确', '中');
 
   if (competitor) {
-    add(`${brand}和${competitor}有什么区别？`, '比较型', '用户比较品牌和竞品', '高');
-    add(`${brand}相比${competitor}有哪些优势和不足？`, '比较型', '用户做采购决策', '高');
+    add(`${brand}和${competitor}相比，更适合哪类客户或使用场景？`, '比较型', '用户比较品牌和竞品', '高');
+    add(`如果我正在比较${brand}和${competitor}，AI会怎么评价它们的差异？`, '比较型', '用户做采购决策', '高');
   } else {
-    add(`${brand}和同类品牌相比有什么优势和不足？`, '比较型', '用户做采购决策', '高');
+    add(`${brand}和同类品牌相比，优势和短板分别是什么？`, '比较型', '用户做采购决策', '高');
   }
 
   if (context.isGlobal) {
-    add(`Which ${segment} brands are suitable for global markets?`, '全球化推荐型', '海外或全球市场检索', '中');
-    add(`Is ${brand} suitable for international customers?`, '全球化信任型', '英文 AI 检索品牌可信度', '中');
+    add(`如果我们要面向${globalMarket}做${segment}，${brand}的资料够不够支撑AI推荐？`, '全球化推荐型', '海外或全球市场检索', '中');
+    add(`${brand}面向${globalMarket}客户时，AI最需要看到哪些公开信源、案例和品牌介绍？`, '全球化信任型', '全球市场品牌可信度', '中');
   }
 
   return dedupeBy(records, (item) => item.问题).slice(0, 15);
@@ -230,7 +235,7 @@ function generateAiQuestions({ industryQuestions, context, projectId }) {
         预期识别点: buildExpectedSignal(context, question),
         检测状态: '待测试',
         负责人: process.env.DEFAULT_OWNER || 'GeoGi 负责人',
-        备注: 'P1 自动生成。测试时需记录 AI 原始回答、是否提及品牌、是否主动推荐、引用信源。'
+        备注: 'P1 自动生成。测试时需记录AI原始回答、是否提及品牌、是否主动推荐、引用信源。'
       });
     });
   });
@@ -248,6 +253,21 @@ function buildExpectedSignal(context, question) {
   ].filter(Boolean);
 
   return signals.join('；');
+}
+
+function normalizeKeyword(value) {
+  return clean(value)
+    .replace(/\bAI\s+/gi, 'AI')
+    .replace(/\s+AI\b/gi, 'AI')
+    .replace(/\bGEO\s+/gi, 'GEO')
+    .replace(/\s+GEO\b/gi, 'GEO')
+    .replace(/\s+/g, ' ');
+}
+
+function normalizeQuestionPhrase(value) {
+  return clean(value)
+    .replace(/[。；;，,]+$/g, '')
+    .replace(/\s+/g, '');
 }
 
 function extractUrls(value) {
