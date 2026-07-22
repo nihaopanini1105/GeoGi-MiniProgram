@@ -63,6 +63,10 @@
   line-height: 1.5;
 }
 
+.pdf-button {
+  margin-top: 26rpx;
+}
+
 .score-card {
   display: flex;
   gap: 28rpx;

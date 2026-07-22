@@ -5,6 +5,11 @@ miniprogram_npm/
 dist/
 coverage/
 output/
+tmp/
+server/tmp/
+server/output/
+__pycache__/
+*.pyc
 *.log
 project.private.config.json
 server/.env

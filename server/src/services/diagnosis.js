@@ -9,6 +9,7 @@ const {
   buildRecordUrl
 } = require('./feishu');
 const { nextMonthlyId } = require('./counter');
+const { runWorkflowCommand } = require('./workflow-command');
 
 const REQUIRED_ENV = [
   'FEISHU_APP_ID',
@@ -61,16 +62,18 @@ async function submitDiagnosis(input) {
           submittedAt: existingSubmittedAt,
           leadRecordUrl: recordUrl
         });
+        const automation = workbench.ok ? await autoGenerateBrandAssets(projectId) : { ok: false, status: '诊断项目未创建，暂未自动生成' };
         await updateBitableRecord({
           tenantToken,
           appToken: process.env.FEISHU_BASE_APP_TOKEN,
           tableId: process.env.FEISHU_LEADS_TABLE_ID,
           recordId,
           fields: {
-            当前状态: '待人工审核',
-            下一步动作: '人工审核资料后，在飞书群触发品牌信息补齐和问题生成'
+            当前状态: automation.ok ? '已生成诊断问题' : '已创建诊断项目',
+            下一步动作: automation.ok ? '完成AI平台问答后，在飞书群触发开始生成报告' : '检查诊断项目与品牌资料生成状态'
           }
         });
+        workbench.status = automation.ok ? automation.status : workbench.status;
       }
 
       return {
@@ -78,7 +81,7 @@ async function submitDiagnosis(input) {
         duplicated: true,
         clientId,
         projectId,
-        status: text(existing.fields && existing.fields.当前状态) || '待人工审核',
+        status: text(existing.fields && existing.fields.当前状态) || '诊断准备中',
         notificationStatus: text(existing.fields && existing.fields.通知状态),
         workbenchStatus: workbench.status,
         submittedAt: existingSubmittedAt,
@@ -121,6 +124,7 @@ async function submitDiagnosis(input) {
       submittedAt,
       leadRecordUrl: recordUrl
     });
+    const automation = workbench.ok ? await autoGenerateBrandAssets(projectId) : { ok: false, status: '诊断项目未创建，暂未自动生成' };
 
     const notification = await notifyWithRetry({
       tenantToken,
@@ -129,7 +133,10 @@ async function submitDiagnosis(input) {
       projectId,
       submittedAt,
       recordUrl,
-      workbench
+      workbench: {
+        ...workbench,
+        status: automation.ok ? automation.status : workbench.status
+      }
     });
 
     if (recordId) {
@@ -139,8 +146,8 @@ async function submitDiagnosis(input) {
         tableId: process.env.FEISHU_LEADS_TABLE_ID,
         recordId,
         fields: {
-          当前状态: workbench.ok ? '待人工审核' : '新提交',
-          下一步动作: workbench.ok ? '人工审核资料后，在飞书群触发品牌信息补齐和问题生成' : '审核资料并补建诊断项目',
+          当前状态: automation.ok ? '已生成诊断问题' : (workbench.ok ? '已创建诊断项目' : '新提交'),
+          下一步动作: automation.ok ? '完成AI平台问答后，在飞书群触发开始生成报告' : (workbench.ok ? '检查品牌资料自动生成状态' : '审核资料并补建诊断项目'),
           通知状态: notification.status,
           通知发送时间: notification.sentAt,
           通知错误: notification.error,
@@ -153,10 +160,10 @@ async function submitDiagnosis(input) {
       ok: true,
       clientId,
       projectId,
-      status: workbench.ok ? '待人工审核' : '新提交',
+      status: automation.ok ? '已生成诊断问题' : (workbench.ok ? '已创建诊断项目' : '新提交'),
       submittedAt,
       notificationStatus: notification.status,
-      workbenchStatus: workbench.status,
+      workbenchStatus: automation.ok ? automation.status : workbench.status,
       recordId,
       recordUrl
     };
@@ -236,13 +243,13 @@ function buildLeadFields({ form, clientId, projectId, submittedAt, source }) {
     提交时间: submittedAt,
     当前状态: '新提交',
     负责人: process.env.DEFAULT_OWNER || 'GeoGi 负责人',
-    下一步动作: '审核资料并联系客户',
+    下一步动作: '自动创建品牌档案和诊断问题',
     通知状态: '待发送',
     通知发送时间: '',
     通知错误: '',
     通知重试次数: '0',
     来源: source,
-    审核状态: '待人工审核'
+    审核状态: '自动处理'
   };
 }
 
@@ -278,7 +285,7 @@ async function initializeReviewProject({ tenantToken, form, clientId, projectId,
     if (existingProject) {
       return {
         ok: true,
-        status: '诊断项目已存在，等待人工审核',
+        status: '诊断项目已存在',
         projectRecordId: existingProject.record_id
       };
     }
@@ -292,7 +299,7 @@ async function initializeReviewProject({ tenantToken, form, clientId, projectId,
 
     return {
       ok: true,
-      status: '已创建诊断项目，等待人工审核',
+      status: '已创建诊断项目',
       projectRecordId: projectRecord && projectRecord.record && projectRecord.record.record_id
     };
   } catch (error) {
@@ -321,17 +328,35 @@ function buildProjectFields({ form, clientId, projectId, submittedAt, leadRecord
     客户编号: clientId,
     品牌名称: form.brandName,
     项目类型: 'GEO 诊断',
-    当前阶段: '待人工审核',
+    当前阶段: '品牌资料生成中',
     优先级: '普通',
     负责人: process.env.DEFAULT_OWNER || 'GeoGi 负责人',
     开始时间: submittedAt,
     预计交付时间: '',
     实际交付时间: '',
     客户确认范围: form.goals.join('、'),
-    内部备注: leadRecordUrl ? `客户提交记录：${leadRecordUrl}\n审核后在飞书群触发：开始品牌信息补齐和问题生成 项目编号 ${projectId}` : '由小程序提交自动创建',
+    内部备注: leadRecordUrl ? `客户提交记录：${leadRecordUrl}\n客户提交后自动生成品牌档案和诊断问题。` : '由小程序提交自动创建',
     信息层级: '01 诊断项目',
-    审核状态: '待人工审核'
+    审核状态: '自动处理'
   };
+}
+
+async function autoGenerateBrandAssets(projectId) {
+  try {
+    const result = await runWorkflowCommand({
+      action: 'generate_assets',
+      projectId
+    });
+    return {
+      ok: Boolean(result && result.ok),
+      status: result && result.status ? result.status : '品牌信息补齐和问题生成已完成'
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: `品牌资料自动生成失败：${(error && error.message ? error.message : String(error)).slice(0, 300)}`
+    };
+  }
 }
 
 async function findExistingSubmission({ tenantToken, submissionId }) {
@@ -384,7 +409,7 @@ async function notifyWithRetry(payload) {
 
 async function notify({ tenantToken, form, clientId, projectId, submittedAt, recordUrl, workbench }) {
   const textBody = [
-    '【GeoGi 新客户提交】收到新的品牌 AI 可见度诊断申请。',
+    '【GeoGi 新客户提交】收到新的品牌 AI 可见度诊断申请，已自动进入品牌建档与问题生成流程。',
     `品牌：${form.brandName}`,
     `行业：${form.industry} / ${form.segment}`,
     `核心业务：${form.offerings}`,
@@ -395,7 +420,7 @@ async function notify({ tenantToken, form, clientId, projectId, submittedAt, rec
     `客户编号：${clientId}`,
     `项目编号：${projectId}`,
     workbench && workbench.status ? `工作台：${workbench.status}` : '',
-    `下一步动作：${workbench && workbench.ok ? '请人工审核资料，审核后在群里触发品牌信息补齐和问题生成。' : '审核资料并联系客户。'}`,
+    `下一步动作：${workbench && workbench.ok ? '完成AI平台问答后，在群里触发开始生成报告。' : '检查诊断项目配置并联系客户。'}`,
     recordUrl ? `飞书记录：${recordUrl}` : ''
   ].filter(Boolean).join('\n');
 

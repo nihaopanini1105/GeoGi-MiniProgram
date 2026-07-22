@@ -29,7 +29,7 @@
         <text wx:if="{{item.submittedAt}}">提交时间：{{item.submittedAt}}</text>
       </view>
       <view class="order-action">
-        <text>{{item.reportReady ? '查看诊断报告' : '查看进度与报告模板'}}</text>
+        <text>{{item.reportReady && item.reportLink ? '打开PDF报告' : item.reportReady ? '查看诊断报告' : '查看进度与报告模板'}}</text>
         <text class="arrow">›</text>
       </view>
     </view>

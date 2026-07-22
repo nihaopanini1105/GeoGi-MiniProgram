@@ -74,6 +74,35 @@ Page({
     wx.navigateTo({ url: '/pages/contact/contact' });
   },
 
+  openPdf() {
+    const url = this.data.report && this.data.report.reportLink;
+    if (!url) {
+      wx.showToast({ title: 'PDF报告还未生成', icon: 'none' });
+      return;
+    }
+    wx.showLoading({ title: '打开报告中' });
+    wx.downloadFile({
+      url,
+      success: (res) => {
+        wx.hideLoading();
+        if (res.statusCode !== 200) {
+          wx.showToast({ title: '报告读取失败', icon: 'none' });
+          return;
+        }
+        wx.openDocument({
+          filePath: res.tempFilePath,
+          fileType: 'pdf',
+          showMenu: true,
+          fail: () => wx.showToast({ title: '无法打开PDF', icon: 'none' })
+        });
+      },
+      fail: () => {
+        wx.hideLoading();
+        wx.showToast({ title: '报告下载失败', icon: 'none' });
+      }
+    });
+  },
+
   goMine() {
     wx.switchTab({ url: '/pages/mine/mine' });
   }

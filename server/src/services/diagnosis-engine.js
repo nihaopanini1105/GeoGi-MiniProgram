@@ -572,7 +572,7 @@ function generateSources({ context, projectId, submittedAt }) {
 function generateKeywords({ context, projectId }) {
   const records = [];
   let order = 0;
-  const add = (keyword, type, intent, priority = '中', note = 'P1 自动生成，待人工审核') => {
+  const add = (keyword, type, intent, priority = '中', note = 'P1 自动生成，待复核') => {
     const cleanKeyword = normalizeKeyword(keyword);
     if (!cleanKeyword) return;
     order += 1;
@@ -660,7 +660,7 @@ function generateIndustryQuestions({ context, projectId }) {
       用户场景: scene,
       优先级: priority,
       是否纳入检测: included,
-      备注: `P1 自动生成，基于${profile.categoryName}品类画像和客户真实决策场景，需人工审核`
+      备注: `P1 自动生成，基于${profile.categoryName}品类画像和客户真实决策场景，需复核`
       }
     }));
   };
@@ -811,7 +811,7 @@ function withWorkbenchMeta({ context, projectId, layer, order, fields }) {
     品牌分组: brandGroup(context, projectId),
     排序键: sortKey(context, projectId, layer, order),
     信息层级: layer,
-    审核状态: '待人工审核',
+    审核状态: '自动生成待复核',
     ...fields
   };
 }

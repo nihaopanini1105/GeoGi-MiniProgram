@@ -8,6 +8,8 @@ const { getResearchArticles, getResearchArticle } = require('./services/research
 const { getConfig } = require('./services/config');
 const { getSampleReport } = require('./services/sample-report');
 const { listCustomerProjects, getCustomerReport } = require('./services/customer-portal');
+const { getPhoneNumber } = require('./services/wechat-auth');
+const { getReportRoot } = require('./services/report-pdf');
 const { trackEvent } = require('./services/events');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
 
@@ -18,6 +20,7 @@ const host = process.env.HOST || '127.0.0.1';
 app.use(helmet());
 app.use(express.json({ limit: '512kb' }));
 app.use('/uploads', express.static(getUploadRoot()));
+app.use('/reports', express.static(getReportRoot()));
 
 app.get('/health', (_req, res) => {
   res.json({
@@ -59,6 +62,11 @@ app.get('/api/customer/reports/:projectId', async (req, res) => {
 
 app.post(['/api/leads', '/api/diagnosis/submit'], async (req, res) => {
   const result = await submitDiagnosis(req.body || {});
+  res.status(result.ok ? 200 : 400).json(result);
+});
+
+app.post('/api/wechat/phone', async (req, res) => {
+  const result = await getPhoneNumber(req.body || {});
   res.status(result.ok ? 200 : 400).json(result);
 });
 

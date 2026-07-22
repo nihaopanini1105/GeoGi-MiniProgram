@@ -56,7 +56,7 @@ Page({
   goDiagnosis() {
     track('diagnosis_cta_click', { position: 'home' });
     wx.setStorageSync('geogi_start_new_diagnosis', true);
-    wx.switchTab({ url: '/pages/diagnosis/diagnosis' });
+    wx.navigateTo({ url: '/pages/diagnosis/diagnosis?start=1' });
   },
 
   goServices() {

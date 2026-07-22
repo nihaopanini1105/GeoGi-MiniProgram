@@ -93,7 +93,7 @@ Page({
   },
 
   goDiagnosis() {
-    wx.switchTab({ url: '/pages/diagnosis/diagnosis' });
+    wx.navigateTo({ url: '/pages/diagnosis/diagnosis?start=1' });
   },
 
   openArticle(event) {

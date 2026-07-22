@@ -27,15 +27,9 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "首页",
+        "text": "GeoGi",
         "iconPath": "assets/tabbar/home.png",
         "selectedIconPath": "assets/tabbar/home_selected.png"
-      },
-      {
-        "pagePath": "pages/diagnosis/diagnosis",
-        "text": "品牌诊断",
-        "iconPath": "assets/tabbar/diagnosis.png",
-        "selectedIconPath": "assets/tabbar/diagnosis_selected.png"
       },
       {
         "pagePath": "pages/research/research",

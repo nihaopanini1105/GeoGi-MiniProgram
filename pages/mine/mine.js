@@ -44,15 +44,44 @@ Page({
 
   goDiagnosis() {
     wx.setStorageSync('geogi_start_new_diagnosis', true);
-    wx.switchTab({ url: '/pages/diagnosis/diagnosis' });
+    wx.navigateTo({ url: '/pages/diagnosis/diagnosis?start=1' });
   },
 
   openReport(event) {
     const projectId = event.currentTarget.dataset.projectId;
     const clientId = event.currentTarget.dataset.clientId || this.data.clientId;
     if (!projectId || !clientId) return;
+    const order = this.data.orders.find((item) => item.projectId === projectId);
+    if (order && order.reportReady && order.reportLink) {
+      this.openPdf(order.reportLink);
+      return;
+    }
     wx.navigateTo({
       url: `/pages/report-detail/report-detail?projectId=${encodeURIComponent(projectId)}&clientId=${encodeURIComponent(clientId)}`
+    });
+  },
+
+  openPdf(url) {
+    wx.showLoading({ title: '打开报告中' });
+    wx.downloadFile({
+      url,
+      success: (res) => {
+        wx.hideLoading();
+        if (res.statusCode !== 200) {
+          wx.showToast({ title: '报告读取失败', icon: 'none' });
+          return;
+        }
+        wx.openDocument({
+          filePath: res.tempFilePath,
+          fileType: 'pdf',
+          showMenu: true,
+          fail: () => wx.showToast({ title: '无法打开PDF', icon: 'none' })
+        });
+      },
+      fail: () => {
+        wx.hideLoading();
+        wx.showToast({ title: '报告下载失败', icon: 'none' });
+      }
     });
   },
 

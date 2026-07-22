@@ -2,7 +2,7 @@
   <view class="success-card card">
     <view class="success-icon">✓</view>
     <text class="h1">品牌信息已提交</text>
-    <text class="lead">GeoGi 已收到资料，项目已进入待人工审核。审核通过后会在飞书群触发品牌信息补齐、问题生成和报告流程。</text>
+    <text class="lead">GeoGi 已收到资料，项目会自动进入品牌建档、问题生成和诊断准备流程。</text>
     <text wx:if="{{submission.clientId}}" class="success-id">客户编号：{{submission.clientId}}</text>
     <text wx:if="{{submission.projectId}}" class="success-id">项目编号：{{submission.projectId}}</text>
     <text wx:if="{{submission.notificationStatus}}" class="success-id muted-id">通知状态：{{submission.notificationStatus}}</text>
@@ -10,7 +10,7 @@
 
   <view class="section card next-card">
     <text class="block-title">预计完成时间</text>
-    <text class="body estimate-copy">资料审核预计 1 个工作日内完成；完成 AI 平台问答后，报告初稿通常可在当天整理。</text>
+    <text class="body estimate-copy">品牌档案和检测问题会先自动生成；完成 AI 平台问答后，报告初稿通常可在当天整理。</text>
   </view>
 
   <view class="section card next-card">

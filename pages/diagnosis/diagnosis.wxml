@@ -1,5 +1,28 @@
 <view class="page diagnosis-page">
-  <block wx:if="{{!started}}">
+  <block wx:if="{{!phoneAuthorized}}">
+    <view class="auth-card card">
+      <image class="auth-icon" src="{{assets.brand.appIcon}}" mode="aspectFit"></image>
+      <text class="h1">先完成账号授权</text>
+      <text class="lead">GeoGi 会通过手机号确认诊断订单归属，报告生成后也会同步到“我的”。</text>
+      <view class="auth-points">
+        <view class="auth-point">
+          <image src="{{assets.icons.checkCircle}}" mode="aspectFit"></image>
+          <text>用于创建客户编号和诊断订单</text>
+        </view>
+        <view class="auth-point">
+          <image src="{{assets.icons.checkCircle}}" mode="aspectFit"></image>
+          <text>用于报告查看和服务沟通</text>
+        </view>
+      </view>
+      <button class="primary-button auth-button" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{phoneAuthLoading}}">
+        授权手机号并开始
+      </button>
+      <text wx:if="{{phoneAuthError}}" class="submit-error">{{phoneAuthError}}</text>
+      <button class="privacy-link" bindtap="goPrivacy">查看隐私说明</button>
+    </view>
+  </block>
+
+  <block wx:elif="{{!started}}">
     <view class="intro-hero card">
       <text class="h1">品牌 AI 可见度诊断</text>
       <text class="lead">检测品牌在主流 AI 平台中的识别、推荐、准确性、信源与竞品表现</text>
@@ -169,8 +192,11 @@
       </view>
 
       <view class="field">
-        <text class="field-label">请留下手机号或微信号</text>
-        <input value="{{form.contactMethod}}" data-key="contactMethod" bindinput="updateField" placeholder="手机号或微信号" placeholder-class="placeholder" />
+        <text class="field-label">授权手机号</text>
+        <view class="phone-locked">
+          <text>{{form.contactMethod || phoneDisplay}}</text>
+          <text class="phone-tag">已授权</text>
+        </view>
         <text wx:if="{{fieldErrors.contactMethod}}" class="field-error">{{fieldErrors.contactMethod}}</text>
       </view>
 

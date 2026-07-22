@@ -23,6 +23,7 @@
         <text>报告状态：{{report.status}}</text>
         <text wx:if="{{report.updatedAt}}">更新时间：{{report.updatedAt}}</text>
       </view>
+      <button wx:if="{{report.reportLink}}" class="primary-button full-button pdf-button" bindtap="openPdf">打开PDF报告</button>
     </view>
 
     <view class="section score-card card">

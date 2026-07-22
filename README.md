@@ -72,7 +72,12 @@ PORT=3107 pnpm dev
 - `GET /api/articles`
 - `GET /api/articles/:id`
 - `GET /api/sample-report`
+- `GET /api/customer/projects`
+- `GET /api/customer/reports/:projectId`
 - `POST /api/leads`
+- `POST /api/wechat/phone`
+- `POST /api/feishu/command`
+- `POST /api/feishu/events`
 - `POST /api/uploads`
 - `POST /api/events`
 
@@ -90,6 +95,11 @@ PORT=3107 pnpm dev
 - `FEISHU_BASE_APP_TOKEN`
 - `FEISHU_LEADS_TABLE_ID`
 - `FEISHU_NOTIFY_WEBHOOK` 或 `FEISHU_NOTIFY_RECEIVE_ID`
+- `PUBLIC_BASE_URL`：正式环境填写 `https://api.geogi.cn`，用于生成客户 PDF 报告链接
+- `WECHAT_APP_ID` / `WECHAT_APP_SECRET`：用于手机号授权
+- `REPORT_FONT_PATH`：阿里云服务器可填写中文字体文件路径，保证 PDF 中文清晰显示
+
+PDF 报告需要服务器安装 Python 依赖：`pip install -r server/requirements.txt`。
 
 详细字段和配置步骤见：
 
@@ -102,5 +112,5 @@ PORT=3107 pnpm dev
 
 - request 合法域名：你的 API 域名
 - uploadFile 合法域名：你的 API 域名
-- downloadFile 合法域名：如有远程图片/附件域名，也要配置
+- downloadFile 合法域名：你的 API 域名，用于打开 PDF 报告
 - web-view 业务域名：`www.geogi.cn`

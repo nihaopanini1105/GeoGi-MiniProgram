@@ -8,6 +8,7 @@ const {
 } = require('./feishu');
 const { generateDiagnosisAssets, buildDiagnosisContext } = require('./diagnosis-engine');
 const { enrichConversationsWithSharedLinks } = require('./ai-share-extractor');
+const { generateReportPdf } = require('./report-pdf');
 
 const AI_PLATFORMS = ['DeepSeek', 'Kimi', '豆包', '通义千问', '腾讯元宝'];
 
@@ -167,12 +168,39 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     projectId,
     testedAt
   });
-  await createBitableRecord({
+  const pdfResult = await generateReportPdf({
+    projectId,
+    form,
+    conversations,
+    analyses,
+    report,
+    testedAt
+  });
+  if (pdfResult.ok) {
+    report.报告链接 = pdfResult.url;
+  } else {
+    report.交付说明 = `${report.交付说明}\nPDF生成状态：${pdfResult.userMessage || '生成失败，需检查服务器PDF依赖。'}`;
+  }
+
+  const reportResult = await createBitableRecord({
     tenantToken,
     appToken: process.env.FEISHU_BASE_APP_TOKEN,
     tableId: process.env.FEISHU_REPORTS_TABLE_ID,
     fields: report
   });
+  const reportRecordId = reportResult && reportResult.record && reportResult.record.record_id;
+  if (pdfResult.ok && reportRecordId) {
+    await updateBitableRecord({
+      tenantToken,
+      appToken: process.env.FEISHU_BASE_APP_TOKEN,
+      tableId: process.env.FEISHU_REPORTS_TABLE_ID,
+      recordId: reportRecordId,
+      fields: {
+        报告链接: pdfResult.url,
+        更新时间: testedAt
+      }
+    });
+  }
 
   await updateProjectAndLead({
     tenantToken,
@@ -202,7 +230,8 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     extracted ? `自动读取分享链接：${extracted} 条` : '',
     partial ? `部分平台读取受限或只读到摘要：${partial} 条` : '',
     needsAnswerText ? `提醒：有 ${needsAnswerText} 条链接未读取到回答正文，报告结论已标记为待补充。` : 'AI回答原文已纳入分析。',
-    '下一步：请在“报告管理”表中审核报告初稿。'
+    pdfResult.ok ? `PDF报告：${pdfResult.url}` : `PDF生成提醒：${pdfResult.userMessage || '生成失败，需在服务器检查PDF组件。'}`,
+    '下一步：请在“报告管理”表中审核报告初稿，也可以直接打开PDF链接检查客户交付版。'
   ].filter(Boolean).join('\n');
   await notify(message);
 
@@ -211,7 +240,8 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     projectId,
     status: '报告初稿已生成',
     conversations: conversations.length,
-    needsAnswerText
+    needsAnswerText,
+    pdfUrl: pdfResult.ok ? pdfResult.url : ''
   };
 }
 
@@ -342,13 +372,13 @@ function buildBrandProfileFields({ form, projectId, submittedAt }) {
     档案状态: '待核验',
     最后更新: submittedAt,
     信息层级: '02 品牌基础档案',
-    审核状态: '待人工审核'
+    审核状态: '自动生成待复核'
   };
 }
 
 function buildTestRecord({ item, index, form, projectId, testedAt }) {
   const context = buildDiagnosisContext(form);
-  const answer = clean(item.answer);
+  const answer = buildAnalysisCorpus(item);
   const assets = normalizeAssets(item.assets, answer);
   const usableAnswer = hasUsableAnswer(item) ? answer : '';
   const mentioned = usableAnswer ? matchesBrand(usableAnswer, form) : false;
@@ -382,13 +412,13 @@ function buildTestRecord({ item, index, form, projectId, testedAt }) {
     测试时间: testedAt,
     测试人: 'GeoGi 工作流',
     信息层级: `06 平台测试/${item.platform || '未标注平台'}`,
-    审核状态: '待人工审核'
+    审核状态: '自动生成待复核'
   };
 }
 
 function buildAnalysisRecord({ item, form, projectId }) {
   const context = buildDiagnosisContext(form);
-  const answer = hasUsableAnswer(item) ? clean(item.answer) : '';
+  const answer = hasUsableAnswer(item) ? buildAnalysisCorpus(item) : '';
   const question = clean(item.question);
   const questionType = inferQuestionType(question);
   const mentioned = answer && matchesBrand(answer, form);
@@ -415,14 +445,20 @@ function buildAnalysisRecord({ item, form, projectId }) {
     优化建议: buildOptimizationAdvice({ item, form, context, questionType, mentioned, recommended, accurate, sourceAssessment, hasAnswer: Boolean(answer) }),
     分析状态: answer ? (item.extractionStatus ? `已生成初步分析（${item.extractionStatus}）` : '已生成初步分析') : '待补充回答原文',
     信息层级: `07 回答分析/${item.platform || '未标注平台'}`,
-    审核状态: answer ? '待人工审核' : '待补充材料'
+    审核状态: answer ? '自动生成待复核' : '待补充材料'
   };
 }
 
 function buildReportFields({ conversations, analyses, form, projectId, testedAt }) {
   const answered = conversations.filter(hasUsableAnswer).length;
-  const mentioned = conversations.filter((item) => hasUsableAnswer(item) && matchesBrand(item.answer, form)).length;
-  const recommended = conversations.filter((item) => hasUsableAnswer(item) && matchesBrand(item.answer, form) && hasRecommendationSignal(item.answer)).length;
+  const mentioned = conversations.filter((item) => {
+    const answer = buildAnalysisCorpus(item);
+    return hasUsableAnswer(item) && matchesBrand(answer, form);
+  }).length;
+  const recommended = conversations.filter((item) => {
+    const answer = buildAnalysisCorpus(item);
+    return hasUsableAnswer(item) && matchesBrand(answer, form) && hasRecommendationSignal(answer);
+  }).length;
   const context = buildDiagnosisContext(form);
   const professionalReport = buildProfessionalReport({
     conversations,
@@ -463,7 +499,7 @@ function buildReportFields({ conversations, analyses, form, projectId, testedAt 
     创建时间: testedAt,
     更新时间: testedAt,
     信息层级: '08 报告管理',
-    审核状态: answered ? '待人工审核' : '待补充材料'
+    审核状态: answered ? '报告待复核' : '待补充材料'
   };
 }
 
@@ -791,10 +827,28 @@ function sortKey(form, projectId, layer, order) {
 }
 
 function hasUsableAnswer(item) {
-  const answer = clean(item && item.answer);
+  const answer = buildAnalysisCorpus(item);
   if (!answer) return false;
   if (item.extractionStatus === '部分读取' && answer.length < 120) return false;
   return answer.length >= 80;
+}
+
+function buildAnalysisCorpus(item) {
+  const answer = clean(item && item.answer);
+  const assets = normalizeAssets(item && item.assets, answer);
+  const tables = formatAssetEntries(assets.tables);
+  const links = formatAssetEntries(assets.links);
+  const media = [
+    assets.images.length ? `图片资料：${formatAssetEntries(assets.images)}` : '',
+    assets.videos.length ? `视频资料：${formatAssetEntries(assets.videos)}` : ''
+  ].filter(Boolean).join('\n');
+
+  return [
+    answer,
+    tables ? `表格资料：\n${tables}` : '',
+    links ? `外部链接：\n${links}` : '',
+    media
+  ].filter(Boolean).join('\n\n').trim();
 }
 
 function assessSourceCredibility({ item, answer, context }) {

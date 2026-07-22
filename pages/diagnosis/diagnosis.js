@@ -28,6 +28,10 @@ const initialForm = {
 Page({
   data: {
     started: false,
+    phoneAuthorized: false,
+    phoneAuthLoading: false,
+    phoneAuthError: '',
+    phoneDisplay: '',
     step: 1,
     submitting: false,
     fieldErrors: {},
@@ -67,6 +71,12 @@ Page({
   },
 
   onLoad(options) {
+    const phoneAuth = wx.getStorageSync('geogi_phone_auth') || {};
+    this.setData({
+      phoneAuthorized: Boolean(phoneAuth.phoneNumber),
+      phoneDisplay: phoneAuth.phoneNumber || ''
+    });
+
     if (wx.getStorageSync('geogi_start_new_diagnosis')) {
       wx.removeStorageSync(draftKey);
       wx.removeStorageSync('geogi_last_submission');
@@ -85,7 +95,7 @@ Page({
         marketIndex: this.getOptionIndex(this.data.marketOptions, form.targetMarket[0]),
         goalOptions: this.syncGoalOptions(form.goals)
       });
-    } else if (options.start) {
+    } else if (options.start && this.data.phoneAuthorized) {
       this.startForm();
     }
   },
@@ -95,13 +105,56 @@ Page({
     wx.removeStorageSync('geogi_start_new_diagnosis');
     wx.removeStorageSync(draftKey);
     wx.removeStorageSync('geogi_last_submission');
-    this.startForm({ forceNew: true });
+    if (this.data.phoneAuthorized) this.startForm({ forceNew: true });
+  },
+
+  async onGetPhoneNumber(event) {
+    const detail = event.detail || {};
+    if (!/ok/i.test(detail.errMsg || '') || !detail.code) {
+      this.setData({ phoneAuthError: '需要先授权手机号，才能提交正式诊断申请。' });
+      return;
+    }
+
+    if (!isApiConfigured()) {
+      this.setData({ phoneAuthError: '请先配置服务器 HTTPS 地址，再进行手机号授权。' });
+      return;
+    }
+
+    this.setData({ phoneAuthLoading: true, phoneAuthError: '' });
+    try {
+      const result = await post('/api/wechat/phone', { code: detail.code });
+      if (!result || !result.ok || !result.phoneNumber) {
+        throw new Error(result && result.userMessage ? result.userMessage : '手机号授权失败');
+      }
+      const phoneAuth = {
+        phoneNumber: result.phoneNumber,
+        purePhoneNumber: result.purePhoneNumber || result.phoneNumber,
+        countryCode: result.countryCode || '',
+        authorizedAt: new Date().toISOString()
+      };
+      wx.setStorageSync('geogi_phone_auth', phoneAuth);
+      this.setData({
+        phoneAuthorized: true,
+        phoneDisplay: phoneAuth.phoneNumber,
+        phoneAuthError: ''
+      });
+      this.setFormValue('contactMethod', phoneAuth.phoneNumber);
+      this.startForm({ forceNew: true });
+    } catch (error) {
+      this.setData({
+        phoneAuthError: error && error.message ? error.message : '手机号授权失败，请稍后重试'
+      });
+    } finally {
+      this.setData({ phoneAuthLoading: false });
+    }
   },
 
   startForm(options = {}) {
     const forceNew = Boolean(options.forceNew);
+    const phoneAuth = wx.getStorageSync('geogi_phone_auth') || {};
     const form = {
       ...(forceNew ? initialForm : this.data.form),
+      contactMethod: phoneAuth.phoneNumber || this.data.form.contactMethod || '',
       submissionId: forceNew ? this.makeSubmissionId() : (this.data.form.submissionId || this.makeSubmissionId())
     };
     this.setData({
@@ -283,7 +336,7 @@ Page({
 
     if (step === 3) {
       if (!form.contactName) errors.contactName = '请填写联系人';
-      if (!form.contactMethod) errors.contactMethod = '请填写手机号或微信号';
+      if (!this.data.phoneAuthorized || !form.contactMethod) errors.contactMethod = '请先完成手机号授权';
       if (!form.privacyAccepted) errors.privacyAccepted = '提交前需要同意隐私说明';
     }
 
