@@ -347,6 +347,9 @@ function buildBrandProfileFields({ form, projectId, submittedAt }) {
 function buildTestRecord({ item, index, form, projectId, testedAt }) {
   const answer = clean(item.answer);
   const usableAnswer = hasUsableAnswer(item) ? answer : '';
+  const mentioned = usableAnswer ? matchesBrand(usableAnswer, form) : false;
+  const recommended = mentioned && hasRecommendationSignal(usableAnswer);
+  const accurate = usableAnswer ? hasAccuracySignal(usableAnswer, form) : false;
   const extractionPrefix = item.extractionStatus
     ? `【链接读取状态】${item.extractionStatus}${item.extractionNote ? `：${item.extractionNote}` : ''}\n`
     : '';
@@ -358,9 +361,9 @@ function buildTestRecord({ item, index, form, projectId, testedAt }) {
     平台: item.platform || '未标注平台',
     提问内容: item.question || '从会话链接整理，提问内容待补充',
     回答原文: answer ? `${extractionPrefix}${answer}` : `${extractionPrefix}已收到会话链接，但未读取到完整回答原文`,
-    是否提到品牌: usableAnswer ? yesNo(usableAnswer.includes(form.brandName)) : '待判断',
-    是否主动推荐: usableAnswer ? yesNo(usableAnswer.includes(form.brandName) && /推荐|可以考虑|适合|值得/.test(usableAnswer)) : '待判断',
-    信息是否准确: usableAnswer ? yesNo(usableAnswer.includes(form.industry) || usableAnswer.includes(form.segment) || usableAnswer.includes(form.brandName)) : '待判断',
+    是否提到品牌: usableAnswer ? yesNo(mentioned) : '待判断',
+    是否主动推荐: usableAnswer ? yesNo(recommended) : '待判断',
+    信息是否准确: usableAnswer ? yesNo(accurate) : '待判断',
     提到的竞品: findCompetitors(usableAnswer, form.competitors),
     引用或信源: item.link || '',
     '证据截图/链接': item.link || '',
@@ -373,9 +376,9 @@ function buildTestRecord({ item, index, form, projectId, testedAt }) {
 
 function buildAnalysisRecord({ item, form, projectId }) {
   const answer = hasUsableAnswer(item) ? clean(item.answer) : '';
-  const mentioned = answer && answer.includes(form.brandName);
-  const recommended = mentioned && /推荐|可以考虑|适合|值得/.test(answer);
-  const accurate = answer && (answer.includes(form.industry) || answer.includes(form.segment) || answer.includes(form.brandName));
+  const mentioned = answer && matchesBrand(answer, form);
+  const recommended = mentioned && hasRecommendationSignal(answer);
+  const accurate = answer && hasAccuracySignal(answer, form);
   const competitorMentions = findCompetitors(answer, form.competitors);
 
   return {
@@ -398,8 +401,8 @@ function buildAnalysisRecord({ item, form, projectId }) {
 
 function buildReportFields({ conversations, analyses, form, projectId, testedAt }) {
   const answered = conversations.filter(hasUsableAnswer).length;
-  const mentioned = conversations.filter((item) => hasUsableAnswer(item) && item.answer.includes(form.brandName)).length;
-  const recommended = conversations.filter((item) => hasUsableAnswer(item) && item.answer.includes(form.brandName) && /推荐|可以考虑|适合|值得/.test(item.answer)).length;
+  const mentioned = conversations.filter((item) => hasUsableAnswer(item) && matchesBrand(item.answer, form)).length;
+  const recommended = conversations.filter((item) => hasUsableAnswer(item) && matchesBrand(item.answer, form) && hasRecommendationSignal(item.answer)).length;
   const reportSummary = [
     `本次共收到 ${conversations.length} 条AI平台问答线索，其中 ${answered} 条包含回答原文。`,
     `品牌被提及 ${mentioned} 次，出现主动推荐倾向 ${recommended} 次。`,
@@ -627,6 +630,55 @@ function text(value) {
 
 function clean(value) {
   return String(value || '').trim();
+}
+
+function unique(values) {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function normalizeToken(value) {
+  return clean(value).replace(/\s+/g, '');
+}
+
+function stripBrandNoise(value) {
+  return clean(value)
+    .replace(/联调测试|测试|可删除|样例|示例|demo|Demo|DEMO/g, '')
+    .replace(/[（(].*?[）)]/g, '')
+    .trim();
+}
+
+function stripCompanySuffix(value) {
+  return stripBrandNoise(value)
+    .replace(/(股份)?有限公司|有限责任公司|集团|科技|信息技术|网络科技|中国/g, '')
+    .trim();
+}
+
+function brandAliases(form) {
+  return unique([
+    clean(form.brandName),
+    clean(form.companyName),
+    stripBrandNoise(form.brandName),
+    stripCompanySuffix(form.companyName),
+    ...splitList(form.brandName),
+    ...splitList(form.companyName)
+  ])
+    .map(normalizeToken)
+    .filter((item) => item.length >= 2)
+    .sort((a, b) => b.length - a.length);
+}
+
+function matchesBrand(answer, form) {
+  const normalized = normalizeToken(answer);
+  return brandAliases(form).some((alias) => normalized.includes(alias));
+}
+
+function hasRecommendationSignal(answer) {
+  return /推荐|优先考虑|可以考虑|适合|值得|首选|更适合|优先选择|建议|可选|常被选择|热门选择/.test(answer);
+}
+
+function hasAccuracySignal(answer, form) {
+  return matchesBrand(answer, form)
+    || [form.industry, form.segment, form.offerings].some((item) => clean(item) && answer.includes(clean(item)));
 }
 
 function yesNo(value) {
