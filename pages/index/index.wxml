@@ -4,12 +4,12 @@
   <view class="hero">
     <view class="hero-copy">
       <text class="h1 hero-title">AI 会推荐你的品牌吗？</text>
-      <text class="lead hero-lead">一次诊断，看清品牌在主流 AI 平台的出现、推荐与竞品表现</text>
+      <text class="lead hero-lead">1分钟提交资料，专业诊断即刻体验</text>
 
       <view class="hero-tips">
         <view class="tip">
           <image src="{{assets.icons.checkCircle}}" mode="aspectFit"></image>
-          <text>2 分钟提交资料</text>
+          <text>1 分钟提交资料</text>
         </view>
         <view class="tip">
           <image src="{{assets.icons.checkCircle}}" mode="aspectFit"></image>
@@ -18,7 +18,7 @@
       </view>
 
       <button class="primary-button hero-button" bindtap="goDiagnosis">
-        <text>开始品牌诊断</text>
+        <text>立即免费诊断</text>
         <image src="{{assets.icons.arrowRight}}" mode="aspectFit"></image>
       </button>
     </view>

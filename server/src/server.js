@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
 const { submitDiagnosis } = require('./services/diagnosis');
+const { runWorkflowCommand } = require('./services/workflow-command');
 const { getResearchArticles, getResearchArticle } = require('./services/research');
 const { getConfig } = require('./services/config');
 const { getSampleReport } = require('./services/sample-report');
@@ -47,6 +48,25 @@ app.post(['/api/leads', '/api/diagnosis/submit'], async (req, res) => {
   res.status(result.ok ? 200 : 400).json(result);
 });
 
+app.post('/api/feishu/command', async (req, res) => {
+  const result = await runWorkflowCommand(req.body || {});
+  res.status(result.ok ? 200 : 400).json(result);
+});
+
+app.post('/api/feishu/events', async (req, res) => {
+  if (req.body && req.body.type === 'url_verification') {
+    res.json({ challenge: req.body.challenge });
+    return;
+  }
+
+  const event = req.body && (req.body.event || req.body);
+  const text = event && event.message && event.message.content
+    ? parseFeishuMessageText(event.message.content)
+    : '';
+  const result = await runWorkflowCommand({ text });
+  res.status(result.ok ? 200 : 400).json(result);
+});
+
 app.post('/api/uploads', (req, res) => {
   uploadMiddleware(req, res, (error) => {
     if (error) {
@@ -80,6 +100,15 @@ app.use((error, _req, res, _next) => {
     userMessage: '服务暂时不可用'
   });
 });
+
+function parseFeishuMessageText(content) {
+  try {
+    const parsed = JSON.parse(content);
+    return parsed.text || content;
+  } catch (error) {
+    return content || '';
+  }
+}
 
 app.listen(port, host, () => {
   console.log(`GeoGi mini program server listening on http://${host}:${port}`);

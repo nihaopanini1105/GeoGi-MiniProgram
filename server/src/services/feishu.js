@@ -80,19 +80,35 @@ async function updateBitableRecord({ tenantToken, appToken, tableId, recordId, f
 }
 
 async function listBitableRecords({ tenantToken, appToken, tableId, pageSize = 100 }) {
-  const result = await requestJson({
-    method: 'GET',
-    hostname: 'open.feishu.cn',
-    path: `/open-apis/bitable/v1/apps/${appToken}/tables/${tableId}/records?page_size=${pageSize}`,
-    headers: {
-      Authorization: `Bearer ${tenantToken}`
-    }
-  });
+  const items = [];
+  let pageToken = '';
 
-  if (result.code !== 0) {
-    throw new Error(`list records failed: ${JSON.stringify(result)}`);
+  while (true) {
+    const query = new URLSearchParams({
+      page_size: String(pageSize)
+    });
+    if (pageToken) query.set('page_token', pageToken);
+
+    const result = await requestJson({
+      method: 'GET',
+      hostname: 'open.feishu.cn',
+      path: `/open-apis/bitable/v1/apps/${appToken}/tables/${tableId}/records?${query.toString()}`,
+      headers: {
+        Authorization: `Bearer ${tenantToken}`
+      }
+    });
+
+    if (result.code !== 0) {
+      throw new Error(`list records failed: ${JSON.stringify(result)}`);
+    }
+
+    const data = result.data || {};
+    items.push(...(data.items || []));
+    if (!data.has_more || !data.page_token) break;
+    pageToken = data.page_token;
   }
-  return result.data && result.data.items ? result.data.items : [];
+
+  return items;
 }
 
 async function sendWebhookText(text) {

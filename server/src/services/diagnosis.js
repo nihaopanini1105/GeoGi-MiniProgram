@@ -2,7 +2,6 @@ const crypto = require('crypto');
 const {
   getTenantAccessToken,
   createBitableRecord,
-  createBitableRecords,
   updateBitableRecord,
   listBitableRecords,
   sendWebhookText,
@@ -10,7 +9,6 @@ const {
   buildRecordUrl
 } = require('./feishu');
 const { nextMonthlyId } = require('./counter');
-const { generateDiagnosisAssets } = require('./diagnosis-engine');
 
 const REQUIRED_ENV = [
   'FEISHU_APP_ID',
@@ -50,12 +48,12 @@ async function submitDiagnosis(input) {
         tableId: process.env.FEISHU_LEADS_TABLE_ID
       });
       let workbench = {
-        ok: text(existing.fields && existing.fields.当前状态) === '已转项目',
-        status: text(existing.fields && existing.fields.当前状态) === '已转项目' ? '已存在项目与诊断候选' : '旧记录未进入诊断工作台'
+        ok: Boolean(projectId),
+        status: '已存在客户提交记录'
       };
 
-      if (!workbench.ok) {
-        workbench = await initializeWorkbench({
+      if (text(existing.fields && existing.fields.当前状态) === '新提交') {
+        workbench = await initializeReviewProject({
           tenantToken,
           form,
           clientId,
@@ -69,8 +67,8 @@ async function submitDiagnosis(input) {
           tableId: process.env.FEISHU_LEADS_TABLE_ID,
           recordId,
           fields: {
-            当前状态: workbench.ok ? '已转项目' : '新提交',
-            下一步动作: workbench.ok ? '进入诊断项目审核' : '审核资料并补建工作台项目'
+            当前状态: '待人工审核',
+            下一步动作: '人工审核资料后，在飞书群触发品牌信息补齐和问题生成'
           }
         });
       }
@@ -80,7 +78,7 @@ async function submitDiagnosis(input) {
         duplicated: true,
         clientId,
         projectId,
-        status: workbench.ok ? '已转项目' : (text(existing.fields && existing.fields.当前状态) || '新提交'),
+        status: text(existing.fields && existing.fields.当前状态) || '待人工审核',
         notificationStatus: text(existing.fields && existing.fields.通知状态),
         workbenchStatus: workbench.status,
         submittedAt: existingSubmittedAt,
@@ -115,7 +113,7 @@ async function submitDiagnosis(input) {
       appToken: process.env.FEISHU_BASE_APP_TOKEN,
       tableId: process.env.FEISHU_LEADS_TABLE_ID
     });
-    const workbench = await initializeWorkbench({
+    const workbench = await initializeReviewProject({
       tenantToken,
       form,
       clientId,
@@ -141,8 +139,8 @@ async function submitDiagnosis(input) {
         tableId: process.env.FEISHU_LEADS_TABLE_ID,
         recordId,
         fields: {
-          当前状态: workbench.ok ? '已转项目' : '新提交',
-          下一步动作: workbench.ok ? '进入诊断项目审核' : '审核资料并补建工作台项目',
+          当前状态: workbench.ok ? '待人工审核' : '新提交',
+          下一步动作: workbench.ok ? '人工审核资料后，在飞书群触发品牌信息补齐和问题生成' : '审核资料并补建诊断项目',
           通知状态: notification.status,
           通知发送时间: notification.sentAt,
           通知错误: notification.error,
@@ -155,7 +153,7 @@ async function submitDiagnosis(input) {
       ok: true,
       clientId,
       projectId,
-      status: workbench.ok ? '已转项目' : '新提交',
+      status: workbench.ok ? '待人工审核' : '新提交',
       submittedAt,
       notificationStatus: notification.status,
       workbenchStatus: workbench.status,
@@ -261,153 +259,55 @@ function makeRetrySubmissionId(submissionId) {
   return `${base}-retry-${Date.now()}`;
 }
 
-async function initializeWorkbench({ tenantToken, form, clientId, projectId, submittedAt, leadRecordUrl }) {
+async function initializeReviewProject({ tenantToken, form, clientId, projectId, submittedAt, leadRecordUrl }) {
   const appToken = process.env.FEISHU_BASE_APP_TOKEN;
   const projectTableId = process.env.FEISHU_PROJECTS_TABLE_ID;
-  const brandProfileTableId = process.env.FEISHU_BRAND_PROFILE_TABLE_ID;
 
-  if (!projectTableId || !brandProfileTableId) {
+  if (!projectTableId) {
     return {
       ok: false,
-      status: '未配置工作台表ID'
+      status: '未配置诊断项目表ID'
     };
   }
 
   try {
+    const existingProject = await findExistingProject({ tenantToken, tableId: projectTableId, projectId });
+    if (existingProject) {
+      return {
+        ok: true,
+        status: '诊断项目已存在，等待人工审核',
+        projectRecordId: existingProject.record_id
+      };
+    }
+
     const projectRecord = await createBitableRecord({
       tenantToken,
       appToken,
       tableId: projectTableId,
       fields: buildProjectFields({ form, clientId, projectId, submittedAt, leadRecordUrl })
     });
-    const brandProfileRecord = await createBitableRecord({
-      tenantToken,
-      appToken,
-      tableId: brandProfileTableId,
-      fields: buildBrandProfileFields({ form, clientId, projectId, submittedAt })
-    });
-    const engineResult = await initializeDiagnosisEngine({
-      tenantToken,
-      appToken,
-      form,
-      projectId,
-      submittedAt
-    });
 
     return {
       ok: true,
-      status: engineResult.ok ? '已创建项目、品牌档案与P1诊断候选' : `已创建项目与品牌档案，${engineResult.status}`,
-      projectRecordId: projectRecord && projectRecord.record && projectRecord.record.record_id,
-      brandProfileRecordId: brandProfileRecord && brandProfileRecord.record && brandProfileRecord.record.record_id,
-      engine: engineResult
+      status: '已创建诊断项目，等待人工审核',
+      projectRecordId: projectRecord && projectRecord.record && projectRecord.record.record_id
     };
   } catch (error) {
     return {
       ok: false,
-      status: `工作台初始化失败：${(error && error.message ? error.message : String(error)).slice(0, 300)}`
+      status: `诊断项目创建失败：${(error && error.message ? error.message : String(error)).slice(0, 300)}`
     };
   }
 }
 
-async function initializeDiagnosisEngine({ tenantToken, appToken, form, projectId, submittedAt }) {
-  const tableMap = {
-    sources: process.env.FEISHU_SOURCES_TABLE_ID,
-    keywords: process.env.FEISHU_KEYWORDS_TABLE_ID,
-    industryQuestions: process.env.FEISHU_QUESTIONS_TABLE_ID,
-    aiQuestions: process.env.FEISHU_AI_QUESTION_TABLE_ID
-  };
-  const missing = Object.entries(tableMap)
-    .filter(([, tableId]) => !tableId)
-    .map(([name]) => name);
-
-  if (missing.length) {
-    return {
-      ok: false,
-      status: `P1候选未配置表ID：${missing.join('、')}`
-    };
-  }
-
-  try {
-    const assets = generateDiagnosisAssets({ form, projectId, submittedAt });
-    const writeResults = {
-      sources: await createRecords({
-        tenantToken,
-        appToken,
-        tableId: tableMap.sources,
-        records: assets.sources
-      }),
-      keywords: await createRecords({
-        tenantToken,
-        appToken,
-        tableId: tableMap.keywords,
-        records: assets.keywords
-      }),
-      industryQuestions: await createRecords({
-        tenantToken,
-        appToken,
-        tableId: tableMap.industryQuestions,
-        records: assets.industryQuestions
-      }),
-      aiQuestions: await createRecords({
-        tenantToken,
-        appToken,
-        tableId: tableMap.aiQuestions,
-        records: assets.aiQuestions
-      })
-    };
-    const failed = Object.entries(writeResults)
-      .filter(([, result]) => result.failed > 0)
-      .map(([name, result]) => `${name}:${result.failed}`);
-
-    return {
-      ok: failed.length === 0,
-      status: failed.length ? `P1候选部分写入失败：${failed.join('、')}` : 'P1候选已生成',
-      summary: assets.summary,
-      writeResults
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      status: `P1候选生成失败：${(error && error.message ? error.message : String(error)).slice(0, 300)}`
-    };
-  }
-}
-
-async function createRecords({ tenantToken, appToken, tableId, records }) {
-  const result = {
-    total: records.length,
-    created: 0,
-    failed: 0,
-    errors: []
-  };
-
-  try {
-    await createBitableRecords({
-      tenantToken,
-      appToken,
-      tableId,
-      records
-    });
-    result.created = records.length;
-  } catch (error) {
-    result.errors.push(`batch: ${(error && error.message ? error.message : String(error)).slice(0, 200)}`);
-    for (const fields of records) {
-      try {
-        await createBitableRecord({
-          tenantToken,
-          appToken,
-          tableId,
-          fields
-        });
-        result.created += 1;
-      } catch (singleError) {
-        result.failed += 1;
-        result.errors.push((singleError && singleError.message ? singleError.message : String(singleError)).slice(0, 200));
-      }
-    }
-  }
-
-  return result;
+async function findExistingProject({ tenantToken, tableId, projectId }) {
+  const records = await listBitableRecords({
+    tenantToken,
+    appToken: process.env.FEISHU_BASE_APP_TOKEN,
+    tableId,
+    pageSize: 100
+  });
+  return records.find((record) => text(record.fields && record.fields.项目编号).includes(projectId)) || null;
 }
 
 function buildProjectFields({ form, clientId, projectId, submittedAt, leadRecordUrl }) {
@@ -416,35 +316,14 @@ function buildProjectFields({ form, clientId, projectId, submittedAt, leadRecord
     客户编号: clientId,
     品牌名称: form.brandName,
     项目类型: 'GEO 诊断',
-    当前阶段: '待资料审核',
+    当前阶段: '待人工审核',
     优先级: '普通',
     负责人: process.env.DEFAULT_OWNER || 'GeoGi 负责人',
     开始时间: submittedAt,
     预计交付时间: '',
     实际交付时间: '',
     客户确认范围: form.goals.join('、'),
-    内部备注: leadRecordUrl ? `客户提交记录：${leadRecordUrl}` : '由小程序提交自动创建'
-  };
-}
-
-function buildBrandProfileFields({ form, clientId, projectId, submittedAt }) {
-  return {
-    项目编号: projectId,
-    客户编号: clientId,
-    品牌标准名称: form.brandName,
-    所属企业: form.companyName,
-    行业: form.industry,
-    细分业务: form.segment,
-    目标市场: form.targetMarket.concat(form.targetMarketOther ? [form.targetMarketOther] : []).join('、'),
-    '核心产品/服务': form.offerings,
-    主要客户: form.audiences,
-    品牌优势: form.advantages,
-    官方渠道: form.officialChannel,
-    公开信源: form.officialChannel,
-    竞品品牌: form.competitors,
-    风险备注: '',
-    档案状态: '待核验',
-    最后更新: submittedAt
+    内部备注: leadRecordUrl ? `客户提交记录：${leadRecordUrl}\n审核后在飞书群触发：开始品牌信息补齐和问题生成 项目编号 ${projectId}` : '由小程序提交自动创建'
   };
 }
 
@@ -509,8 +388,7 @@ async function notify({ tenantToken, form, clientId, projectId, submittedAt, rec
     `客户编号：${clientId}`,
     `项目编号：${projectId}`,
     workbench && workbench.status ? `工作台：${workbench.status}` : '',
-    workbench && workbench.engine && workbench.engine.summary ? `P1候选：信源${workbench.engine.summary.sources}条，关键词${workbench.engine.summary.keywords}条，行业问题${workbench.engine.summary.industryQuestions}条，AI检测任务${workbench.engine.summary.aiQuestions}条` : '',
-    `下一步动作：${workbench && workbench.ok ? '进入诊断项目审核。' : '审核资料并联系客户。'}`,
+    `下一步动作：${workbench && workbench.ok ? '请人工审核资料，审核后在群里触发品牌信息补齐和问题生成。' : '审核资料并联系客户。'}`,
     recordUrl ? `飞书记录：${recordUrl}` : ''
   ].filter(Boolean).join('\n');
 

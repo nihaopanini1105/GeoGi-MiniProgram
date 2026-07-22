@@ -67,6 +67,12 @@ Page({
   },
 
   onLoad(options) {
+    if (wx.getStorageSync('geogi_start_new_diagnosis')) {
+      wx.removeStorageSync(draftKey);
+      wx.removeStorageSync('geogi_last_submission');
+      return;
+    }
+
     const draft = wx.getStorageSync(draftKey);
     if (draft) {
       const form = this.normalizeForm({ ...initialForm, ...draft });
@@ -84,12 +90,32 @@ Page({
     }
   },
 
-  startForm() {
+  onShow() {
+    if (!wx.getStorageSync('geogi_start_new_diagnosis')) return;
+    wx.removeStorageSync('geogi_start_new_diagnosis');
+    wx.removeStorageSync(draftKey);
+    wx.removeStorageSync('geogi_last_submission');
+    this.startForm({ forceNew: true });
+  },
+
+  startForm(options = {}) {
+    const forceNew = Boolean(options.forceNew);
     const form = {
-      ...this.data.form,
-      submissionId: this.data.form.submissionId || this.makeSubmissionId()
+      ...(forceNew ? initialForm : this.data.form),
+      submissionId: forceNew ? this.makeSubmissionId() : (this.data.form.submissionId || this.makeSubmissionId())
     };
-    this.setData({ started: true, form }, this.scrollToTop);
+    this.setData({
+      started: true,
+      step: 1,
+      submitting: false,
+      fieldErrors: {},
+      form,
+      industryIndex: 0,
+      segmentIndex: 0,
+      segmentOptions: this.getSegmentOptions(this.data.industries[0]),
+      marketIndex: 0,
+      goalOptions: this.syncGoalOptions([])
+    }, this.scrollToTop);
     wx.setStorageSync(draftKey, form);
     track('form_start', { source: 'diagnosis_entry' });
   },

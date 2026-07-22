@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "dev": "node src/server.js",
     "setup:feishu-fields": "node src/scripts/setup-feishu-fields.js",
-    "setup:diagnosis-workbench": "node src/scripts/setup-diagnosis-workbench.js"
+    "setup:diagnosis-workbench": "node src/scripts/setup-diagnosis-workbench.js",
+    "workflow:command": "node src/scripts/run-workflow-command.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

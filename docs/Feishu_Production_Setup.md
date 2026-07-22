@@ -11,7 +11,9 @@
 2. 服务器校验字段并生成 `clientId` / `projectId`
 3. 服务器通过飞书开放平台写入多维表格
 4. 服务器发送飞书通知给负责人
-5. 小程序展示提交成功页和客户编号
+5. 小程序展示提交成功页、客户编号和预计完成时间
+6. 人工审核客户资料后，在飞书群触发品牌信息补齐和问题生成
+7. 完成AI平台问答后，在飞书群触发报告生成
 
 研究中心正式链路为：
 
@@ -406,11 +408,14 @@ table=<table_id>
 - `GET /api/articles/:id`
 - `GET /api/config`
 - `GET /api/sample-report`
+- `POST /api/feishu/command`
+- `POST /api/feishu/events`
 - `pnpm setup:feishu-fields`
 - `pnpm setup:diagnosis-workbench`
+- `pnpm workflow:command`
 - 表单提交正式链路
-- 客户提交后自动创建诊断项目与品牌基础档案
-- 客户提交后自动生成 P1 诊断候选：信源、关键词、行业问题、AI 检测任务
+- 客户提交后进入待人工审核
+- 飞书群指令触发品牌信息补齐、问题生成和报告生成
 - 研究中心官网直连
 - 飞书配置文档
 

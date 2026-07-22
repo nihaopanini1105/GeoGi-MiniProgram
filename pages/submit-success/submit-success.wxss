@@ -2,7 +2,7 @@
 .next-card,
 .contact-card,
 .article-card {
-  padding: 32rpx 30rpx;
+  padding: 34rpx 30rpx;
 }
 
 .success-icon {
@@ -21,21 +21,23 @@
 
 .block-title {
   display: block;
-  margin-bottom: 20rpx;
+  margin-bottom: 22rpx;
   color: #102145;
-  font-size: 34rpx;
+  font-size: 32rpx;
   font-weight: 950;
+  line-height: 1.28;
 }
 
 .success-id {
   display: block;
-  margin-top: 22rpx;
-  padding: 16rpx 18rpx;
+  margin-top: 18rpx;
+  padding: 18rpx 20rpx;
   border-radius: 18rpx;
   background: #f5f8ff;
   color: #2f6df6;
   font-size: 25rpx;
   font-weight: 900;
+  line-height: 1.35;
 }
 
 .muted-id {
@@ -45,22 +47,30 @@
 .next-row,
 .article-row {
   display: flex;
-  gap: 18rpx;
-  padding: 18rpx 0;
+  gap: 20rpx;
+  padding: 20rpx 0;
   border-top: 1rpx solid #ecf1fa;
   color: #51617f;
   font-size: 27rpx;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
 .next-num {
   color: #2f6df6;
   font-weight: 950;
+  flex: 0 0 auto;
 }
 
 .full-button {
   width: 100%;
-  margin-top: 24rpx;
+  margin-top: 28rpx;
+}
+
+.estimate-copy {
+  display: block;
+  color: #51617f;
+  font-size: 28rpx;
+  line-height: 1.72;
 }
 
 .article-row {
