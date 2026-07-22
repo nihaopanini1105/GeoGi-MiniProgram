@@ -6,7 +6,7 @@ const {
   listBitableRecords,
   sendWebhookText
 } = require('./feishu');
-const { generateDiagnosisAssets } = require('./diagnosis-engine');
+const { generateDiagnosisAssets, buildDiagnosisContext } = require('./diagnosis-engine');
 const { enrichConversationsWithSharedLinks } = require('./ai-share-extractor');
 
 const AI_PLATFORMS = ['DeepSeek', 'Kimi', '豆包', '通义千问', '腾讯元宝'];
@@ -53,25 +53,25 @@ async function generateBrandAssets(projectId) {
     projectId,
     fields: buildBrandProfileFields({ form, projectId, submittedAt })
   });
-  const sourceResult = await createIfEmpty({
+  const sourceResult = await refreshGeneratedRecords({
     tenantToken,
     tableId: process.env.FEISHU_SOURCES_TABLE_ID,
     projectId,
     records: assets.sources
   });
-  const keywordResult = await createIfEmpty({
+  const keywordResult = await refreshGeneratedRecords({
     tenantToken,
     tableId: process.env.FEISHU_KEYWORDS_TABLE_ID,
     projectId,
     records: assets.keywords
   });
-  const questionResult = await createIfEmpty({
+  const questionResult = await refreshGeneratedRecords({
     tenantToken,
     tableId: process.env.FEISHU_QUESTIONS_TABLE_ID,
     projectId,
     records: assets.industryQuestions
   });
-  const aiQuestionResult = await createIfEmpty({
+  const aiQuestionResult = await refreshGeneratedRecords({
     tenantToken,
     tableId: process.env.FEISHU_AI_QUESTION_TABLE_ID,
     projectId,
@@ -103,11 +103,11 @@ async function generateBrandAssets(projectId) {
     '【GeoGi 工作流】品牌信息补齐和问题生成已完成。',
     `项目编号：${projectId}`,
     `品牌：${form.brandName}`,
-    `品牌档案：${brandProfileResult.created ? '已创建' : '已存在'}`,
-    `全网信源：${sourceResult.created} 条${sourceResult.skipped ? `，已存在 ${sourceResult.skipped} 条` : ''}`,
-    `品牌关键词：${keywordResult.created} 条${keywordResult.skipped ? `，已存在 ${keywordResult.skipped} 条` : ''}`,
-    `行业热门问题：${questionResult.created} 条${questionResult.skipped ? `，已存在 ${questionResult.skipped} 条` : ''}`,
-    `AI检测问题：${aiQuestionResult.created} 条${aiQuestionResult.skipped ? `，已存在 ${aiQuestionResult.skipped} 条` : ''}`,
+    `品牌档案：${brandProfileResult.created ? '已创建' : '已刷新'}`,
+    `全网信源：新增 ${sourceResult.created} 条，刷新 ${sourceResult.updated} 条`,
+    `品牌关键词：新增 ${keywordResult.created} 条，刷新 ${keywordResult.updated} 条`,
+    `行业热门问题：新增 ${questionResult.created} 条，刷新 ${questionResult.updated} 条`,
+    `AI检测问题：新增 ${aiQuestionResult.created} 条，刷新 ${aiQuestionResult.updated} 条`,
     '下一步：请在5个AI平台完成问答后，发送会话链接或回答原文，并触发“开始生成报告”。'
   ].join('\n');
   await notify(message);
@@ -303,6 +303,14 @@ function formFromLead(fields) {
 }
 
 function buildBrandProfileFields({ form, projectId, submittedAt }) {
+  const context = buildDiagnosisContext(form);
+  const officialUrls = extractUrls(context.officialChannel);
+  const publicSources = [
+    context.officialChannel ? `客户提供官方渠道：${context.officialChannel}` : `${context.brandName} 官网/公众号/小程序/视频号/抖音/小红书待核验`,
+    ...context.profile.sourceAngles.slice(0, 5).map(([angle]) => `${context.brandName} ${angle}`),
+    ...context.profile.purchaseCriteria.slice(0, 4).map((criterion) => `${context.brandName} ${context.profile.productWord} ${criterion}`)
+  ];
+  const riskNotes = context.profile.riskChecks.map((item) => `需核验${item}`).join('；');
   return {
     项目编号: projectId,
     客户编号: form.clientId,
@@ -314,10 +322,10 @@ function buildBrandProfileFields({ form, projectId, submittedAt }) {
     '核心产品/服务': form.offerings,
     主要客户: form.audiences,
     品牌优势: form.advantages,
-    官方渠道: form.officialChannel,
-    公开信源: form.officialChannel,
-    竞品品牌: form.competitors,
-    风险备注: '',
+    官方渠道: form.officialChannel || (officialUrls[0] || '客户未提供，需优先补充官网、公众号、小程序或主流社媒官方账号'),
+    公开信源: publicSources.join('\n'),
+    竞品品牌: form.competitors || `待人工补充同品类${context.profile.productWord}品牌，用于对比AI推荐结果`,
+    风险备注: riskNotes || '需核验官方主体、公开信息一致性、客户口碑和竞品压制情况',
     档案状态: '待核验',
     最后更新: submittedAt
   };
@@ -471,7 +479,14 @@ async function updateProjectAndLead({ tenantToken, leadRecord, projectRecord, le
 async function ensureSingleRecord({ tenantToken, tableId, projectId, fields }) {
   const existing = await listByProject({ tenantToken, tableId, projectId });
   if (existing.length) {
-    return { created: 0, skipped: existing.length };
+    await updateBitableRecord({
+      tenantToken,
+      appToken: process.env.FEISHU_BASE_APP_TOKEN,
+      tableId,
+      recordId: existing[0].record_id,
+      fields
+    });
+    return { created: 0, updated: 1, skipped: existing.length - 1 };
   }
   await createBitableRecord({
     tenantToken,
@@ -479,7 +494,7 @@ async function ensureSingleRecord({ tenantToken, tableId, projectId, fields }) {
     tableId,
     fields
   });
-  return { created: 1, skipped: 0 };
+  return { created: 1, updated: 0, skipped: 0 };
 }
 
 async function createIfEmpty({ tenantToken, tableId, projectId, records }) {
@@ -494,6 +509,41 @@ async function createIfEmpty({ tenantToken, tableId, projectId, records }) {
     records
   });
   return { created: records.length, skipped: 0 };
+}
+
+async function refreshGeneratedRecords({ tenantToken, tableId, projectId, records }) {
+  const existing = await listByProject({ tenantToken, tableId, projectId });
+  let updated = 0;
+  let created = 0;
+  const updateCount = Math.min(existing.length, records.length);
+
+  for (let index = 0; index < updateCount; index += 1) {
+    await updateBitableRecord({
+      tenantToken,
+      appToken: process.env.FEISHU_BASE_APP_TOKEN,
+      tableId,
+      recordId: existing[index].record_id,
+      fields: records[index]
+    });
+    updated += 1;
+  }
+
+  const remaining = records.slice(updateCount);
+  if (remaining.length) {
+    await createBitableRecords({
+      tenantToken,
+      appToken: process.env.FEISHU_BASE_APP_TOKEN,
+      tableId,
+      records: remaining
+    });
+    created = remaining.length;
+  }
+
+  return {
+    created,
+    updated,
+    skipped: Math.max(existing.length - records.length, 0)
+  };
 }
 
 async function findOneByProject({ tenantToken, tableId, projectId }) {
