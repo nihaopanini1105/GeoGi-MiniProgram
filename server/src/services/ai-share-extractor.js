@@ -328,6 +328,7 @@ function trimNoise(value, { title, meta }) {
 
 function hasDiagnosticText(value) {
   const text = String(value || '');
+  if (/初始强制检查|定义回调函数|data-theme|setAttribute|通义千问官网.*大模型/.test(text)) return false;
   const chineseCount = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
   const hasQuestionSignal = /[？?]|提问|回答|推荐|品牌|公司|平台|保险|旅行|服务商/.test(text);
   return chineseCount >= 120 && hasQuestionSignal;
@@ -386,7 +387,7 @@ function splitConversationTurns(value, fallbackQuestion = '') {
 
   if (current) turns.push(finishTurn(current));
 
-  const usable = turns
+  const usable = refineTurns(turns)
     .filter((turn) => turn.question && turn.answer.length >= 60)
     .map((turn, index) => ({
       questionId: `T${String(index + 1).padStart(2, '0')}`,
@@ -404,6 +405,9 @@ function splitConversationTurns(value, fallbackQuestion = '') {
 }
 
 function normalizeQuestionLine(line) {
+  const embedded = clean(line).match(/"tts_content"\s*:\s*"([^"]{8,260}[？?][^"]{0,120})"/);
+  if (embedded) return normalizeQuestionLine(embedded[1]);
+
   const value = clean(line)
     .replace(/^#+\s*/, '')
     .replace(/^[-*]\s*/, '')
@@ -423,6 +427,52 @@ function finishTurn(turn) {
     question: turn.question,
     answer: normalizeText(turn.answerLines.join('\n'))
   };
+}
+
+function refineTurns(turns) {
+  const byQuestion = new Map();
+
+  for (const turn of turns) {
+    const question = normalizeText(turn.question);
+    const answer = normalizeText(turn.answer);
+    if (!question || !answer) continue;
+    const key = questionKey(question);
+    const score = scoreTurnRelevance(question, answer);
+    const current = byQuestion.get(key);
+    if (!current || score > current.score || (score === current.score && answer.length > current.answer.length)) {
+      byQuestion.set(key, { question, answer, score });
+    }
+  }
+
+  return Array.from(byQuestion.values()).map(({ question, answer }) => ({ question, answer }));
+}
+
+function questionKey(question) {
+  return normalizeText(question)
+    .replace(/[^\u4e00-\u9fa5A-Za-z0-9]/g, '')
+    .slice(0, 80);
+}
+
+function scoreTurnRelevance(question, answer) {
+  const q = normalizeText(question);
+  const a = normalizeText(answer);
+  let score = 0;
+  for (const token of questionTokens(q)) {
+    if (a.includes(token)) score += token.length >= 3 ? 3 : 1;
+  }
+  if (/哪|哪些|单品|值得试|推荐|口味/.test(q) && /推荐|单品|生椰|拿铁|美式|厚乳|口味|好喝|必喝|回购/.test(a)) score += 8;
+  if (/热量|甜度|咖啡因|配料|资料|官方|第三方/.test(q) && /热量|甜度|咖啡因|配料|官方|小程序|APP|第三方/.test(a)) score += 8;
+  if (/比较|怎么选|相比/.test(q) && /相比|对比|选择|更适合|优势|短板/.test(a)) score += 6;
+  if (/外卖|踩雷|稳定/.test(q) && /外卖|配送|稳定|踩雷|冰块|温度/.test(a)) score += 6;
+  if (/新品|年轻人/.test(q) && /新品|年轻人|联名|星巴克|库迪/.test(a)) score += 6;
+  if (/初始强制检查|data-theme|setAttribute|官网,通义/.test(a)) score -= 30;
+  return score;
+}
+
+function questionTokens(question) {
+  return unique((question.match(/[\u4e00-\u9fa5]{2,6}|[A-Za-z0-9]{2,}/g) || [])
+    .filter((token) => !/什么|哪些|如果|怎么|是否|有没有|一个|普通|用户|品牌/.test(token))
+    .slice(0, 18));
 }
 
 function extractTitle(html) {
@@ -497,6 +547,10 @@ function limitText(value, max) {
   const text = clean(value);
   if (text.length <= max) return text;
   return `${text.slice(0, max - 18)}\n（内容较长，已截取）`;
+}
+
+function unique(values) {
+  return Array.from(new Set(values.filter(Boolean)));
 }
 
 function clean(value) {

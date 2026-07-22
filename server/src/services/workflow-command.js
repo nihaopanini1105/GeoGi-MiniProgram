@@ -714,6 +714,7 @@ function brandAliases(form) {
     clean(form.brandName),
     clean(form.companyName),
     stripBrandNoise(form.brandName),
+    stripCategorySuffix(stripBrandNoise(form.brandName)),
     stripCompanySuffix(form.companyName),
     ...splitList(form.brandName),
     ...splitList(form.companyName)
@@ -721,6 +722,12 @@ function brandAliases(form) {
     .map(normalizeToken)
     .filter((item) => item.length >= 2)
     .sort((a, b) => b.length - a.length);
+}
+
+function stripCategorySuffix(value) {
+  return clean(value)
+    .replace(/(咖啡|茶饮|饮品|食品|科技|旅行|旅游|保险|服务|平台|教育|培训|健康|医疗|家居|生活|品牌)$/g, '')
+    .trim();
 }
 
 function matchesBrand(answer, form) {
