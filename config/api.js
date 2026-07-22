@@ -21,6 +21,6 @@ module.exports = {
   API_BASE_URL,
   LOCAL_API_BASE_URL,
   PROD_API_BASE_URL,
-  REQUEST_TIMEOUT: 12000,
+  REQUEST_TIMEOUT: 60000,
   isApiConfigured
 };

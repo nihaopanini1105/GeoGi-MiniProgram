@@ -39,22 +39,58 @@ async function submitDiagnosis(input) {
       submissionId: form.submissionId
     });
 
-    if (existing) {
+    if (existing && isSameSubmission(existing.fields || {}, form)) {
+      const clientId = text(existing.fields && existing.fields.客户编号);
+      const projectId = text(existing.fields && existing.fields.项目编号);
+      const existingSubmittedAt = text(existing.fields && existing.fields.提交时间) || submittedAt;
+      const recordId = existing.record_id;
+      const recordUrl = buildRecordUrl({
+        recordId,
+        appToken: process.env.FEISHU_BASE_APP_TOKEN,
+        tableId: process.env.FEISHU_LEADS_TABLE_ID
+      });
+      let workbench = {
+        ok: text(existing.fields && existing.fields.当前状态) === '已转项目',
+        status: text(existing.fields && existing.fields.当前状态) === '已转项目' ? '已存在项目与诊断候选' : '旧记录未进入诊断工作台'
+      };
+
+      if (!workbench.ok) {
+        workbench = await initializeWorkbench({
+          tenantToken,
+          form,
+          clientId,
+          projectId,
+          submittedAt: existingSubmittedAt,
+          leadRecordUrl: recordUrl
+        });
+        await updateBitableRecord({
+          tenantToken,
+          appToken: process.env.FEISHU_BASE_APP_TOKEN,
+          tableId: process.env.FEISHU_LEADS_TABLE_ID,
+          recordId,
+          fields: {
+            当前状态: workbench.ok ? '已转项目' : '新提交',
+            下一步动作: workbench.ok ? '进入诊断项目审核' : '审核资料并补建工作台项目'
+          }
+        });
+      }
+
       return {
         ok: true,
         duplicated: true,
-        clientId: text(existing.fields && existing.fields.客户编号),
-        projectId: text(existing.fields && existing.fields.项目编号),
-        status: text(existing.fields && existing.fields.当前状态) || '新提交',
+        clientId,
+        projectId,
+        status: workbench.ok ? '已转项目' : (text(existing.fields && existing.fields.当前状态) || '新提交'),
         notificationStatus: text(existing.fields && existing.fields.通知状态),
-        submittedAt: text(existing.fields && existing.fields.提交时间) || submittedAt,
-        recordId: existing.record_id,
-        recordUrl: buildRecordUrl({
-          recordId: existing.record_id,
-          appToken: process.env.FEISHU_BASE_APP_TOKEN,
-          tableId: process.env.FEISHU_LEADS_TABLE_ID
-        })
+        workbenchStatus: workbench.status,
+        submittedAt: existingSubmittedAt,
+        recordId,
+        recordUrl
       };
+    }
+
+    if (existing) {
+      form.submissionId = makeRetrySubmissionId(form.submissionId);
     }
 
     const clientId = await nextMonthlyId('GG', submittedAt);
@@ -207,6 +243,22 @@ function buildLeadFields({ form, clientId, projectId, submittedAt, source }) {
     通知重试次数: '0',
     来源: source
   };
+}
+
+function isSameSubmission(existingFields, form) {
+  const existingBrand = text(existingFields.品牌名称);
+  const existingCompany = text(existingFields.企业名称);
+  const existingIndustry = text(existingFields.一级行业);
+
+  if (!existingBrand || existingBrand !== form.brandName) return false;
+  if (form.companyName && existingCompany && existingCompany !== form.companyName) return false;
+  if (form.industry && existingIndustry && existingIndustry !== form.industry) return false;
+  return true;
+}
+
+function makeRetrySubmissionId(submissionId) {
+  const base = String(submissionId || 'mp').slice(0, 80);
+  return `${base}-retry-${Date.now()}`;
 }
 
 async function initializeWorkbench({ tenantToken, form, clientId, projectId, submittedAt, leadRecordUrl }) {
