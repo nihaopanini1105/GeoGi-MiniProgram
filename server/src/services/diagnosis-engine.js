@@ -1,5 +1,229 @@
 const DEFAULT_PLATFORMS = ['DeepSeek', 'Kimi', '豆包', '通义千问', '腾讯元宝'];
 
+const INDUSTRY_PROFILE_BASE = {
+  '旅游与文旅': {
+    userRole: '游客、亲子家庭或文旅项目负责人',
+    decisionVerb: '选择',
+    productWord: '文旅服务',
+    purchaseCriteria: ['目的地资源', '行程体验', '服务保障', '价格透明', '安全合规', '口碑评价', '交通住宿', '售后响应'],
+    sourceAngles: [
+      ['官方资质和经营主体', '资质信源', '核验旅行社、景区、酒店或文旅项目主体与资质'],
+      ['真实游玩和服务体验', '体验信源', '观察游客评价、笔记、攻略和投诉'],
+      ['价格套餐和预订渠道', '交易信源', '核验套餐内容、预订方式、退款改期规则'],
+      ['目的地内容和达人攻略', '内容信源', '判断AI是否理解目的地、线路和适合人群'],
+      ['安全、保险和应急保障', '风险信源', '核验安全提醒、保险、应急和售后机制']
+    ],
+    hotKeywords: ['旅行推荐', '亲子游推荐', '研学旅行', '景区攻略', '酒店民宿推荐', '定制旅行', '目的地怎么玩', '旅游避坑'],
+    brandKeywordTemplates: ['{brand} 怎么样', '{brand} 攻略', '{brand} 价格', '{brand} 评价', '{brand} 适合亲子吗', '{brand} 预订', '{brand} 避坑'],
+    scenarios: ['亲子出游', '周末短途', '团队出行', '研学活动', '自由行规划', '预算有限', '第一次到访'],
+    riskChecks: ['资质不清', '实际体验和宣传不一致', '退改规则不清', '安全保障不足', '差评和投诉']
+  },
+  '企业服务': {
+    userRole: '企业负责人、市场负责人或业务部门负责人',
+    decisionVerb: '选择',
+    productWord: '企业服务商',
+    purchaseCriteria: ['专业能力', '行业经验', '案例结果', '价格和交付周期', '服务响应', '团队资质', '数据安全', '长期合作价值'],
+    sourceAngles: [
+      ['官网服务说明和案例', '官方信源', '核验服务范围、交付流程、案例和联系方式'],
+      ['客户案例和行业口碑', '案例口碑信源', '判断服务商是否有真实行业经验和可验证结果'],
+      ['团队资质和主体信息', '资质信源', '核验工商主体、团队背景、资质和合作伙伴'],
+      ['行业内容和专业观点', '内容信源', '判断是否有专业文章、白皮书、方法论和公开观点'],
+      ['风险与合同边界', '风险信源', '核验交付边界、收费方式、售后和争议风险']
+    ],
+    hotKeywords: ['企业服务商推荐', '品牌营销公司', '咨询公司推荐', '人力资源服务', '财税法务服务', '销售获客', '企业培训'],
+    brandKeywordTemplates: ['{brand} 是什么', '{brand} 案例', '{brand} 价格', '{brand} 口碑', '{brand} 服务范围', '{brand} 对比', '{brand} 靠谱吗'],
+    scenarios: ['首次采购', '预算有限', '需要快速交付', '长期合作', '替换服务商', '验证案例真实性'],
+    riskChecks: ['案例真实性不足', '交付边界不清', '报价不透明', '售后响应不稳定', '资质和团队背景不清']
+  },
+  '软件与互联网': {
+    userRole: '企业负责人或业务团队',
+    decisionVerb: '选型',
+    productWord: '软件系统',
+    purchaseCriteria: ['功能匹配', '易用性', '价格', '数据安全', '集成能力', '服务响应', '案例', '部署方式'],
+    sourceAngles: [
+      ['产品功能说明', '产品信源', '核验核心功能、适用对象和使用流程'],
+      ['客户案例和行业方案', '案例信源', '证明产品在真实行业里的使用效果'],
+      ['价格和版本', '选型信源', '核验套餐、试用、交付周期和费用边界'],
+      ['安全和合规', '风险信源', '核验数据安全、权限、隐私和系统稳定性'],
+      ['集成和部署', '技术信源', '核验API、系统对接、私有化或云部署能力']
+    ],
+    hotKeywords: ['SaaS软件推荐', '企业软件选型', '好用的AI工具', '业务系统推荐', '软件价格', '软件对比', '数字化工具'],
+    brandKeywordTemplates: ['{brand} 是什么', '{brand} 好用吗', '{brand} 价格', '{brand} 功能', '{brand} 案例', '{brand} 替代方案', '{brand} 对比'],
+    scenarios: ['企业选型', '团队提效', '系统替换', '预算有限', '数据安全评估', '对接现有系统'],
+    riskChecks: ['功能边界不清', '价格不透明', '客户案例不足', '数据安全说明不足', '售后服务不明确']
+  },
+  '消费品与零售': {
+    userRole: '消费者或渠道采购负责人',
+    decisionVerb: '购买',
+    productWord: '消费品',
+    purchaseCriteria: ['品质口碑', '价格优惠', '成分材质', '使用体验', '渠道便利', '售后保障', '品牌信任', '复购评价'],
+    sourceAngles: [
+      ['产品卖点和成分材质', '产品信源', '核验产品参数、成分、材质、规格和适用人群'],
+      ['用户口碑和真实体验', '口碑信源', '观察小红书、抖音、电商和点评里的真实反馈'],
+      ['价格渠道和促销', '交易信源', '核验官方旗舰店、渠道价格、优惠和售后'],
+      ['测评榜单和达人内容', '测评信源', '判断AI是否引用测评、榜单、达人体验和种草内容'],
+      ['质量投诉和风险舆情', '风险信源', '识别质量、假货、售后、过敏或安全争议']
+    ],
+    hotKeywords: ['好物推荐', '品牌推荐', '小红书推荐', '值得买吗', '测评', '性价比', '避坑', '旗舰店'],
+    brandKeywordTemplates: ['{brand} 怎么样', '{brand} 值得买吗', '{brand} 测评', '{brand} 价格', '{brand} 旗舰店', '{brand} 口碑', '{brand} 避坑'],
+    scenarios: ['首次购买', '送礼', '日常使用', '囤货复购', '对比竞品', '关注安全成分'],
+    riskChecks: ['质量争议', '售后投诉', '成分材质不清', '真假货渠道混乱', '评价两极分化']
+  },
+  '教育培训': {
+    userRole: '学生、家长、职场人或企业培训负责人',
+    decisionVerb: '报名',
+    productWord: '教育培训服务',
+    purchaseCriteria: ['师资能力', '课程体系', '学习效果', '价格和课时', '证书认可', '服务督学', '口碑案例', '退费政策'],
+    sourceAngles: [
+      ['课程体系和师资', '课程信源', '核验课程内容、师资背景、适合人群和学习路径'],
+      ['学员案例和口碑', '口碑信源', '观察学员反馈、通过率、作品和就业升学结果'],
+      ['资质认证和证书', '资质信源', '核验办学资质、授权认证和证书含金量'],
+      ['价格课时和退费', '交易信源', '核验收费、课时、合同和退费政策'],
+      ['投诉与承诺风险', '风险信源', '识别夸大宣传、退费纠纷和效果承诺风险']
+    ],
+    hotKeywords: ['课程推荐', '培训机构推荐', '职业教育', '企业培训', '留学语培', 'K12素质教育', '知识付费', '教育科技'],
+    brandKeywordTemplates: ['{brand} 课程怎么样', '{brand} 师资', '{brand} 价格', '{brand} 退费', '{brand} 学员评价', '{brand} 证书', '{brand} 靠谱吗'],
+    scenarios: ['提升技能', '考试备考', '孩子素质培养', '企业内训', '留学申请', '转行就业'],
+    riskChecks: ['师资不透明', '效果承诺过度', '退费纠纷', '证书认可度不清', '课程交付不稳定']
+  },
+  '医疗健康': {
+    userRole: '患者、健康管理用户或家庭决策者',
+    decisionVerb: '选择',
+    productWord: '医疗健康服务',
+    purchaseCriteria: ['专业资质', '医生团队', '安全性', '效果证据', '价格透明', '服务体验', '隐私保护', '售后复诊'],
+    sourceAngles: [
+      ['医疗资质和医生团队', '资质信源', '核验执业资质、医生背景、机构许可和备案'],
+      ['服务项目和适用人群', '产品信源', '核验项目说明、适应症、禁忌和服务流程'],
+      ['真实评价和案例', '口碑信源', '观察患者评价、案例展示和第三方平台反馈'],
+      ['价格和风险告知', '交易风险信源', '核验价格、疗程、知情同意和风险提示'],
+      ['投诉舆情和合规', '风险信源', '识别医疗安全、虚假宣传、隐私和售后争议']
+    ],
+    hotKeywords: ['健康管理推荐', '医院/诊所推荐', '医美口腔', '营养保健', '康复护理', '医疗科技', '医生评价', '靠谱吗'],
+    brandKeywordTemplates: ['{brand} 靠谱吗', '{brand} 医生', '{brand} 价格', '{brand} 效果', '{brand} 评价', '{brand} 资质', '{brand} 风险'],
+    scenarios: ['初次咨询', '比较机构', '关注安全风险', '复诊护理', '长期健康管理', '家人决策'],
+    riskChecks: ['资质不清', '效果夸大', '价格不透明', '隐私合规不足', '医疗投诉和安全风险']
+  },
+  '其他行业': {
+    userRole: '目标客户或采购决策人',
+    decisionVerb: '选择',
+    productWord: '产品或服务',
+    purchaseCriteria: ['适用场景', '价格', '服务能力', '案例口碑', '专业度', '交付效率', '售后服务', '风险保障'],
+    sourceAngles: [
+      ['官方介绍', '官方信源', '核验品牌主体、产品服务、联系方式和业务边界'],
+      ['产品服务能力', '产品信源', '核验核心产品、服务流程和适用场景'],
+      ['客户案例和口碑', '案例口碑信源', '查找客户评价、案例、合作品牌和复购信息'],
+      ['行业测评和榜单', '第三方信源', '判断AI是否能引用行业文章、榜单或测评'],
+      ['竞品对比', '竞品信源', '查找与竞品的差异、优势和短板'],
+      ['风险舆情', '风险舆情信源', '识别投诉、争议、资质或信息不一致问题']
+    ],
+    hotKeywords: ['服务商推荐', '品牌推荐', '怎么选', '价格', '口碑', '案例', '哪家好', '对比'],
+    brandKeywordTemplates: ['{brand} 是什么', '{brand} 怎么样', '{brand} 价格', '{brand} 案例', '{brand} 口碑', '{brand} 对比'],
+    scenarios: ['初次了解', '采购决策', '对比竞品', '预算有限', '验证可信度', '寻找替代方案'],
+    riskChecks: ['官方信息不完整', '案例不足', '口碑不稳定', '竞品解释不清', '联系方式或主体不一致']
+  }
+};
+
+const SEGMENT_PROFILE_OVERRIDES = {
+  定制旅行: { productWord: '定制旅行服务', userRole: '高净值游客、家庭或企业出行负责人', purchaseCriteria: ['行程定制能力', '目的地资源', '顾问响应', '价格透明', '安全保障', '真实口碑'], scenarios: ['家庭度假', '蜜月旅行', '企业团建', '小众目的地', '预算确认'], hotKeywords: ['定制旅行推荐', '私人定制旅行', '高端旅行社', '旅行顾问', '小团定制游'] },
+  目的地服务: { productWord: '目的地服务', userRole: '自由行游客、旅行社或地接合作方', purchaseCriteria: ['本地资源', '接待能力', '路线熟悉度', '应急响应', '价格透明', '评价口碑'], scenarios: ['自由行落地服务', '团队接待', '当地玩乐', '交通接送', '临时改行程'], hotKeywords: ['目的地服务', '当地地接', '自由行当地向导', '包车导游', '目的地怎么玩'] },
+  '景区/乐园': { productWord: '景区乐园', userRole: '游客、亲子家庭或团体活动负责人', purchaseCriteria: ['游玩项目', '排队体验', '票价套餐', '交通便利', '安全管理', '游客评价'], scenarios: ['亲子游玩', '周末出行', '团体票', '节假日避坑', '夜场活动'], hotKeywords: ['景区攻略', '乐园推荐', '门票优惠', '亲子乐园', '景区避坑'] },
+  酒店民宿: { productWord: '酒店民宿', userRole: '住客、亲子家庭或差旅用户', purchaseCriteria: ['位置交通', '卫生舒适', '价格套餐', '服务体验', '亲子设施', '真实评价'], scenarios: ['亲子入住', '商务差旅', '周末度假', '长住短租', '临近景区'], hotKeywords: ['酒店推荐', '民宿推荐', '亲子酒店', '酒店避坑', '住客评价'] },
+  文旅营销: { productWord: '文旅营销服务', userRole: '景区、目的地或文旅项目负责人', purchaseCriteria: ['传播策划', '内容创意', '达人资源', '转化效果', '案例经验', '投放数据'], scenarios: ['目的地推广', '节庆活动', '招商引流', '短视频种草', '文旅IP打造'], hotKeywords: ['文旅营销公司', '目的地营销', '景区推广', '文旅IP', '短视频文旅营销'] },
+  '研学/亲子游': { productWord: '研学亲子游服务', userRole: '家长、学校或研学机构负责人', purchaseCriteria: ['课程设计', '安全保障', '师资带队', '营地资源', '价格透明', '家长评价'], scenarios: ['暑期研学', '学校实践', '亲子营地', '户外活动', '安全评估'], hotKeywords: ['研学旅行推荐', '亲子游推荐', '研学机构', '营地教育', '研学安全'] },
+
+  品牌营销: { productWord: '品牌营销服务', userRole: '品牌负责人或市场负责人', purchaseCriteria: ['策略能力', '创意内容', '投放转化', '行业案例', '数据复盘', '团队经验'], scenarios: ['新品上市', '品牌升级', '获客增长', '内容种草', '预算有限'], hotKeywords: ['品牌营销公司', '整合营销', '小红书营销', '抖音代运营', '品牌策划'] },
+  咨询服务: { productWord: '咨询服务', userRole: '企业老板或业务负责人', purchaseCriteria: ['方法论', '顾问经验', '行业案例', '落地能力', '交付周期', '报价透明'], scenarios: ['战略调整', '组织优化', '增长诊断', '流程改善', '融资前梳理'], hotKeywords: ['咨询公司推荐', '管理咨询', '战略咨询', '企业诊断', '咨询顾问'] },
+  人力资源: { productWord: '人力资源服务', userRole: 'HR负责人或企业管理者', purchaseCriteria: ['招聘效率', '人才质量', '合规用工', '服务响应', '行业人才库', '价格透明'], scenarios: ['批量招聘', '高端猎头', '灵活用工', '薪酬绩效', '用工合规'], hotKeywords: ['人力资源公司', '猎头推荐', '灵活用工', '招聘外包', '薪酬绩效'] },
+  财税法务: { productWord: '财税法务服务', userRole: '创业者、企业老板或财务负责人', purchaseCriteria: ['专业资质', '合规经验', '响应速度', '收费透明', '风险提示', '案例经验'], scenarios: ['公司注册', '税务筹划', '合同审核', '知识产权', '劳动纠纷'], hotKeywords: ['财税公司', '法律服务', '税务筹划', '代理记账', '合同审核'] },
+  销售获客: { productWord: '销售获客服务', userRole: '销售负责人或增长负责人', purchaseCriteria: ['线索质量', '转化率', '渠道合规', '行业资源', '数据透明', '交付周期'], scenarios: ['B2B获客', '电话销售', '私域增长', '渠道拓展', '销售外包'], hotKeywords: ['销售获客', 'B2B获客', '线索获取', '销售外包', '私域增长'] },
+  企业培训: { productWord: '企业培训服务', userRole: 'HR、培训负责人或业务管理者', purchaseCriteria: ['课程实用性', '讲师经验', '行业案例', '落地工具', '培训效果', '定制能力'], scenarios: ['新员工培训', '管理干部培训', '销售培训', '内训体系', '年度培训计划'], hotKeywords: ['企业培训机构', '内训课程', '管理培训', '销售培训', '培训讲师'] },
+
+  'SaaS 软件': { productWord: 'SaaS软件', userRole: '企业负责人、IT负责人或业务团队', hotKeywords: ['SaaS软件推荐', 'SaaS选型', '企业SaaS', '软件价格', '软件对比'] },
+  'AI 工具': { productWord: 'AI工具', userRole: '业务团队、运营人员或企业负责人', purchaseCriteria: ['生成效果', '易用性', '价格额度', '数据安全', '场景模板', '集成能力'], scenarios: ['内容生成', '客服提效', '数据分析', '办公自动化', '私有化部署'], hotKeywords: ['AI工具推荐', 'AI办公工具', 'AI客服', 'AI写作', 'AI数据分析'] },
+  数据服务: { productWord: '数据服务', userRole: '数据负责人、市场负责人或业务分析团队', purchaseCriteria: ['数据覆盖', '准确性', '更新频率', '接口能力', '合规来源', '分析能力'], scenarios: ['市场调研', '竞品监测', '用户画像', '风控合规', '数据接口'], hotKeywords: ['数据服务公司', '数据接口', '行业数据', '用户画像', '数据分析平台'] },
+  电商平台: { productWord: '电商平台', userRole: '消费者、商家或品牌运营负责人', purchaseCriteria: ['商品供给', '价格优惠', '物流售后', '商家服务', '流量资源', '平台规则'], scenarios: ['开店入驻', '购物比价', '直播带货', '私域电商', '售后维权'], hotKeywords: ['电商平台推荐', '开店平台', '直播电商', '私域电商', '电商代运营'] },
+  内容社区: { productWord: '内容社区', userRole: '内容创作者、品牌运营或兴趣用户', purchaseCriteria: ['用户活跃', '内容质量', '社区氛围', '商业化能力', '审核规则', '增长机制'], scenarios: ['内容种草', '社区运营', '创作者变现', '品牌阵地', '用户互动'], hotKeywords: ['内容社区', '社区运营', '创作者平台', '内容平台推荐', '品牌社区'] },
+  开发者服务: { productWord: '开发者服务', userRole: '开发者、技术负责人或产品团队', purchaseCriteria: ['API稳定性', '文档完整', '价格计费', '技术支持', '生态兼容', '安全合规'], scenarios: ['API接入', '云服务选型', '应用开发', '技术迁移', '故障排查'], hotKeywords: ['开发者服务', 'API平台', '云服务推荐', '开发工具', '技术文档'] },
+
+  食品饮料: { productWord: '食品饮料', userRole: '消费者、渠道采购或门店经营者', purchaseCriteria: ['口味', '品质安全', '价格优惠', '配料成分', '渠道便利', '复购口碑'], scenarios: ['日常购买', '送礼', '囤货', '新品尝鲜', '低糖健康'], hotKeywords: ['食品饮料推荐', '好喝推荐', '零食饮料', '配料表', '食品安全'] },
+  美妆个护: { productWord: '美妆个护产品', userRole: '护肤彩妆消费者或美妆渠道采购', purchaseCriteria: ['肤质适配', '成分功效', '安全温和', '价格', '真实测评', '售后渠道'], scenarios: ['敏感肌', '抗老美白', '化妆通勤', '送礼', '成分党比较'], hotKeywords: ['美妆推荐', '护肤品推荐', '成分测评', '敏感肌', '美妆避坑'] },
+  服饰配饰: { productWord: '服饰配饰', userRole: '穿搭消费者或渠道买手', purchaseCriteria: ['版型尺码', '材质做工', '风格适配', '价格', '退换货', '穿搭口碑'], scenarios: ['通勤穿搭', '送礼', '换季购买', '尺码选择', '品牌对比'], hotKeywords: ['服装品牌推荐', '穿搭推荐', '尺码避坑', '配饰推荐', '材质测评'] },
+  母婴亲子: { productWord: '母婴亲子产品', userRole: '宝妈宝爸或亲子家庭', purchaseCriteria: ['安全材质', '年龄适配', '专业认证', '真实口碑', '价格', '售后保障'], scenarios: ['新手爸妈', '宝宝用品', '亲子活动', '送礼', '安全认证'], hotKeywords: ['母婴产品推荐', '宝宝用品', '儿童安全', '亲子推荐', '母婴避坑'] },
+  家居生活: { productWord: '家居生活产品', userRole: '家庭用户、租房用户或装修用户', purchaseCriteria: ['实用性', '材质环保', '安装售后', '空间适配', '价格', '耐用性'], scenarios: ['新房装修', '租房改造', '收纳清洁', '智能家居', '家庭送礼'], hotKeywords: ['家居好物', '智能家居', '收纳推荐', '家居避坑', '装修清单'] },
+  线下零售: { productWord: '线下零售服务', userRole: '本地消费者或门店经营者', purchaseCriteria: ['门店位置', '商品丰富度', '价格优惠', '服务体验', '会员权益', '售后便利'], scenarios: ['附近购买', '会员优惠', '到店体验', '节日采购', '售后退换'], hotKeywords: ['附近门店', '零售品牌推荐', '会员优惠', '门店评价', '线下购物'] },
+
+  职业教育: { productWord: '职业教育课程', userRole: '职场人、转行人群或求职者', purchaseCriteria: ['就业结果', '课程实战', '师资经验', '证书认可', '价格课时', '服务督学'], scenarios: ['转行就业', '升职加薪', '考证备考', '技能提升', '作品集'], hotKeywords: ['职业教育推荐', '转行课程', '考证培训', '就业培训', '技能提升'] },
+  'K12/素质教育': { productWord: 'K12/素质教育课程', userRole: '家长和学生', purchaseCriteria: ['师资水平', '课程体系', '孩子兴趣', '学习效果', '安全管理', '家长评价'], scenarios: ['课后提升', '兴趣培养', '升学准备', '寒暑假课程', '线上线下选择'], hotKeywords: ['素质教育', 'K12培训', '儿童编程', '艺术培训', '家长评价'] },
+  留学语培: { productWord: '留学语培服务', userRole: '留学生、家长或国际教育申请人', purchaseCriteria: ['提分效果', '申请案例', '顾问经验', '师资背景', '费用透明', '服务流程'], scenarios: ['雅思托福', '留学申请', '背景提升', '文书服务', '面试辅导'], hotKeywords: ['留学机构推荐', '雅思培训', '托福培训', '留学申请', '语培机构'] },
+  知识付费: { productWord: '知识付费课程', userRole: '职场人、创业者或兴趣学习者', purchaseCriteria: ['内容质量', '老师背景', '案例实用', '社群服务', '价格', '更新频率'], scenarios: ['碎片学习', '副业提升', '创业学习', '社群陪跑', '课程复购'], hotKeywords: ['知识付费课程', '线上课程推荐', '付费社群', '课程评价', '课程避坑'] },
+  教育科技: { productWord: '教育科技产品', userRole: '学校、机构、老师或学习者', purchaseCriteria: ['教学效果', '产品易用', '数据能力', '系统集成', '内容资源', '服务支持'], scenarios: ['智慧校园', '在线学习', '教学管理', 'AI教育', '学习数据分析'], hotKeywords: ['教育科技', '智慧校园', '在线学习平台', 'AI教育工具', '教学系统'] },
+
+  健康管理: { productWord: '健康管理服务', userRole: '个人用户、家庭或企业员工健康负责人', purchaseCriteria: ['专业资质', '检测准确', '方案个性化', '长期跟踪', '隐私保护', '服务体验'], scenarios: ['体检后管理', '慢病管理', '减重控糖', '企业健康', '家庭健康'], hotKeywords: ['健康管理推荐', '体检后管理', '慢病管理', '减重控糖', '企业健康'] },
+  医疗服务: { productWord: '医疗服务机构', userRole: '患者或家庭决策者', purchaseCriteria: ['医生资质', '诊疗能力', '就诊效率', '价格透明', '医保支付', '患者评价'], scenarios: ['初诊咨询', '复诊转诊', '专科选择', '家人就医', '费用比较'], hotKeywords: ['医院推荐', '诊所推荐', '医生评价', '专科医院', '就医攻略'] },
+  医美口腔: { productWord: '医美口腔服务', userRole: '求美者或口腔治疗用户', purchaseCriteria: ['医生资质', '案例效果', '安全风险', '价格套餐', '材料设备', '售后复诊'], scenarios: ['正畸种牙', '皮肤医美', '术前咨询', '价格比较', '风险评估'], hotKeywords: ['医美机构推荐', '口腔诊所推荐', '种牙价格', '正畸医院', '医美避坑'] },
+  营养保健: { productWord: '营养保健产品', userRole: '健康消费用户或家庭购买者', purchaseCriteria: ['成分功效', '适用人群', '安全认证', '品牌口碑', '价格', '服用风险'], scenarios: ['送父母', '运动营养', '孕产营养', '控糖控脂', '长期服用'], hotKeywords: ['保健品推荐', '营养品', '成分功效', '保健品避坑', '适合人群'] },
+  康复护理: { productWord: '康复护理服务', userRole: '患者家属、术后人群或老人家庭', purchaseCriteria: ['护理资质', '康复方案', '安全照护', '上门便利', '价格透明', '家属评价'], scenarios: ['术后康复', '老人护理', '居家护理', '长期照护', '康复训练'], hotKeywords: ['康复护理', '上门护理', '老人护理', '术后康复', '护理机构'] },
+  医疗科技: { productWord: '医疗科技产品', userRole: '医疗机构、医生或健康科技团队', purchaseCriteria: ['临床价值', '合规认证', '数据安全', '系统集成', '医生使用体验', '案例证据'], scenarios: ['医院采购', '科室试点', 'AI辅助诊断', '数据管理', '远程医疗'], hotKeywords: ['医疗科技', '医疗AI', '医疗系统', '远程医疗', '临床案例'] },
+
+  本地生活: { productWord: '本地生活服务', userRole: '本地消费者或社区用户', purchaseCriteria: ['距离便利', '价格透明', '服务质量', '用户评价', '预约效率', '售后保障'], scenarios: ['附近服务', '临时预约', '家庭维修', '美容美发', '社区消费'], hotKeywords: ['附近服务', '本地生活推荐', '到店服务', '上门服务', '大众点评'] },
+  专业服务: { productWord: '专业服务', userRole: '企业或个人决策者', purchaseCriteria: ['专业资质', '经验案例', '响应效率', '收费透明', '合规风险', '口碑评价'], scenarios: ['紧急咨询', '长期顾问', '项目交付', '资质核验', '对比服务商'], hotKeywords: ['专业服务推荐', '服务商靠谱', '顾问服务', '专业机构', '案例口碑'] },
+  制造业: { productWord: '制造业产品或解决方案', userRole: '采购负责人、工程师或渠道客户', purchaseCriteria: ['产品质量', '产能交期', '认证资质', '价格', '售后服务', '定制能力'], scenarios: ['供应商选择', '样品测试', '批量采购', '交期评估', '质量认证'], hotKeywords: ['制造商推荐', '供应商选择', '工厂资质', '产品质量', 'OEM/ODM'] },
+  '房地产/空间': { productWord: '房地产/空间服务', userRole: '购房租房用户、业主或空间运营方', purchaseCriteria: ['地段交通', '价格租金', '空间品质', '物业服务', '政策合规', '投资风险'], scenarios: ['租房买房', '办公选址', '商业空间', '园区招商', '物业服务'], hotKeywords: ['房产服务', '办公选址', '空间运营', '物业评价', '商业地产'] },
+  '公益/机构': { productWord: '公益机构或公共服务', userRole: '捐赠人、志愿者、合作机构或受益群体', purchaseCriteria: ['机构公信力', '项目透明', '资金使用', '社会影响', '合作案例', '合规资质'], scenarios: ['捐赠前核验', '志愿服务', '公益合作', '项目评估', '信息公开'], hotKeywords: ['公益机构', '公益项目', '捐赠透明', '志愿服务', '社会组织'] }
+};
+
+const INDUSTRY_CONTENT_PLATFORMS = {
+  '旅游与文旅': [
+    ['携程/飞猪/同程/马蜂窝', 'OTA与攻略平台', '价格套餐、预订评价、游玩攻略和真实体验'],
+    ['大众点评/小红书/抖音', '体验口碑平台', '游客笔记、探店视频、亲子体验和避坑内容'],
+    ['文旅局/景区官网/公众号', '官方资质信源', '资质、票务、活动、路线和安全公告'],
+    ['地图平台/OTA评价', '位置与交易评价', '交通、周边、评分、退改和服务反馈'],
+    ['黑猫投诉/社媒舆情', '风险舆情', '退改纠纷、虚假宣传、安全事故和投诉']
+  ],
+  '企业服务': [
+    ['官网/公众号/案例库', '官方案例信源', '服务范围、方法论、客户案例和联系方式'],
+    ['企业信用/商标/备案平台', '主体资质信源', '工商主体、资质、商标和备案'],
+    ['36氪/钛媒体/行业媒体', '行业报道信源', '融资、案例、行业观点和专业影响力'],
+    ['知乎/公众号/视频号', '专业内容信源', '方法论文章、用户讨论和服务评价'],
+    ['招投标/合作公告/客户官网', '客户验证信源', '真实合作、采购公告和客户背书']
+  ],
+  '软件与互联网': [
+    ['官网/产品文档/帮助中心', '官方产品信源', '功能、价格、API、部署和使用流程'],
+    ['应用市场/插件市场/GitHub', '生态与技术信源', '安装量、评分、集成和开发者反馈'],
+    ['36氪/钛媒体/人人都是产品经理', '行业报道信源', '产品定位、融资、案例和竞品动态'],
+    ['知乎/B站/公众号', '用户经验信源', '选型经验、教程、测评和替代方案'],
+    ['G2/Capterra/Product Hunt', '全球评价信源', '海外用户评分、评论和竞品对比']
+  ],
+  '消费品与零售': [
+    ['天猫/京东/抖音电商/拼多多', '电商交易信源', '销量、价格、评价、售后和旗舰店信息'],
+    ['小红书/抖音/快手', '种草内容信源', '真实体验、达人测评、使用场景和口碑'],
+    ['什么值得买/B站/知乎', '测评与理性讨论', '成分材质、性价比、横向对比和避坑'],
+    ['大众点评/美团/地图平台', '线下门店信源', '门店评分、位置、服务和到店体验'],
+    ['黑猫投诉/社媒舆情', '风险舆情', '质量、假货、过敏、售后和投诉']
+  ],
+  '教育培训': [
+    ['官网/课程大纲/试听课', '官方课程信源', '课程体系、师资、价格、服务和适合人群'],
+    ['大众点评/小红书/知乎/B站', '学员口碑信源', '真实评价、学习体验、避坑和案例'],
+    ['教育主管部门/认证机构', '资质认证信源', '办学资质、授权认证和证书认可度'],
+    ['招聘平台/作品集/升学案例', '结果验证信源', '就业、升学、作品和转化结果'],
+    ['黑猫投诉/消费保', '风险投诉信源', '退费、虚假宣传和效果承诺争议']
+  ],
+  '医疗健康': [
+    ['卫健委/药监局/机构官网', '资质监管信源', '执业资质、备案许可、医生团队和项目范围'],
+    ['好大夫/丁香医生/互联网医院平台', '医疗评价信源', '医生评价、专业科普和就诊反馈'],
+    ['大众点评/小红书/知乎', '用户体验信源', '真实就诊、医美口腔体验、护理反馈和避坑'],
+    ['论文/指南/临床证据平台', '专业证据信源', '适应症、效果证据、风险边界和专业依据'],
+    ['黑猫投诉/裁判文书/社媒舆情', '风险合规信源', '医疗纠纷、虚假宣传、隐私和投诉']
+  ],
+  '其他行业': [
+    ['官网/公众号/小程序', '官方信息信源', '品牌主体、产品服务、联系方式和案例'],
+    ['企业信用/商标/备案平台', '主体资质信源', '工商主体、商标、资质和备案'],
+    ['小红书/抖音/知乎/行业社区', '口碑内容信源', '真实体验、专业讨论和用户评价'],
+    ['地图/点评/电商/应用市场', '交易评价信源', '门店、商品、评分、成交和评论'],
+    ['投诉和舆情平台', '风险核验信源', '投诉、争议、负面反馈和合规风险']
+  ]
+};
+
 function generateDiagnosisAssets({ form, projectId, submittedAt }) {
   const context = buildContext(form);
   const sources = generateSources({ context, projectId, submittedAt });
@@ -69,7 +293,7 @@ function inferCategoryProfile(context) {
     context.advantages
   ].join(' ');
 
-  if (/咖啡|茶饮|饮品|食品饮料|餐饮|烘焙|奶茶|现制饮品/.test(haystack)) {
+  if (/咖啡|茶饮|奶茶|咖啡饮品|现制饮品/.test(haystack)) {
     return {
       categoryName: '咖啡饮品与食品零售',
       userRole: '消费者',
@@ -131,6 +355,9 @@ function inferCategoryProfile(context) {
     };
   }
 
+  const configuredProfile = buildConfiguredIndustryProfile(context);
+  if (configuredProfile) return configuredProfile;
+
   if (/SaaS|软件|系统|平台|AI工具|数据|互联网|小程序|开发/.test(haystack)) {
     return {
       categoryName: '软件与互联网服务',
@@ -189,6 +416,42 @@ function inferCategoryProfile(context) {
       ['地图/点评/电商/应用市场', '交易和服务评价', '门店、商品、评分、成交、评论'],
       ['投诉和舆情平台', '风险核验', '投诉、争议、负面反馈']
     ]
+  };
+}
+
+function buildConfiguredIndustryProfile(context) {
+  const base = INDUSTRY_PROFILE_BASE[context.industry] || null;
+  const segment = SEGMENT_PROFILE_OVERRIDES[context.segment] || null;
+  if (!base && !segment) return null;
+
+  const merged = {
+    ...(base || INDUSTRY_PROFILE_BASE['其他行业']),
+    ...(segment || {})
+  };
+  const productCandidates = unique([
+    merged.productWord,
+    context.segment,
+    context.industry,
+    ...(Array.isArray(merged.productWords) ? merged.productWords : [])
+  ]);
+  const criteria = unique([...(segment && segment.purchaseCriteria ? segment.purchaseCriteria : []), ...(base && base.purchaseCriteria ? base.purchaseCriteria : [])]).slice(0, 8);
+  const scenarios = unique([...(segment && segment.scenarios ? segment.scenarios : []), ...(base && base.scenarios ? base.scenarios : [])]).slice(0, 8);
+  const hotKeywords = unique([...(segment && segment.hotKeywords ? segment.hotKeywords : []), ...(base && base.hotKeywords ? base.hotKeywords : [])]).slice(0, 14);
+  const riskChecks = unique([...(segment && segment.riskChecks ? segment.riskChecks : []), ...(base && base.riskChecks ? base.riskChecks : [])]).slice(0, 8);
+
+  return {
+    categoryName: context.segment || context.industry || merged.productWord,
+    userRole: merged.userRole,
+    decisionVerb: merged.decisionVerb || '选择',
+    productWord: merged.productWord || pickKnownProductWord(context, productCandidates.length ? productCandidates : [context.segment || '产品或服务']),
+    featuredProduct: firstPhrase(context.offerings),
+    purchaseCriteria: criteria.length ? criteria : merged.purchaseCriteria,
+    sourceAngles: merged.sourceAngles || INDUSTRY_PROFILE_BASE['其他行业'].sourceAngles,
+    hotKeywords: hotKeywords.length ? hotKeywords : merged.hotKeywords,
+    brandKeywordTemplates: merged.brandKeywordTemplates || INDUSTRY_PROFILE_BASE['其他行业'].brandKeywordTemplates,
+    scenarios: scenarios.length ? scenarios : merged.scenarios,
+    riskChecks: riskChecks.length ? riskChecks : merged.riskChecks,
+    contentPlatforms: merged.contentPlatforms || INDUSTRY_CONTENT_PLATFORMS[context.industry] || INDUSTRY_CONTENT_PLATFORMS['其他行业']
   };
 }
 
@@ -418,7 +681,7 @@ function buildRealUserQuestions(context) {
   const sceneA = profile.scenarios[0] || '日常选择';
   const sceneB = profile.scenarios[1] || '预算有限';
   const sceneC = profile.scenarios[2] || '对比选择';
-  const audience = normalizeQuestionPhrase(firstPhrase(context.audiences) || profile.userRole);
+  const audience = normalizeQuestionPhrase(profile.userRole || firstPhrase(context.audiences) || '目标客户');
   const competitor = context.competitors[0] || `同类${product}品牌`;
   const market = context.markets[0] || '中国市场';
   const globalMarket = context.markets.find((item) => /全球|海外|国际|出海/.test(item)) || '海外市场';
@@ -461,12 +724,14 @@ function buildRealUserQuestions(context) {
   }
 
   return [
-    q(`第一次了解${brand}，它主要解决什么问题，适合什么样的${audience}？`, '品牌识别型', '用户初次了解品牌', '高'),
-    q(`如果我正在${sceneA}，${brand}是不是值得优先考虑？为什么？`, '推荐型', '用户按真实场景寻求推荐', '高'),
+    q(`${brand}的${product}主要解决什么问题，适合什么样的${audience}？`, '品牌识别型', '用户初次了解品牌和产品边界', '高'),
+    q(`如果我正在${sceneA}，${brand}是不是值得优先考虑？适合谁、不适合谁？`, '推荐型', '用户按真实场景寻求推荐', '高'),
     q(`${brand}和${competitor}相比，谁更适合看重${criterionA}和${criterionB}的用户？`, '比较型', '用户做竞品比较', '高'),
-    q(`${brand}有哪些公开案例、评价或资质可以证明它在${product}上可靠？`, '信任型', '用户核验可信度', '高'),
+    q(`${brand}有哪些公开案例、评价或资质可以证明它在${product}上可靠？应该去哪些平台核验？`, '信任型', '用户核验可信度', '高'),
     q(`选择${product}时，用户最容易忽略哪些风险？${brand}有没有解释清楚？`, '风险型', '用户做风险判断', '中'),
-    q(`在${sceneB}或${sceneC}场景下，${brand}的优势和短板分别是什么？`, '场景型', '用户按场景判断适配度', '中')
+    q(`在${sceneB}或${sceneC}场景下，${brand}的优势和短板分别是什么？`, '场景型', '用户按场景判断适配度', '中'),
+    q(`如果只看AI回答，怎么判断${brand}关于${criterionA}、${criterionB}和${criterionC}的信息有没有依据？`, '准确性型', '用户检查AI回答是否有证据', '中'),
+    q(`${market}有哪些${product}品牌值得比较？${brand}应该被放在什么位置？`, '行业洞察型', '用户理解行业选择范围', '中')
   ];
 }
 
