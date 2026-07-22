@@ -331,6 +331,15 @@ Page({
         notificationStatus: result.notificationStatus,
         recordUrl: result.recordUrl || ''
       });
+      this.saveOrderSnapshot({
+        clientId: result.clientId,
+        projectId: result.projectId,
+        brandName: form.brandName,
+        industry: form.industry,
+        segment: form.segment,
+        status: result.status,
+        submittedAt: result.submittedAt || submittedAt
+      });
       wx.removeStorageSync(draftKey);
       track('form_submit_success', {
         client_id: result.clientId,
@@ -413,6 +422,14 @@ Page({
       goalOptions: this.syncGoalOptions([]),
       step: 1
     });
+  },
+
+  saveOrderSnapshot(order) {
+    const storageKey = 'geogi_my_orders';
+    const current = wx.getStorageSync(storageKey) || [];
+    const next = [order].concat(current.filter((item) => item.projectId !== order.projectId)).slice(0, 20);
+    wx.setStorageSync(storageKey, next);
+    wx.setStorageSync('geogi_client_id', order.clientId);
   },
 
   scrollToTop() {

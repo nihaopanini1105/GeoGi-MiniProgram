@@ -1,0 +1,44 @@
+<view class="page mine-page">
+  <view class="mine-head card">
+    <view>
+      <text class="eyebrow">MY GEOGI</text>
+      <text class="h1">我的诊断</text>
+      <text class="lead">查看已提交的诊断订单、当前进度和报告状态。</text>
+    </view>
+    <button class="refresh-button" loading="{{loading}}" bindtap="refresh">刷新</button>
+  </view>
+
+  <view wx:if="{{clientId}}" class="client-card card">
+    <text class="client-label">客户编号</text>
+    <text class="client-id">{{clientId}}</text>
+  </view>
+
+  <text wx:if="{{error}}" class="error-tip">{{error}}</text>
+
+  <view wx:if="{{orders.length}}" class="section order-list">
+    <view class="order-card card" wx:for="{{orders}}" wx:key="projectId" data-project-id="{{item.projectId}}" data-client-id="{{item.clientId}}" bindtap="openReport">
+      <view class="order-top">
+        <view class="order-title-wrap">
+          <text class="order-brand">{{item.brandName || '品牌诊断订单'}}</text>
+          <text class="order-meta">{{item.industry}} {{item.segment}}</text>
+        </view>
+        <text class="status-pill {{item.reportReady ? 'ready' : ''}}">{{item.reportReady ? '报告可看' : item.status}}</text>
+      </view>
+      <view class="order-info">
+        <text>项目编号：{{item.projectId}}</text>
+        <text wx:if="{{item.submittedAt}}">提交时间：{{item.submittedAt}}</text>
+      </view>
+      <view class="order-action">
+        <text>{{item.reportReady ? '查看诊断报告' : '查看进度与报告模板'}}</text>
+        <text class="arrow">›</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:else class="empty-card card">
+    <image class="empty-icon" src="/assets/icons/png/96/report.png" mode="aspectFit"></image>
+    <text class="empty-title">还没有诊断订单</text>
+    <text class="body">提交品牌资料后，订单会自动出现在这里。报告生成后，也会在这里查看。</text>
+    <button class="primary-button full-button" bindtap="goDiagnosis">立即免费诊断</button>
+  </view>
+</view>

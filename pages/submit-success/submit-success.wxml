@@ -25,6 +25,7 @@
     <text class="block-title">加速诊断</text>
     <text class="body">添加诊断顾问企业微信，可以更快确认品牌主体、服务范围和报告交付周期。</text>
     <button class="primary-button full-button" bindtap="goContact">添加诊断顾问企业微信</button>
+    <button class="secondary-button full-button mine-button" bindtap="goMine">查看我的诊断</button>
   </view>
 
   <view class="section card article-card">

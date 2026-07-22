@@ -5,6 +5,8 @@
     "pages/submit-success/submit-success",
     "pages/services/services",
     "pages/sample-report/sample-report",
+    "pages/mine/mine",
+    "pages/report-detail/report-detail",
     "pages/research/research",
     "pages/research-detail/research-detail",
     "pages/privacy/privacy",
@@ -40,6 +42,12 @@
         "text": "研究中心",
         "iconPath": "assets/tabbar/research.png",
         "selectedIconPath": "assets/tabbar/research_selected.png"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的",
+        "iconPath": "assets/tabbar/mine.png",
+        "selectedIconPath": "assets/tabbar/mine_selected.png"
       }
     ]
   },

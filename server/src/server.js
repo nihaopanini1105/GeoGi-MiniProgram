@@ -7,6 +7,7 @@ const { runWorkflowCommand } = require('./services/workflow-command');
 const { getResearchArticles, getResearchArticle } = require('./services/research');
 const { getConfig } = require('./services/config');
 const { getSampleReport } = require('./services/sample-report');
+const { listCustomerProjects, getCustomerReport } = require('./services/customer-portal');
 const { trackEvent } = require('./services/events');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
 
@@ -41,6 +42,19 @@ app.get('/api/articles/:id', async (req, res) => {
 
 app.get('/api/sample-report', (_req, res) => {
   res.json(getSampleReport());
+});
+
+app.get('/api/customer/projects', async (req, res) => {
+  const result = await listCustomerProjects(req.query || {});
+  res.status(result.ok ? 200 : 400).json(result);
+});
+
+app.get('/api/customer/reports/:projectId', async (req, res) => {
+  const result = await getCustomerReport({
+    clientId: req.query && req.query.clientId,
+    projectId: req.params.projectId
+  });
+  res.status(result.ok ? 200 : 404).json(result);
 });
 
 app.post(['/api/leads', '/api/diagnosis/submit'], async (req, res) => {

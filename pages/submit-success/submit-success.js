@@ -28,6 +28,10 @@ Page({
     wx.navigateTo({ url: '/pages/contact/contact' });
   },
 
+  goMine() {
+    wx.switchTab({ url: '/pages/mine/mine' });
+  },
+
   openArticle(event) {
     wx.switchTab({ url: '/pages/research/research' });
   }
