@@ -346,7 +346,7 @@ Page({
         industry: form.industry
       });
       this.resetForm();
-      wx.redirectTo({ url: '/pages/submit-success/submit-success' });
+      this.goSubmitSuccess();
     } catch (error) {
       track('form_submit_fail', {
         error_code: error && error.message ? error.message : 'unknown'
@@ -381,6 +381,16 @@ Page({
         });
       });
     }, Promise.resolve([]));
+  },
+
+  goSubmitSuccess() {
+    const url = '/pages/submit-success/submit-success';
+    wx.navigateTo({
+      url,
+      fail: () => {
+        wx.reLaunch({ url });
+      }
+    });
   },
 
   normalizeForm(form) {
