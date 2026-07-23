@@ -78,24 +78,19 @@
         <view class="step-dot {{step >= 3 ? 'active' : ''}}">3</view>
       </view>
       <view class="step-labels">
-        <text>品牌信息</text>
-        <text>业务目标</text>
-        <text>联系授权</text>
+        <text>基础信息</text>
+        <text>业务信息</text>
+        <text>联系方式</text>
       </view>
     </view>
 
     <view class="form-card card" wx:if="{{step == 1}}">
-      <text class="form-title">第一步：告诉我们你是谁</text>
+      <text class="form-title">第一步：基础信息</text>
 
       <view class="field">
         <text class="field-label">您的品牌名称是？</text>
         <input value="{{form.brandName}}" data-key="brandName" bindinput="updateField" placeholder="例如：GeoGi 几何智引" placeholder-class="placeholder" />
         <text wx:if="{{fieldErrors.brandName}}" class="field-error">{{fieldErrors.brandName}}</text>
-      </view>
-
-      <view class="field">
-        <text class="field-label">品牌所属的企业或机构名称</text>
-        <input value="{{form.companyName}}" data-key="companyName" bindinput="updateField" placeholder="可选，品牌名与企业名一致可不填" placeholder-class="placeholder" />
       </view>
 
       <view class="field">
@@ -121,19 +116,13 @@
       </view>
 
       <view class="field">
-        <text class="field-label">您的产品或服务主要面向哪些市场？</text>
-        <picker mode="selector" range="{{marketOptions}}" value="{{marketIndex}}" bindchange="chooseMarket">
-          <view class="select-field {{form.targetMarket.length ? '' : 'empty'}}">
-            <text>{{form.targetMarket.length ? form.targetMarket[0] : '请选择主要市场'}}</text>
-            <view class="select-arrow"></view>
-          </view>
-        </picker>
-        <text wx:if="{{fieldErrors.targetMarket}}" class="field-error">{{fieldErrors.targetMarket}}</text>
+        <text class="field-label">官网 / 公众号 / 店铺 / 社媒</text>
+        <input value="{{form.officialChannel}}" data-key="officialChannel" bindinput="updateField" placeholder="可选，填写一个主要官方渠道即可" placeholder-class="placeholder" />
       </view>
     </view>
 
     <view class="form-card card" wx:if="{{step == 2}}">
-      <text class="form-title">第二步：说明业务和目标</text>
+      <text class="form-title">第二步：业务信息</text>
 
       <view class="field">
         <text class="field-label">您最希望 AI 了解或推荐哪些产品与服务？</text>
@@ -148,14 +137,19 @@
       </view>
 
       <view class="field">
-        <text class="field-label">客户通常因为什么选择您？</text>
-        <textarea class="auto-textarea" auto-height="{{true}}" show-confirm-bar="{{false}}" value="{{form.advantages}}" maxlength="260" data-key="advantages" bindinput="updateField" placeholder="可选，例如服务经验、价格、案例或资源优势" placeholder-class="placeholder" />
+        <text class="field-label">您的产品或服务主要面向哪些市场？</text>
+        <picker mode="selector" range="{{marketOptions}}" value="{{marketIndex}}" bindchange="chooseMarket">
+          <view class="select-field {{form.targetMarket.length ? '' : 'empty'}}">
+            <text>{{form.targetMarket.length ? form.targetMarket[0] : '请选择主要市场'}}</text>
+            <view class="select-arrow"></view>
+          </view>
+        </picker>
+        <text wx:if="{{fieldErrors.targetMarket}}" class="field-error">{{fieldErrors.targetMarket}}</text>
       </view>
 
       <view class="field">
-        <text class="field-label">您最关注哪些竞品或同类品牌？</text>
-        <input value="{{form.competitors}}" data-key="competitors" bindinput="updateField" placeholder="最多 3 个，用顿号隔开；没有可不填" placeholder-class="placeholder" />
-        <text wx:if="{{fieldErrors.competitors}}" class="field-error">{{fieldErrors.competitors}}</text>
+        <text class="field-label">希望重点检测的问题</text>
+        <textarea class="auto-textarea" auto-height="{{true}}" show-confirm-bar="{{false}}" value="{{form.advantages}}" maxlength="260" data-key="advantages" bindinput="updateField" placeholder="可选，例如推荐场景、价格口碑、服务优势或客户疑虑" placeholder-class="placeholder" />
       </view>
 
       <view class="field">
@@ -183,7 +177,7 @@
     </view>
 
     <view class="form-card card" wx:if="{{step == 3}}">
-      <text class="form-title">第三步：留下联系方式</text>
+      <text class="form-title">第三步：联系方式</text>
 
       <view class="field">
         <text class="field-label">怎么称呼您？</text>
@@ -198,6 +192,11 @@
           <text class="phone-tag">已授权</text>
         </view>
         <text wx:if="{{fieldErrors.contactMethod}}" class="field-error">{{fieldErrors.contactMethod}}</text>
+      </view>
+
+      <view class="field">
+        <text class="field-label">公司名称</text>
+        <input value="{{form.companyName}}" data-key="companyName" bindinput="updateField" placeholder="可选，品牌名与公司名一致可不填" placeholder-class="placeholder" />
       </view>
 
       <view class="field">

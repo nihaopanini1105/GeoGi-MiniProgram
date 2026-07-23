@@ -11,7 +11,9 @@ const { generateDiagnosisAssets, buildDiagnosisContext } = require('./diagnosis-
 const { enrichConversationsWithSharedLinks } = require('./ai-share-extractor');
 const { generateReportPdf } = require('./report-pdf');
 
-const AI_PLATFORMS = ['DeepSeek', 'Kimi', '豆包', '通义千问', '腾讯元宝'];
+const REPORT_PLATFORMS = ['豆包', '元宝', '千问', 'DeepSeek', 'Kimi'];
+const AI_PLATFORMS = ['豆包', '元宝', '千问', 'DeepSeek', 'Kimi', '通义千问', '腾讯元宝'];
+const EXPECTED_TURNS_PER_PLATFORM = 6;
 
 async function runWorkflowCommand(input = {}) {
   const commandText = clean(input.text || input.command || '');
@@ -133,7 +135,15 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     return fail('没有识别到AI平台问答。请附上平台名称和会话链接，最好同时粘贴回答原文。');
   }
   const linkedConversations = await enrichConversationsWithSharedLinks(parsedConversations);
-  const conversations = expandConversationTurns(linkedConversations);
+  const expandedConversations = expandConversationTurns(linkedConversations).map(canonicalizeConversation);
+  const expectedQuestions = await loadExpectedAiQuestions({ tenantToken, projectId });
+  const reconciliation = reconcileReportConversations({
+    conversations: expandedConversations,
+    expectedQuestions,
+    linkedConversations
+  });
+  const conversations = reconciliation.conversations;
+  const quality = reconciliation.quality;
 
   const testedAt = new Date().toISOString();
   const testRecords = conversations.map((item, index) => buildTestRecord({
@@ -167,7 +177,8 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     analyses,
     form,
     projectId,
-    testedAt
+    testedAt,
+    quality
   });
   const pdfResult = await generateReportPdf({
     projectId,
@@ -175,7 +186,8 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     conversations,
     analyses,
     report,
-    testedAt
+    testedAt,
+    quality
   });
   if (pdfResult.ok) {
     report.报告链接 = pdfResult.url;
@@ -232,6 +244,7 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     `品牌：${form.brandName}`,
     `已读取AI平台分享链接：${linkedConversations.length} 条`,
     `已拆分问答记录：${conversations.length} 条`,
+    buildQualityMessage(quality),
     `已生成分析结果：${analyses.length} 条`,
     `飞书记录刷新：平台测试删除旧版 ${testReplace.deleted} 条，回答分析删除旧版 ${analysisReplace.deleted} 条，报告删除旧版 ${removedReports} 条`,
     extracted ? `自动读取分享链接：${extracted} 条` : '',
@@ -248,6 +261,7 @@ async function generateReport({ projectId, commandText, aiConversations }) {
     status: '报告初稿已生成',
     conversations: conversations.length,
     needsAnswerText,
+    quality,
     pdfUrl: pdfResult.ok ? pdfResult.url : ''
   };
 }
@@ -400,7 +414,7 @@ function buildTestRecord({ item, index, form, projectId, testedAt }) {
     排序键: sortKey(form, projectId, `06 平台测试/${item.platform || '未标注平台'}`, index + 1),
     项目编号: projectId,
     问题编号: item.questionId || `MANUAL-${String(index + 1).padStart(2, '0')}`,
-    平台: item.platform || '未标注平台',
+    平台: canonicalPlatform(item.platform) || '未标注平台',
     提问内容: item.question || '从会话链接整理，提问内容待补充',
     回答原文: answer ? `${extractionPrefix}${answer}` : `${extractionPrefix}已收到会话链接，但未读取到完整回答原文`,
     内容格式: buildContentFormat({ answer, assets }),
@@ -436,9 +450,9 @@ function buildAnalysisRecord({ item, form, projectId }) {
 
   return {
     品牌分组: brandGroup(form, projectId),
-    排序键: sortKey(form, projectId, `07 回答分析/${item.platform || '未标注平台'}`, 1),
+    排序键: sortKey(form, projectId, `07 回答分析/${canonicalPlatform(item.platform) || '未标注平台'}`, platformSortOrder(item.platform, item.questionId)),
     项目编号: projectId,
-    平台: item.platform || '未标注平台',
+    平台: canonicalPlatform(item.platform) || '未标注平台',
     问题编号: item.questionId || '',
     提问内容: question,
     回答摘要: answer ? summarizeAnswer(answer) : '',
@@ -456,7 +470,7 @@ function buildAnalysisRecord({ item, form, projectId }) {
   };
 }
 
-function buildReportFields({ conversations, analyses, form, projectId, testedAt }) {
+function buildReportFields({ conversations, analyses, form, projectId, testedAt, quality }) {
   const answered = conversations.filter(hasUsableAnswer).length;
   const mentioned = conversations.filter((item) => {
     const answer = buildAnalysisCorpus(item);
@@ -476,15 +490,17 @@ function buildReportFields({ conversations, analyses, form, projectId, testedAt 
     testedAt,
     answered,
     mentioned,
-    recommended
+    recommended,
+    quality
   });
   const reportSummary = [
     `本次共拆分 ${conversations.length} 条AI问答记录，其中 ${answered} 条包含可分析回答原文。`,
     `品牌被提及 ${mentioned} 次，出现主动推荐倾向 ${recommended} 次。`,
+    buildQualityMessage(quality),
     buildExtractionSummary(conversations),
     answered < conversations.length ? '部分平台的分享页未暴露完整正文，需要换成公开可访问链接、截图或导出内容后再生成正式报告。' : '当前回答原文已可支撑初步报告。'
   ].join('\n');
-  const targetedAdvice = unique(analyses.map((item) => text(item.优化建议)).filter(Boolean)).slice(0, 6);
+  const targetedAdvice = buildReportAdvice({ analyses, form, context });
 
   return {
     品牌分组: brandGroup(form, projectId),
@@ -498,11 +514,7 @@ function buildReportFields({ conversations, analyses, form, projectId, testedAt 
     报告正文: professionalReport,
     交付说明: reportSummary,
     客户反馈: '',
-    下一步建议: (targetedAdvice.length ? targetedAdvice : [
-      '审核平台测试记录和回答分析结果。',
-      `优先补充${form.brandName}的官网、案例、品牌介绍和可信第三方信源。`,
-      '确认AI回答中说错、漏说或被竞品压制的内容，形成正式优化清单。'
-    ]).join('\n'),
+    下一步建议: targetedAdvice.join('\n'),
     创建时间: testedAt,
     更新时间: testedAt,
     信息层级: '08 报告管理',
@@ -513,7 +525,7 @@ function buildReportFields({ conversations, analyses, form, projectId, testedAt 
 function normalizeConversations({ commandText, aiConversations, form }) {
   const fromInput = Array.isArray(aiConversations)
     ? aiConversations.map((item) => ({
-      platform: clean(item.platform),
+      platform: canonicalPlatform(item.platform),
       questionId: clean(item.questionId),
       question: clean(item.question),
       answer: clean(item.answer || item.answerText),
@@ -527,7 +539,7 @@ function normalizeConversations({ commandText, aiConversations, form }) {
   let current = null;
 
   for (const line of lines) {
-    const platform = AI_PLATFORMS.find((name) => line.includes(name));
+    const platform = detectPlatformName(line);
     if (platform) {
       if (current) result.push(current);
       current = {
@@ -553,11 +565,57 @@ function normalizeConversations({ commandText, aiConversations, form }) {
 
   const linked = result.filter((item) => item.link || item.answer);
   return linked.length ? linked : extractUrls(commandText).map((link, index) => ({
-    platform: AI_PLATFORMS[index] || '未标注平台',
+    platform: REPORT_PLATFORMS[index] || '未标注平台',
     question: '',
     answer: '',
     link
   }));
+}
+
+function detectPlatformName(value) {
+  const content = clean(value);
+  const aliases = [
+    ['豆包', /豆包|doubao/i],
+    ['元宝', /元宝|腾讯元宝|yuanbao|yb\.tencent/i],
+    ['千问', /千问|通义千问|qianwen|qwen/i],
+    ['DeepSeek', /DeepSeek|deepseek/i],
+    ['Kimi', /Kimi|kimi/i]
+  ];
+  const found = aliases.find(([, re]) => re.test(content));
+  return found ? found[0] : '';
+}
+
+function canonicalPlatform(value) {
+  const detected = detectPlatformName(value);
+  return detected || clean(value);
+}
+
+function canonicalizeConversation(item) {
+  return {
+    ...item,
+    platform: canonicalPlatform(item && item.platform)
+  };
+}
+
+function platformSortOrder(platform, questionId) {
+  const platformIndex = REPORT_PLATFORMS.indexOf(canonicalPlatform(platform));
+  const questionMatch = clean(questionId).match(/Q(\d+)/);
+  const questionOrder = questionMatch ? Number(questionMatch[1]) : 999;
+  return (platformIndex < 0 ? 99 : platformIndex + 1) * 100 + questionOrder;
+}
+
+function buildQualityMessage(quality) {
+  if (!quality || !Array.isArray(quality.platforms)) {
+    return '数据校验：未获得完整校验信息，请人工复核平台覆盖和问答条数。';
+  }
+  const stats = quality.platforms
+    .map((item) => `${item.platform} ${item.final}/${item.expected} 条`)
+    .join('，');
+  if (quality.ok) return `数据校验：已覆盖5个平台，每个平台按检测题对齐为6条问答。${stats}`;
+  return [
+    `数据校验：已按检测题重新对齐。${stats}`,
+    `需复核：${quality.issues.slice(0, 6).join('；')}`
+  ].join('\n');
 }
 
 function expandConversationTurns(conversations) {
@@ -588,6 +646,176 @@ function expandConversationTurns(conversations) {
   });
 
   return expanded;
+}
+
+async function loadExpectedAiQuestions({ tenantToken, projectId }) {
+  if (!process.env.FEISHU_AI_QUESTION_TABLE_ID) return [];
+  const records = await listByProject({
+    tenantToken,
+    tableId: process.env.FEISHU_AI_QUESTION_TABLE_ID,
+    projectId
+  });
+  return records
+    .map((record) => {
+      const fields = record.fields || {};
+      return {
+        platform: canonicalPlatform(text(fields.目标平台)),
+        questionId: text(fields.问题编号),
+        question: text(fields.检测问题),
+        questionType: text(fields.问题类型),
+        expectedSignal: text(fields.预期识别点)
+      };
+    })
+    .filter((item) => item.platform && item.question)
+    .sort((a, b) => String(a.questionId).localeCompare(String(b.questionId), 'zh-CN'));
+}
+
+function reconcileReportConversations({ conversations, expectedQuestions, linkedConversations }) {
+  const expectedByPlatform = groupByPlatform(expectedQuestions);
+  const rawByPlatform = groupByPlatform(conversations);
+  const sourceByPlatform = groupByPlatform((linkedConversations || []).map(canonicalizeConversation));
+  const finalConversations = [];
+  const platformStats = [];
+
+  for (const platform of REPORT_PLATFORMS) {
+    const expected = expectedByPlatform.get(platform) || [];
+    const raw = rawByPlatform.get(platform) || [];
+    const source = (sourceByPlatform.get(platform) || [])[0] || {};
+    const baseline = expected.length ? expected : fallbackExpectedQuestions(raw, platform);
+    const aligned = alignPlatformTurns({ platform, expected: baseline, raw, source });
+    finalConversations.push(...aligned.items);
+    platformStats.push({
+      platform,
+      expected: baseline.length || EXPECTED_TURNS_PER_PLATFORM,
+      raw: raw.length,
+      final: aligned.items.length,
+      answered: aligned.items.filter(hasUsableAnswer).length,
+      extraMerged: aligned.extraMerged,
+      missing: aligned.items.filter((item) => item.extractionStatus === '待补充').length
+    });
+  }
+
+  const issues = platformStats.flatMap((stat) => {
+    const result = [];
+    if (stat.final !== stat.expected) result.push(`${stat.platform}最终问答 ${stat.final}/${stat.expected} 条`);
+    if (stat.raw > stat.expected) result.push(`${stat.platform}原始读取 ${stat.raw} 条，已按检测题合并为 ${stat.expected} 条`);
+    if (stat.raw < stat.expected) result.push(`${stat.platform}原始读取 ${stat.raw} 条，缺 ${stat.expected - stat.raw} 条回答正文`);
+    if (stat.missing) result.push(`${stat.platform}有 ${stat.missing} 条待补充回答正文`);
+    return result;
+  });
+
+  return {
+    conversations: finalConversations,
+    quality: {
+      expectedPlatforms: REPORT_PLATFORMS.length,
+      expectedTurnsPerPlatform: EXPECTED_TURNS_PER_PLATFORM,
+      expectedTotal: platformStats.reduce((sum, item) => sum + item.expected, 0),
+      finalTotal: finalConversations.length,
+      platforms: platformStats,
+      issues,
+      ok: issues.length === 0
+    }
+  };
+}
+
+function groupByPlatform(items) {
+  const map = new Map();
+  for (const item of items || []) {
+    const platform = canonicalPlatform(item.platform);
+    if (!platform) continue;
+    if (!map.has(platform)) map.set(platform, []);
+    map.get(platform).push(item);
+  }
+  return map;
+}
+
+function fallbackExpectedQuestions(raw, platform) {
+  const selected = raw.slice(0, EXPECTED_TURNS_PER_PLATFORM);
+  if (selected.length) {
+    return selected.map((item, index) => ({
+      platform,
+      questionId: item.questionId || `Q${String(index + 1).padStart(3, '0')}`,
+      question: item.question || `第 ${index + 1} 个检测问题`,
+      questionType: '',
+      expectedSignal: ''
+    }));
+  }
+  return Array.from({ length: EXPECTED_TURNS_PER_PLATFORM }).map((_, index) => ({
+    platform,
+    questionId: `Q${String(index + 1).padStart(3, '0')}`,
+    question: `第 ${index + 1} 个检测问题待补充`,
+    questionType: '',
+    expectedSignal: ''
+  }));
+}
+
+function alignPlatformTurns({ platform, expected, raw, source }) {
+  const used = new Set();
+  const items = expected.map((question, index) => {
+    const chosenIndex = chooseBestTurnIndex(question, raw, used, index);
+    const chosen = chosenIndex >= 0 ? raw[chosenIndex] : null;
+    if (chosenIndex >= 0) used.add(chosenIndex);
+    return {
+      ...(chosen || source || {}),
+      platform,
+      questionId: question.questionId || (chosen && chosen.questionId) || `Q${String(index + 1).padStart(3, '0')}`,
+      question: question.question || (chosen && chosen.question) || `第 ${index + 1} 个检测问题待补充`,
+      expectedSignal: question.expectedSignal || '',
+      questionType: question.questionType || '',
+      answer: chosen ? chosen.answer : '',
+      extractionStatus: chosen ? chosen.extractionStatus : '待补充',
+      extractionNote: chosen
+        ? chosen.extractionNote
+        : `未读取到${platform}第 ${index + 1} 个检测问题的回答正文，需补充截图、导出文本或公开分享链接`
+    };
+  });
+
+  const extra = raw.filter((_, index) => !used.has(index));
+  if (extra.length && items.length) {
+    const extraText = extra
+      .map((item, index) => {
+        const question = clean(item.question);
+        const answer = buildAnalysisCorpus(item);
+        return [`补充段落 ${index + 1}`, question ? `提问：${question}` : '', answer ? `回答：${answer}` : ''].filter(Boolean).join('\n');
+      })
+      .join('\n\n');
+    const last = items[items.length - 1];
+    last.answer = [last.answer, `【未单独计数的补充提取内容】\n${extraText}`].filter(Boolean).join('\n\n');
+    last.extractionNote = [last.extractionNote, `原始读取多出 ${extra.length} 段，已合并进同平台证据，不额外计为问答条数`].filter(Boolean).join('；');
+  }
+
+  return {
+    items,
+    extraMerged: extra.length
+  };
+}
+
+function chooseBestTurnIndex(expected, raw, used, fallbackIndex) {
+  if (!raw.length) return -1;
+  let bestIndex = -1;
+  let bestScore = 0;
+  for (let index = 0; index < raw.length; index += 1) {
+    if (used.has(index)) continue;
+    const score = questionSimilarity(expected.question, raw[index].question);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  }
+  if (bestScore > 0) return bestIndex;
+  if (raw[fallbackIndex] && !used.has(fallbackIndex)) return fallbackIndex;
+  return bestIndex;
+}
+
+function questionSimilarity(a, b) {
+  const tokensA = new Set(questionTokens(a));
+  const tokensB = new Set(questionTokens(b));
+  if (!tokensA.size || !tokensB.size) return 0;
+  let score = 0;
+  tokensA.forEach((token) => {
+    if (tokensB.has(token)) score += token.length;
+  });
+  return score;
 }
 
 async function updateProjectAndLead({ tenantToken, leadRecord, projectRecord, leadFields, projectFields }) {
@@ -1033,7 +1261,7 @@ function buildProfessionalReport({ conversations, analyses, form, context, proje
   const sourceWeak = analyses.filter((item) => /偏弱|待复核|待补充|一般/.test(text(item.信源可信度))).length;
   const competitorPressure = analyses.filter((item) => !/未发现/.test(text(item.竞品压制情况))).length;
   const topIssues = unique(analyses.map((item) => text(item.核心问题)).filter(Boolean)).slice(0, 6);
-  const advice = unique(analyses.map((item) => text(item.优化建议)).filter(Boolean)).slice(0, 6);
+  const advice = buildReportAdvice({ analyses, form, context });
   const platformLines = analyses.slice(0, 10).map((item) => [
     `- ${text(item.平台)}｜${text(item.问题编号) || '未编号'}`,
     `  问题：${limitText(text(item.提问内容), 120)}`,
@@ -1149,6 +1377,26 @@ function buildOptimizationAdvice({ item, form, context, questionType, mentioned,
   }
   if (!advice.length) advice.push(`把这条回答沉淀为${form.brandName}的标准AI问答素材，并继续扩大同类问题覆盖`);
   return advice.join('；');
+}
+
+function buildReportAdvice({ analyses, form, context }) {
+  const generated = unique(analyses.map((item) => text(item.优化建议)).filter(Boolean));
+  const platformSources = (context.profile.contentPlatforms || []).slice(0, 5).map(([name]) => name).filter(Boolean);
+  const criteria = context.profile.purchaseCriteria.slice(0, 4).join('、');
+  const defaults = [
+    `建立${form.brandName}品牌实体资料页：统一品牌主体、品类定位、核心产品/服务、适用人群、联系方式和官方渠道。`,
+    `围绕${context.profile.productWord}真实决策问题沉淀标准问答，覆盖推荐、比较、价格/成本、品质/效果、风险边界和使用场景。`,
+    platformSources.length
+      ? `优先建设${platformSources.join('、')}等行业信源，补充官方证据、第三方评价、用户口碑和可核验链接。`
+      : '优先建设官网、公众号、第三方评价、行业媒体和用户口碑等可信信源。',
+    criteria
+      ? `把${criteria}转化为AI容易引用的卖点证据，避免回答只有泛泛描述，缺少选择理由。`
+      : '把品牌卖点转化为AI容易引用的证据，避免回答只有泛泛描述，缺少选择理由。',
+    '针对豆包、元宝、千问、DeepSeek、Kimi分别复测同一组问题，记录品牌是否出现、是否主动推荐、是否说错、信源是否可信。',
+    '将本次报告中的高风险问题整理为内容优化任务，按官网内容、结构化问答、第三方信源、平台适配素材分批推进。',
+    '建立月度复测机制，对比综合可见度、主动推荐率、竞品压制和信息准确性变化，持续更新客户交付报告。'
+  ];
+  return unique([...generated, ...defaults]).slice(0, 7);
 }
 
 function appendNote(current, note) {

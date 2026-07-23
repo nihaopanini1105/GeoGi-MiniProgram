@@ -3,6 +3,8 @@ const {
   listBitableRecords
 } = require('./feishu');
 
+const REPORT_PLATFORMS = ['豆包', '元宝', '千问', 'DeepSeek', 'Kimi'];
+
 async function listCustomerProjects({ clientId }) {
   try {
     const cleanClientId = clean(clientId);
@@ -211,38 +213,54 @@ function buildDimensions(analyses) {
 }
 
 function buildPlatforms({ analyses, tests, brandName }) {
+  if (!tests.length && !analyses.length) return [];
+
   const analysisByKey = new Map();
   const analysisByPlatform = new Map();
+  const analysesByPlatform = new Map();
   analyses.forEach((record) => {
     const fields = record.fields || {};
-    const platform = text(fields.平台);
+    const platform = canonicalPlatform(text(fields.平台));
     const questionId = text(fields.问题编号);
     if (platform && questionId) analysisByKey.set(`${platform}:${questionId}`, fields);
     if (platform && !analysisByPlatform.has(platform)) analysisByPlatform.set(platform, fields);
+    if (platform) {
+      if (!analysesByPlatform.has(platform)) analysesByPlatform.set(platform, []);
+      analysesByPlatform.get(platform).push(fields);
+    }
   });
 
-  return tests.map((record) => {
+  const testsByPlatform = new Map();
+  tests.forEach((record) => {
     const fields = record.fields || {};
-    const platform = text(fields.平台) || '未标注平台';
-    const questionId = text(fields.问题编号);
-    const analysis = analysisByKey.get(`${platform}:${questionId}`) || analysisByPlatform.get(platform) || {};
-    const answer = text(fields.回答原文);
-    const mentioned = text(fields.是否提到品牌);
-    const recommended = text(fields.是否主动推荐);
+    const platform = canonicalPlatform(text(fields.平台)) || '未标注平台';
+    if (!testsByPlatform.has(platform)) testsByPlatform.set(platform, []);
+    testsByPlatform.get(platform).push(fields);
+  });
+
+  return REPORT_PLATFORMS.map((platform) => {
+    const platformTests = testsByPlatform.get(platform) || [];
+    const representative = platformTests[0] || {};
+    const platformAnalyses = analysesByPlatform.get(platform) || [];
+    const analysis = platformAnalyses[0] || analysisByPlatform.get(platform) || {};
+    const mentionedCount = platformTests.filter((fields) => text(fields.是否提到品牌) === '是').length;
+    const recommendedCount = platformTests.filter((fields) => text(fields.是否主动推荐) === '是').length;
+    const answer = text(representative.回答原文);
+    const questionId = text(representative.问题编号);
 
     return {
       name: platform,
       questionId,
-      question: text(fields.提问内容),
+      question: text(representative.提问内容) || '该平台检测问题待补充',
       answerPreview: answer.slice(0, 260),
-      mentioned,
-      recommended,
-      accurate: text(fields.信息是否准确),
-      competitors: text(fields.提到的竞品) || '未发现明显竞品压制',
+      mentioned: `${mentionedCount}/${platformTests.length || 6}`,
+      recommended: `${recommendedCount}/${platformTests.length || 6}`,
+      accurate: average(platformTests.map((fields) => yesScore(fields.信息是否准确))) ? '部分准确' : '待复核',
+      competitors: firstValue(platformTests, '提到的竞品') || '未发现明显竞品压制',
       issue: text(analysis.核心问题) || (answer.includes(brandName) ? 'AI已提到品牌，需继续复核推荐理由。' : 'AI回答中品牌可见度不足。'),
       advice: text(analysis.优化建议),
-      link: text(fields['证据截图/链接']) || text(fields.引用或信源),
-      status: text(analysis.分析状态) || '待分析'
+      link: firstValue(platformTests, '证据截图/链接') || firstValue(platformTests, '引用或信源'),
+      status: platformTests.length ? `问答 ${platformTests.length}/6 条` : '待补充平台问答'
     };
   });
 }
@@ -336,6 +354,32 @@ function scoreLevel(score) {
 function numberText(value) {
   const match = text(value).match(/\d+/);
   return match ? Number(match[0]) : NaN;
+}
+
+function yesScore(value) {
+  const content = text(value);
+  if (content === '是') return 80;
+  if (content === '否') return 30;
+  return NaN;
+}
+
+function firstValue(items, field) {
+  for (const item of items || []) {
+    const value = text(item && item[field]);
+    if (value) return value;
+  }
+  return '';
+}
+
+function canonicalPlatform(value) {
+  const content = text(value);
+  const lowered = content.toLowerCase();
+  if (content.includes('豆包') || lowered.includes('doubao')) return '豆包';
+  if (content.includes('元宝') || lowered.includes('yuanbao') || lowered.includes('yb.tencent')) return '元宝';
+  if (content.includes('千问') || lowered.includes('qianwen') || lowered.includes('qwen')) return '千问';
+  if (lowered.includes('deepseek')) return 'DeepSeek';
+  if (lowered.includes('kimi')) return 'Kimi';
+  return content;
 }
 
 function splitLines(value) {

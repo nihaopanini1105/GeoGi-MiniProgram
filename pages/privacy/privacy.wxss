@@ -5,7 +5,7 @@
 .privacy-title {
   display: block;
   margin-bottom: 14rpx;
-  color: #102145;
+  color: #102454;
   font-size: 34rpx;
-  font-weight: 950;
+  font-weight: 600;
 }

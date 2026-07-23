@@ -14,7 +14,7 @@
 
 .article-meta {
   margin-top: 22rpx;
-  color: #6b7897;
+  color: #6B7A99;
   font-size: 24rpx;
 }
 
@@ -28,16 +28,16 @@
 
 .section-title {
   margin-bottom: 14rpx;
-  color: #102145;
+  color: #102454;
   font-size: 34rpx;
-  font-weight: 950;
+  font-weight: 600;
   line-height: 1.25;
 }
 
 .source-box {
   margin-top: 38rpx;
   padding: 24rpx;
-  border: 1rpx solid rgba(47, 109, 246, 0.16);
+  border: 1rpx solid rgba(63, 115, 246, 0.16);
   border-radius: 24rpx;
   background: #f5f8ff;
 }
@@ -46,14 +46,14 @@
 .source-link,
 .related-title {
   margin-bottom: 16rpx;
-  color: #102145;
+  color: #102454;
   font-size: 32rpx;
-  font-weight: 950;
+  font-weight: 600;
 }
 
 .source-link {
   margin-top: 12rpx;
-  color: #2f6df6;
+  color: #3F73F6;
   font-size: 24rpx;
   line-height: 1.45;
   word-break: break-all;
@@ -71,20 +71,20 @@
 }
 
 .arrow {
-  color: #2f6df6;
+  color: #3F73F6;
   font-size: 42rpx;
 }
 
 .cta-panel {
   padding: 34rpx 30rpx;
   border-radius: 34rpx;
-  background: linear-gradient(135deg, #0f2d89, #2f6df6);
+  background: linear-gradient(135deg, #0f2d89, #3F73F6);
   color: #ffffff;
 }
 
 .cta-title {
   font-size: 38rpx;
-  font-weight: 950;
+  font-weight: 600;
   line-height: 1.22;
 }
 

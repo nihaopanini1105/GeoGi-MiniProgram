@@ -10,7 +10,7 @@ function getReportRoot() {
   return REPORT_DIR;
 }
 
-async function generateReportPdf({ projectId, form, conversations, analyses, report, testedAt }) {
+async function generateReportPdf({ projectId, form, conversations, analyses, report, testedAt, quality }) {
   fs.mkdirSync(REPORT_DIR, { recursive: true });
   fs.mkdirSync(TMP_DIR, { recursive: true });
 
@@ -23,6 +23,7 @@ async function generateReportPdf({ projectId, form, conversations, analyses, rep
     conversations,
     analyses,
     report,
+    quality,
     testedAt,
     outputPath
   };

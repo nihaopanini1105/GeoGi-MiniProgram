@@ -16,15 +16,15 @@
   background: #2dc38a;
   color: #ffffff;
   font-size: 54rpx;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .block-title {
   display: block;
   margin-bottom: 22rpx;
-  color: #102145;
+  color: #102454;
   font-size: 32rpx;
-  font-weight: 950;
+  font-weight: 600;
   line-height: 1.28;
 }
 
@@ -34,14 +34,14 @@
   padding: 18rpx 20rpx;
   border-radius: 18rpx;
   background: #f5f8ff;
-  color: #2f6df6;
+  color: #3F73F6;
   font-size: 25rpx;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.35;
 }
 
 .muted-id {
-  color: #60708f;
+  color: #6B7A99;
 }
 
 .next-row,
@@ -56,8 +56,8 @@
 }
 
 .next-num {
-  color: #2f6df6;
-  font-weight: 950;
+  color: #3F73F6;
+  font-weight: 600;
   flex: 0 0 auto;
 }
 
@@ -79,7 +79,7 @@
 }
 
 .arrow {
-  color: #2f6df6;
+  color: #3F73F6;
   font-size: 42rpx;
 }
 

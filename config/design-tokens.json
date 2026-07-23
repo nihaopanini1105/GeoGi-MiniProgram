@@ -1,17 +1,17 @@
 {
   "colors": {
-    "brandBlue": "#2F6DF6",
-    "navyText": "#0D1B4C",
-    "deepNavy": "#102145",
-    "mutedText": "#60708F",
-    "softMuted": "#6B7897",
-    "background": "#F5F7FC",
-    "stroke": "#DBE4F2",
+    "brandBlue": "#3F73F6",
+    "navyText": "#102454",
+    "deepNavy": "#102454",
+    "mutedText": "#6B7A99",
+    "softMuted": "#94A0B8",
+    "background": "#F4F7FD",
+    "stroke": "#DCE5F5",
     "success": "#2DC38A",
     "white": "#FFFFFF"
   },
   "radiiRpx": {
-    "mainCard": 32,
+    "mainCard": 28,
     "innerCard": 24,
     "button": 24,
     "pill": 999

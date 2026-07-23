@@ -323,13 +323,12 @@ Page({
     if (step === 1) {
       if (!form.brandName) errors.brandName = '请填写品牌名称';
       if (!form.industry) errors.industry = '请选择所属行业';
-      if (!form.segment) errors.segment = '请填写细分业务领域';
-      if (!form.targetMarket.length) errors.targetMarket = '请选择主要市场';
     }
 
     if (step === 2) {
       if (!form.offerings) errors.offerings = '请填写核心产品或服务';
       if (!form.audiences) errors.audiences = '请填写主要客户与需求';
+      if (!form.targetMarket.length) errors.targetMarket = '请选择主要市场';
       if (this.splitCompetitors(form.competitors).length > 3) errors.competitors = '最多填写 3 个竞品';
       if (!form.goals.length) errors.goals = '请选择本次诊断目标';
     }

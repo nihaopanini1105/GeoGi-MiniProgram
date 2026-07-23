@@ -19,6 +19,7 @@ BG = colors.HexColor("#f5f8ff")
 GREEN = colors.HexColor("#2dc38a")
 RED = colors.HexColor("#ef4b4b")
 ORANGE = colors.HexColor("#f59b28")
+REPORT_PLATFORMS = ["豆包", "元宝", "千问", "DeepSeek", "Kimi"]
 FONT_NAME = "GeoGiCJK"
 FONT_CANDIDATES = [
     os.environ.get("REPORT_FONT_PATH", ""),
@@ -46,6 +47,7 @@ def main():
     draw_summary(c, data)
     draw_metrics(c, data)
     draw_platforms(c, data)
+    draw_platform_details(c, data)
     draw_actions(c, data)
     c.save()
 
@@ -145,22 +147,30 @@ def draw_summary(c, data):
     c.setFont("GeoGiCJK", 10)
     c.drawString(58, 522, "一句话结论")
     c.setFillColor(DARK)
-    c.setFont("GeoGiCJK", 15)
-    lines = wrap_to_width(
+    paragraph(
+        c,
+        58,
+        494,
         f"{brand}已有一定 AI 可见度基础，下一步应围绕品牌实体、产品卖点、可信信源和推荐理由做系统补强。",
-        438,
-        15
+        470,
+        size=12,
+        leading=18,
+        color=DARK
     )
-    for i, line in enumerate(lines[:3]):
-        c.drawString(58, 495 - i * 20, line)
 
     metric_cards(c, 40, 362, [
         ("综合可见度", f"{score}/100", score_level(score)),
         ("测试问答", str(len(data.get("conversations") or [])), "跨平台样本"),
-        ("品牌识别", f"{score_dimension(data, '品牌识别得分')}", "均值"),
+        ("平台覆盖", platform_coverage_text(data), "数据校验"),
     ])
 
-    draw_bullets(c, 58, 280, "专业判断", [
+    draw_bullets(c, 58, 288, "数据复核", [
+        quality_line(data),
+        "若某个平台读取条数超过 6 条，GeoGi 会把额外内容并入同平台证据，不额外计为检测问题。",
+        "若某个平台回答正文缺失，报告会标记为待补充，不把缺失数据当成有效结论。"
+    ])
+
+    draw_bullets(c, 58, 178, "专业判断", [
         "AI 搜索环境下，品牌不只是“被提到”，还要被准确解释、被主动推荐、被可信证据支撑。",
         "GeoGi 的优势在于把用户真实问题、平台答案、信源证据和优化任务放在一个工作流里闭环。",
         "相比只给关键词或泛化建议的 GEO 服务，本报告保留每个平台的原始问答证据，便于复核和交付。"
@@ -196,14 +206,16 @@ def draw_metrics(c, data):
 def draw_platforms(c, data):
     header(c, "Platform Evidence")
     section_label(c, "03 / 平台表现与证据", 650)
-    title(c, "每个平台的回答都保留原文和格式线索", 620)
+    title(c, "五个平台按同一组检测问题对齐分析", 620)
     grouped = {}
     for item in data.get("conversations") or []:
-        platform = text(item.get("platform")) or "未标注平台"
+        platform = canonical_platform(text(item.get("platform"))) or "未标注平台"
         grouped.setdefault(platform, []).append(item)
 
     y = 560
-    for platform, items in list(grouped.items())[:5]:
+    for platform in REPORT_PLATFORMS:
+        items = grouped.get(platform, [])
+        stat = platform_stat(data, platform)
         mentioned = sum(1 for item in items if contains_brand(item, data.get("form", {})))
         rounded_rect(c, 40, y - 52, 515, 58, 12, colors.white, LINE)
         c.setFillColor(DARK)
@@ -211,23 +223,52 @@ def draw_platforms(c, data):
         c.drawString(58, y - 16, platform)
         c.setFillColor(MUTED)
         c.setFont("GeoGiCJK", 9)
-        c.drawString(150, y - 16, f"问答 {len(items)} 条 · 提到品牌 {mentioned} 条")
-        sample = text(items[0].get("question")) if items else ""
-        paragraph(c, 58, y - 34, f"代表问题：{sample}", 440, size=8, leading=11)
+        expected = int(stat.get("expected") or 6)
+        raw = int(stat.get("raw") or len(items))
+        answered = int(stat.get("answered") or 0)
+        c.drawString(150, y - 16, f"问答 {len(items)}/{expected} 条 · 有效回答 {answered} 条 · 提到品牌 {mentioned} 条")
+        sample = text(items[0].get("question")) if items else "该平台检测问题待补充"
+        status = "数据已对齐" if len(items) == expected else f"原始读取 {raw} 条，需复核"
+        paragraph(c, 58, y - 34, f"{status}｜代表问题：{sample}", 440, size=8, leading=11)
         y -= 74
 
     footer(c, 4)
+
+
+def draw_platform_details(c, data):
+    header(c, "Evidence Review")
+    section_label(c, "04 / 关键证据复核", 650)
+    title(c, "从平台回答中提炼可交付判断", 620)
+    analyses_by_platform = {}
+    for item in data.get("analyses") or []:
+        platform = canonical_platform(text(item.get("平台"))) or "未标注平台"
+        analyses_by_platform.setdefault(platform, []).append(item)
+
+    y = 548
+    for platform in REPORT_PLATFORMS:
+        items = analyses_by_platform.get(platform) or []
+        issue = first_text(items, "核心问题") or "该平台回答正文不足，暂不能形成正式判断。"
+        advice = first_text(items, "优化建议") or "补充该平台完整回答后，再复核品牌识别、推荐理由和信源可信度。"
+        rounded_rect(c, 40, y - 78, 515, 88, 12, colors.white, LINE)
+        c.setFillColor(BLUE)
+        c.setFont("GeoGiCJK", 11)
+        c.drawString(58, y - 12, platform)
+        paragraph(c, 58, y - 32, f"发现：{issue}", 472, size=8, leading=11)
+        paragraph(c, 58, y - 58, f"建议：{advice}", 472, size=8, leading=11)
+        y -= 96
+
+    footer(c, 5)
 
 
 def draw_actions(c, data):
     form = data.get("form", {})
     brand = text(form.get("brandName")) or "品牌"
     header(c, "Optimization Roadmap")
-    section_label(c, "04 / 优化建议", 650)
+    section_label(c, "05 / 优化建议", 650)
     title(c, f"{brand}应优先补强可被 AI 引用的品牌证据", 620)
     advice = recommendations(data)
     y = 548
-    for idx, item in enumerate(advice[:7], start=1):
+    for idx, item in enumerate(advice[:5], start=1):
         rounded_rect(c, 40, y - 48, 515, 58, 12, colors.white, LINE)
         c.setFillColor(BLUE)
         c.setFont("GeoGiCJK", 13)
@@ -240,7 +281,7 @@ def draw_actions(c, data):
     c.setFont("GeoGiCJK", 10)
     c.drawString(58, 148, "交付说明")
     paragraph(c, 58, 128, "本报告用于基础快检和方向判断。正式 GEO 增长服务会进一步补充官网内容、结构化问答、第三方信源、平台适配素材和周期性复测。", 470, size=9, leading=14)
-    footer(c, 5)
+    footer(c, 6)
 
 
 def header(c, right):
@@ -282,8 +323,8 @@ def title(c, value, y):
         c.drawString(40, y - i * 28, line)
 
 
-def paragraph(c, x, y, value, width, size=9, leading=14):
-    c.setFillColor(MUTED)
+def paragraph(c, x, y, value, width, size=9, leading=14, color=MUTED):
+    c.setFillColor(color)
     c.setFont("GeoGiCJK", size)
     for i, line in enumerate(wrap_to_width(value, width, size)):
         c.drawString(x, y - i * leading, line)
@@ -299,7 +340,7 @@ def draw_bullets(c, x, y, heading, items):
         c.setFillColor(GREEN)
         c.circle(x + 4, yy + 4, 1.8, fill=1, stroke=0)
         c.setFillColor(MUTED)
-        c.drawString(x + 14, yy, item[:72])
+        c.drawString(x + 14, yy, limit(item, 76))
 
 
 def metric_cards(c, x, y, items):
@@ -389,15 +430,22 @@ def recommendations(data):
         value = text(analysis.get("优化建议"))
         if value and value not in items:
             items.append(value)
-    if items:
-        return items
     brand = text(data.get("form", {}).get("brandName")) or "品牌"
-    return [
+    form = data.get("form", {}) or {}
+    product = text(form.get("offerings")) or "核心产品/服务"
+    defaults = [
         f"补充{brand}官网品牌介绍、产品说明、客户案例和联系方式，形成稳定可引用的品牌实体。",
-        "围绕客户真实问题制作结构化问答内容，覆盖推荐、比较、价格、品质、风险和使用场景。",
+        f"围绕{product}的客户真实问题制作结构化问答内容，覆盖推荐、比较、价格、品质、风险和使用场景。",
         "建设第三方可信信源，包括行业媒体、用户评价平台、百科/问答平台和官方渠道交叉验证。",
+        "针对豆包、元宝、千问、DeepSeek、Kimi分别复测同一组问题，观察平台差异和竞品压制。",
+        "把报告中的高风险问题整理为内容任务，按官网内容、标准问答、第三方信源、平台素材分批推进。",
         "建立月度复测机制，观察品牌识别、主动推荐、竞品压制和信息准确性的变化。"
     ]
+    result = []
+    for item in items + defaults:
+        if item and item not in result:
+            result.append(item)
+    return result
 
 
 def contains_brand(item, form):
@@ -409,10 +457,62 @@ def contains_brand(item, form):
 def platform_names(data):
     names = []
     for item in data.get("conversations") or []:
-        name = text(item.get("platform"))
+        name = canonical_platform(text(item.get("platform")))
         if name and name not in names:
             names.append(name)
-    return " / ".join(names[:5]) or "待测试"
+    ordered = [name for name in REPORT_PLATFORMS if name in names]
+    return " / ".join(ordered or names[:5]) or "待测试"
+
+
+def platform_coverage_text(data):
+    quality = data.get("quality") or {}
+    platforms = quality.get("platforms") or []
+    covered = sum(1 for item in platforms if int(item.get("final") or 0) > 0)
+    return f"{covered}/5"
+
+
+def quality_line(data):
+    quality = data.get("quality") or {}
+    platforms = quality.get("platforms") or []
+    if not platforms:
+        return "本次未获得完整校验信息，需人工复核平台覆盖和问答条数。"
+    stats = "，".join(f"{text(item.get('platform'))}{int(item.get('final') or 0)}/{int(item.get('expected') or 6)}" for item in platforms)
+    if quality.get("ok"):
+        return f"已覆盖 5 个平台，并按检测题对齐为每个平台 6 条问答：{stats}。"
+    issues = "；".join(text(item) for item in (quality.get("issues") or [])[:3])
+    return f"已完成平台对齐：{stats}。待复核：{issues}。"
+
+
+def platform_stat(data, platform):
+    quality = data.get("quality") or {}
+    for item in quality.get("platforms") or []:
+        if canonical_platform(text(item.get("platform"))) == platform:
+            return item
+    return {}
+
+
+def canonical_platform(value):
+    content = text(value)
+    lowered = content.lower()
+    if "豆包" in content or "doubao" in lowered:
+        return "豆包"
+    if "元宝" in content or "yuanbao" in lowered or "yb.tencent" in lowered:
+        return "元宝"
+    if "千问" in content or "qianwen" in lowered or "qwen" in lowered:
+        return "千问"
+    if "deepseek" in lowered:
+        return "DeepSeek"
+    if "kimi" in lowered:
+        return "Kimi"
+    return content
+
+
+def first_text(items, field):
+    for item in items:
+        value = text(item.get(field))
+        if value:
+            return value
+    return ""
 
 
 def score_color(score):

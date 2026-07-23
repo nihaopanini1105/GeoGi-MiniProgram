@@ -6,6 +6,20 @@ Page({
   data: {
     assets,
     platforms: platforms.filter((item) => item.enabled),
+    entries: [
+      {
+        icon: assets.icons.quickCheck,
+        title: 'AI 可见度快检',
+        desc: '快速了解品牌是否被 AI 识别和推荐',
+        action: 'goDiagnosis'
+      },
+      {
+        icon: assets.icons.research,
+        title: 'GeoGi 研究中心',
+        desc: '洞察行业趋势，获取 GEO 实战知识',
+        action: 'goResearch'
+      }
+    ],
     values: [
       { icon: assets.icons.eye, text: 'AI 是否认识并推荐你的品牌' },
       { icon: assets.icons.competitors, text: '哪些竞品正在被优先推荐' },
@@ -42,7 +56,7 @@ Page({
   goDiagnosis() {
     track('diagnosis_cta_click', { position: 'home' });
     wx.setStorageSync('geogi_start_new_diagnosis', true);
-    wx.navigateTo({ url: '/pages/diagnosis/diagnosis?start=1' });
+    wx.switchTab({ url: '/pages/diagnosis/diagnosis' });
   },
 
   goServices() {
@@ -69,5 +83,10 @@ Page({
       category: article ? article.category : ''
     });
     wx.switchTab({ url: '/pages/research/research' });
+  },
+
+  openEntry(event) {
+    const action = event.currentTarget.dataset.action;
+    if (action && this[action]) this[action]();
   }
 });

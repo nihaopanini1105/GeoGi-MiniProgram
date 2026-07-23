@@ -13,20 +13,20 @@
 }
 
 .info-title {
-  color: #102145;
+  color: #102454;
   font-size: 34rpx;
-  font-weight: 950;
+  font-weight: 600;
 }
 
 .info-copy {
   margin: 12rpx 0 24rpx;
-  color: #60708f;
+  color: #6B7A99;
   font-size: 28rpx;
 }
 
 .info-hint {
   margin: -10rpx 0 24rpx;
-  color: #6b7897;
+  color: #6B7A99;
   font-size: 24rpx;
   line-height: 1.5;
 }

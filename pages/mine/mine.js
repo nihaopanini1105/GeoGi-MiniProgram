@@ -44,7 +44,7 @@ Page({
 
   goDiagnosis() {
     wx.setStorageSync('geogi_start_new_diagnosis', true);
-    wx.navigateTo({ url: '/pages/diagnosis/diagnosis?start=1' });
+    wx.switchTab({ url: '/pages/diagnosis/diagnosis' });
   },
 
   openReport(event) {

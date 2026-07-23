@@ -14,22 +14,28 @@
   ],
   "window": {
     "navigationBarTitleText": "GeoGi 几何智引",
-    "navigationBarBackgroundColor": "#f5f7fc",
+    "navigationBarBackgroundColor": "#F4F7FD",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#f5f7fc",
+    "backgroundColor": "#F4F7FD",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
-    "color": "#6b7897",
-    "selectedColor": "#2f6df6",
+    "color": "#6B7A99",
+    "selectedColor": "#3F73F6",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "GeoGi",
+        "text": "首页",
         "iconPath": "assets/tabbar/home.png",
         "selectedIconPath": "assets/tabbar/home_selected.png"
+      },
+      {
+        "pagePath": "pages/diagnosis/diagnosis",
+        "text": "品牌诊断",
+        "iconPath": "assets/tabbar/diagnosis.png",
+        "selectedIconPath": "assets/tabbar/diagnosis_selected.png"
       },
       {
         "pagePath": "pages/research/research",
