@@ -36,17 +36,6 @@
     </view>
   </view>
 
-  <view class="section entry-grid">
-    <view class="entry-card card" wx:for="{{entries}}" wx:key="title" data-action="{{item.action}}" bindtap="openEntry">
-      <image class="entry-icon" src="{{item.icon}}" mode="aspectFit"></image>
-      <view class="entry-text">
-        <text class="card-title">{{item.title}}</text>
-        <text class="card-desc">{{item.desc}}</text>
-      </view>
-      <image class="entry-arrow" src="{{assets.icons.arrowRight}}" mode="aspectFit"></image>
-    </view>
-  </view>
-
   <view class="section">
     <view class="section-head compact">
       <text class="section-title">GeoGi 可以帮你了解</text>

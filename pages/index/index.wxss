@@ -86,8 +86,6 @@
 }
 
 .section-title,
-.card-title,
-.card-desc,
 .article-title,
 .article-date,
 .contact-title,
@@ -144,51 +142,6 @@
   width: 76rpx;
   height: 76rpx;
   margin-bottom: 12rpx;
-}
-
-.entry-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18rpx;
-}
-
-.entry-card {
-  position: relative;
-  min-height: 178rpx;
-  padding: 26rpx 24rpx;
-}
-
-.entry-icon {
-  width: 58rpx;
-  height: 58rpx;
-}
-
-.entry-text {
-  margin-top: 16rpx;
-  padding-right: 34rpx;
-}
-
-.card-title {
-  color: #102145;
-  font-size: 30rpx;
-  font-weight: 950;
-  line-height: 1.26;
-}
-
-.card-desc {
-  margin-top: 8rpx;
-  color: #60708f;
-  font-size: 24rpx;
-  line-height: 1.45;
-}
-
-.entry-arrow {
-  position: absolute;
-  right: 20rpx;
-  bottom: 24rpx;
-  width: 30rpx;
-  height: 30rpx;
-  opacity: 0.62;
 }
 
 .value-grid {
@@ -365,10 +318,6 @@
 
   .platform-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .entry-grid {
-    grid-template-columns: 1fr;
   }
 
   .value-grid,
