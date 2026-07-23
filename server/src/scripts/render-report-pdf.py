@@ -140,15 +140,19 @@ def draw_summary(c, data):
     title(c, f"{brand}的 AI 可见度已形成可诊断样本", 620)
     paragraph(c, 40, 590, "本页结论来自客户资料、品牌档案、5 个 AI 平台问答记录与结构化表格/链接/图片证据。GeoGi 关注的是用户真实提问时，AI 是否能识别品牌、主动推荐、准确表达并给出可信信源。", 510)
 
-    rounded_rect(c, 40, 464, 515, 86, 14, colors.white, LINE)
+    rounded_rect(c, 40, 450, 515, 100, 14, colors.white, LINE)
     c.setFillColor(BLUE)
     c.setFont("GeoGiCJK", 10)
     c.drawString(58, 522, "一句话结论")
     c.setFillColor(DARK)
-    c.setFont("GeoGiCJK", 18)
-    lines = wrap(f"{brand}已有一定 AI 可见度基础，下一步应围绕品牌实体、产品卖点、可信信源和推荐理由做系统补强。", 34)
-    for i, line in enumerate(lines[:2]):
-        c.drawString(58, 492 - i * 22, line)
+    c.setFont("GeoGiCJK", 15)
+    lines = wrap_to_width(
+        f"{brand}已有一定 AI 可见度基础，下一步应围绕品牌实体、产品卖点、可信信源和推荐理由做系统补强。",
+        438,
+        15
+    )
+    for i, line in enumerate(lines[:3]):
+        c.drawString(58, 495 - i * 20, line)
 
     metric_cards(c, 40, 362, [
         ("综合可见度", f"{score}/100", score_level(score)),
@@ -274,14 +278,14 @@ def section_label(c, value, y):
 def title(c, value, y):
     c.setFillColor(DARK)
     c.setFont("GeoGiCJK", 22)
-    c.drawString(40, y, value[:30])
+    for i, line in enumerate(wrap_to_width(value, PAGE_W - 80, 22)[:2]):
+        c.drawString(40, y - i * 28, line)
 
 
 def paragraph(c, x, y, value, width, size=9, leading=14):
     c.setFillColor(MUTED)
     c.setFont("GeoGiCJK", size)
-    max_chars = max(12, int(width / (size * 1.35)))
-    for i, line in enumerate(wrap(value, max_chars)):
+    for i, line in enumerate(wrap_to_width(value, width, size)):
         c.drawString(x, y - i * leading, line)
 
 
@@ -328,7 +332,8 @@ def score_bar(c, x, y, label, score, desc):
     c.rect(x + 14, y - 24, 270 * max(0, min(score, 100)) / 100, 6, fill=1, stroke=0)
     c.setFillColor(MUTED)
     c.setFont("GeoGiCJK", 8)
-    c.drawString(x + 14, y - 36, desc)
+    for i, line in enumerate(wrap_to_width(desc, 410, 8)[:2]):
+        c.drawString(x + 14, y - 36 - i * 10, line)
 
 
 def rounded_rect(c, x, y, w, h, r, fill, stroke):
@@ -438,6 +443,26 @@ def number(value):
 def limit(value, max_chars):
     value = text(value)
     return value if len(value) <= max_chars else f"{value[:max_chars - 1]}…"
+
+
+def wrap_to_width(value, width, size, font=FONT_NAME):
+    value = text(value)
+    lines = []
+    for raw in value.split("\n"):
+        raw = raw.strip()
+        if not raw:
+            continue
+        current = ""
+        for char in raw:
+            candidate = f"{current}{char}"
+            if current and pdfmetrics.stringWidth(candidate, font, size) > width:
+                lines.append(current)
+                current = char
+            else:
+                current = candidate
+        if current:
+            lines.append(current)
+    return lines or [""]
 
 
 def wrap(value, max_chars):
