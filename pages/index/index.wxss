@@ -79,11 +79,11 @@
 
 .hero-mark {
   position: absolute;
-  right: 12rpx;
-  top: 70rpx;
-  width: 230rpx;
-  height: 230rpx;
-  opacity: 0.96;
+  right: -8rpx;
+  top: 54rpx;
+  width: 258rpx;
+  height: 258rpx;
+  opacity: 0.86;
   z-index: 1;
 }
 
@@ -345,10 +345,10 @@
 
   .hero-mark {
     top: auto;
-    right: 18rpx;
+    right: 8rpx;
     bottom: 42rpx;
-    width: 188rpx;
-    height: 188rpx;
+    width: 204rpx;
+    height: 204rpx;
   }
 
   .platform-grid {
