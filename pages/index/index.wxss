@@ -8,8 +8,8 @@
 
 .hero {
   position: relative;
-  min-height: 470rpx;
-  padding: 42rpx 28rpx 36rpx;
+  min-height: 444rpx;
+  padding: 42rpx 28rpx 34rpx;
   border: 1rpx solid #D9E6FA;
   border-radius: 28rpx;
   background: linear-gradient(180deg, #ffffff 0%, #f5f8ff 100%);
@@ -20,22 +20,22 @@
 .hero-copy {
   position: relative;
   z-index: 2;
-  width: 68%;
+  width: 70%;
 }
 
 .hero-title {
   margin-top: 0;
-  max-width: 430rpx;
-  font-size: 52rpx;
+  max-width: 440rpx;
+  font-size: 50rpx;
   font-weight: 600;
   line-height: 1.22;
 }
 
 .hero-lead {
-  max-width: 430rpx;
+  max-width: 420rpx;
   margin-top: 14rpx;
   font-size: 28rpx;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .hero-tips {
@@ -64,8 +64,8 @@
 }
 
 .hero-button {
-  width: 300rpx;
-  height: 96rpx;
+  width: 292rpx;
+  height: 92rpx;
   margin-top: 32rpx;
   border-radius: 24rpx;
   gap: 12rpx;
@@ -79,12 +79,11 @@
 
 .hero-mark {
   position: absolute;
-  right: 22rpx;
-  top: 56rpx;
-  width: 252rpx;
-  height: 252rpx;
-  border-radius: 28rpx;
-  box-shadow: 0 18rpx 42rpx rgba(8, 27, 58, 0.16);
+  right: 12rpx;
+  top: 70rpx;
+  width: 230rpx;
+  height: 230rpx;
+  opacity: 0.96;
   z-index: 1;
 }
 
@@ -114,10 +113,20 @@
 
 .text-button {
   min-width: 112rpx;
-  min-height: 64rpx;
+  min-height: 40rpx;
+  padding: 0;
   color: #2F6DFF;
   font-size: 25rpx;
   font-weight: 600;
+  line-height: 40rpx;
+  text-align: right;
+}
+
+.inline-link {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
 }
 
 .platform-card {
@@ -149,33 +158,6 @@
   margin-bottom: 12rpx;
 }
 
-.entry-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16rpx;
-}
-
-.entry-card {
-  position: relative;
-  min-height: 164rpx;
-  padding: 24rpx;
-}
-
-.entry-card:active {
-  border-color: rgba(47, 109, 255, 0.32);
-  box-shadow: 0 8rpx 24rpx rgba(40, 85, 170, 0.1);
-}
-
-.entry-icon {
-  width: 56rpx;
-  height: 56rpx;
-}
-
-.entry-text {
-  margin-top: 14rpx;
-  padding-right: 28rpx;
-}
-
 .card-title {
   color: #081B3A;
   font-size: 30rpx;
@@ -191,15 +173,6 @@
   line-height: 1.5;
 }
 
-.entry-arrow {
-  position: absolute;
-  right: 20rpx;
-  bottom: 22rpx;
-  width: 28rpx;
-  height: 28rpx;
-  opacity: 0.62;
-}
-
 .value-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -208,8 +181,12 @@
 }
 
 .value-card {
-  min-height: 148rpx;
-  padding: 22rpx 18rpx 20rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 142rpx;
+  padding: 22rpx 20rpx 20rpx;
   text-align: center;
 }
 
@@ -220,11 +197,13 @@
 
 .value-card text {
   display: block;
-  margin-top: 14rpx;
+  width: 100%;
+  margin-top: 12rpx;
   color: #081B3A;
   font-size: 24rpx;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.36;
+  word-break: break-all;
 }
 
 .article-list {
@@ -347,7 +326,7 @@
 
 @media (max-width: 350px) {
   .hero {
-    min-height: 600rpx;
+    min-height: 560rpx;
     padding: 44rpx 28rpx 36rpx;
   }
 
@@ -374,10 +353,6 @@
 
   .platform-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .entry-grid {
-    grid-template-columns: 1fr;
   }
 
   .flow-list {

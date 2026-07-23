@@ -72,14 +72,17 @@ Page({
 
   onLoad(options) {
     const phoneAuth = wx.getStorageSync('geogi_phone_auth') || {};
+    const shouldStartNew = wx.getStorageSync('geogi_start_new_diagnosis') || options.start === '1';
     this.setData({
       phoneAuthorized: Boolean(phoneAuth.phoneNumber),
       phoneDisplay: phoneAuth.phoneNumber || ''
     });
 
-    if (wx.getStorageSync('geogi_start_new_diagnosis')) {
+    if (shouldStartNew) {
+      wx.removeStorageSync('geogi_start_new_diagnosis');
       wx.removeStorageSync(draftKey);
       wx.removeStorageSync('geogi_last_submission');
+      if (phoneAuth.phoneNumber) this.startForm({ forceNew: true });
       return;
     }
 

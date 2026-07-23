@@ -37,17 +37,6 @@
     </view>
   </view>
 
-  <view class="section entry-grid">
-    <view class="entry-card card" wx:for="{{entries}}" wx:key="title" data-action="{{item.action}}" bindtap="openEntry">
-      <image class="entry-icon" src="{{item.icon}}" mode="aspectFit"></image>
-      <view class="entry-text">
-        <text class="card-title">{{item.title}}</text>
-        <text class="card-desc">{{item.desc}}</text>
-      </view>
-      <image class="entry-arrow" src="{{assets.icons.arrowRight}}" mode="aspectFit"></image>
-    </view>
-  </view>
-
   <view class="section">
     <view class="section-head compact">
       <text class="section-title">GeoGi 可以帮你了解</text>
@@ -62,8 +51,8 @@
 
   <view class="section research-section">
     <view class="section-row">
-      <text class="section-title">研究中心 · 最新洞察</text>
-      <button class="text-button" bindtap="goResearch">查看全部</button>
+      <text class="section-title">知识库 · 最新洞察</text>
+      <button class="text-button inline-link" bindtap="goResearch">查看全部</button>
     </view>
     <view class="article-list card">
       <view class="article-item" wx:for="{{latestArticles}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
@@ -80,7 +69,7 @@
   <view class="section flow-card card">
     <view class="section-row">
       <text class="section-title">服务流程</text>
-      <button class="text-button" bindtap="goDiagnosis">了解更多</button>
+      <button class="text-button inline-link" bindtap="goDiagnosis">了解更多</button>
     </view>
     <view class="flow-list">
       <view class="flow-item" wx:for="{{flow}}" wx:key="*this">

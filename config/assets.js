@@ -5,7 +5,7 @@ const assets = {
     logo: '/assets/brand/geogi_logo_dark_512.png'
   },
   hero: {
-    mark: '/assets/brand/geogi_logo_dark_512.png'
+    mark: '/assets/brand/geogi_logo_core_512.png'
   },
   icons: {
     arrowRight: '/assets/icons/png/64/arrow-right.png',
