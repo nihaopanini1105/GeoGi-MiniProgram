@@ -24,7 +24,7 @@
       </button>
     </view>
 
-    <image class="hero-mark" src="{{assets.hero.mark}}" mode="aspectFit"></image>
+    <image class="hero-bg" src="{{assets.hero.background}}" mode="aspectFit"></image>
   </view>
 
   <view class="section platform-card card">

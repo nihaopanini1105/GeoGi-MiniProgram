@@ -77,14 +77,15 @@
   height: 34rpx;
 }
 
-.hero-mark {
+.hero-bg {
   position: absolute;
-  right: -8rpx;
-  top: 54rpx;
-  width: 258rpx;
-  height: 258rpx;
-  opacity: 0.86;
+  right: -74rpx;
+  top: 24rpx;
+  width: 420rpx;
+  height: 360rpx;
+  opacity: 1;
   z-index: 1;
+  pointer-events: none;
 }
 
 .section-title,
@@ -343,12 +344,12 @@
     max-width: 430rpx;
   }
 
-  .hero-mark {
+  .hero-bg {
     top: auto;
-    right: 8rpx;
-    bottom: 42rpx;
-    width: 204rpx;
-    height: 204rpx;
+    right: -80rpx;
+    bottom: 20rpx;
+    width: 330rpx;
+    height: 300rpx;
   }
 
   .platform-grid {
