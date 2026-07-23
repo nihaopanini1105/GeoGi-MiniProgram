@@ -10,7 +10,7 @@
   position: relative;
   min-height: 470rpx;
   padding: 42rpx 28rpx 36rpx;
-  border: 1rpx solid #DCE5F5;
+  border: 1rpx solid #D9E6FA;
   border-radius: 28rpx;
   background: linear-gradient(180deg, #ffffff 0%, #f5f8ff 100%);
   box-shadow: 0 8rpx 24rpx rgba(40, 85, 170, 0.06);
@@ -20,19 +20,19 @@
 .hero-copy {
   position: relative;
   z-index: 2;
-  width: 76%;
+  width: 68%;
 }
 
 .hero-title {
   margin-top: 0;
-  max-width: 520rpx;
+  max-width: 430rpx;
   font-size: 52rpx;
   font-weight: 600;
   line-height: 1.22;
 }
 
 .hero-lead {
-  max-width: 470rpx;
+  max-width: 430rpx;
   margin-top: 14rpx;
   font-size: 28rpx;
   line-height: 1.55;
@@ -53,7 +53,7 @@
   padding: 0 16rpx;
   border-radius: 999rpx;
   background: #EAF1FF;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 23rpx;
   font-weight: 500;
 }
@@ -64,7 +64,7 @@
 }
 
 .hero-button {
-  width: 360rpx;
+  width: 300rpx;
   height: 96rpx;
   margin-top: 32rpx;
   border-radius: 24rpx;
@@ -79,10 +79,12 @@
 
 .hero-mark {
   position: absolute;
-  right: 20rpx;
-  top: 62rpx;
-  width: 238rpx;
-  height: 238rpx;
+  right: 22rpx;
+  top: 56rpx;
+  width: 252rpx;
+  height: 252rpx;
+  border-radius: 28rpx;
+  box-shadow: 0 18rpx 42rpx rgba(8, 27, 58, 0.16);
   z-index: 1;
 }
 
@@ -97,7 +99,7 @@
 }
 
 .section-title {
-  color: #102454;
+  color: #081B3A;
   font-size: 36rpx;
   font-weight: 600;
   line-height: 1.35;
@@ -113,7 +115,7 @@
 .text-button {
   min-width: 112rpx;
   min-height: 64rpx;
-  color: #3F73F6;
+  color: #2F6DFF;
   font-size: 25rpx;
   font-weight: 600;
 }
@@ -135,7 +137,7 @@
   align-items: center;
   justify-content: center;
   min-height: 124rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 24rpx;
   font-weight: 500;
   text-align: center;
@@ -160,7 +162,7 @@
 }
 
 .entry-card:active {
-  border-color: rgba(63, 115, 246, 0.32);
+  border-color: rgba(47, 109, 255, 0.32);
   box-shadow: 0 8rpx 24rpx rgba(40, 85, 170, 0.1);
 }
 
@@ -175,7 +177,7 @@
 }
 
 .card-title {
-  color: #102454;
+  color: #081B3A;
   font-size: 30rpx;
   font-weight: 600;
   line-height: 1.4;
@@ -183,7 +185,7 @@
 
 .card-desc {
   margin-top: 8rpx;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 24rpx;
   font-weight: 400;
   line-height: 1.5;
@@ -219,7 +221,7 @@
 .value-card text {
   display: block;
   margin-top: 14rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 24rpx;
   font-weight: 500;
   line-height: 1.4;
@@ -250,7 +252,7 @@
 
 .article-title {
   margin-top: 10rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 29rpx;
   font-weight: 600;
   line-height: 1.34;
@@ -258,7 +260,7 @@
 
 .article-date {
   margin-top: 10rpx;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 23rpx;
 }
 
@@ -295,7 +297,7 @@
   width: 44rpx;
   height: 44rpx;
   border-radius: 999rpx;
-  background: #3F73F6;
+  background: #2F6DFF;
   color: #ffffff;
   font-size: 22rpx;
   font-weight: 600;
@@ -304,7 +306,7 @@
 .flow-title {
   display: block;
   margin-top: 12rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 23rpx;
   font-weight: 500;
   line-height: 1.3;
@@ -317,7 +319,7 @@
   gap: 22rpx;
   padding: 30rpx 28rpx;
   border-radius: 34rpx;
-  background: #102454;
+  background: #081B3A;
   color: #ffffff;
 }
 
@@ -339,7 +341,7 @@
   height: 80rpx;
   border-color: rgba(255, 255, 255, 0.22);
   background: #ffffff;
-  color: #102454;
+  color: #081B3A;
   flex: 0 0 auto;
 }
 
@@ -366,8 +368,8 @@
     top: auto;
     right: 18rpx;
     bottom: 42rpx;
-    width: 176rpx;
-    height: 176rpx;
+    width: 188rpx;
+    height: 188rpx;
   }
 
   .platform-grid {

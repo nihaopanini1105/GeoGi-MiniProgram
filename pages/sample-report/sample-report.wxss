@@ -14,7 +14,7 @@
 }
 
 .score-card {
-  background: linear-gradient(135deg, #0f2d89, #3F73F6);
+  background: linear-gradient(135deg, #0f2d89, #2F6DFF);
   color: #ffffff;
 }
 
@@ -43,20 +43,20 @@
 }
 
 .dimension-name {
-  color: #102454;
+  color: #081B3A;
   font-size: 32rpx;
   font-weight: 600;
 }
 
 .dimension-score {
-  color: #3F73F6;
+  color: #2F6DFF;
   font-size: 34rpx;
   font-weight: 600;
 }
 
 .outline-title {
   margin-bottom: 18rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 34rpx;
   font-weight: 600;
 }
@@ -71,7 +71,7 @@
 }
 
 .outline-num {
-  color: #3F73F6;
+  color: #2F6DFF;
   font-weight: 600;
 }
 

@@ -30,8 +30,8 @@
   min-height: 64rpx;
   padding: 0 22rpx;
   border-radius: 999rpx;
-  background: rgba(63, 115, 246, 0.1);
-  color: #3F73F6;
+  background: rgba(47, 109, 255, 0.1);
+  color: #2F6DFF;
   font-size: 24rpx;
   font-weight: 600;
 }
@@ -42,7 +42,7 @@
 
 .client-label {
   display: block;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 24rpx;
   font-weight: 600;
 }
@@ -50,7 +50,7 @@
 .client-id {
   display: block;
   margin-top: 8rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 34rpx;
   font-weight: 600;
 }
@@ -82,7 +82,7 @@
 
 .order-brand {
   display: block;
-  color: #102454;
+  color: #081B3A;
   font-size: 34rpx;
   font-weight: 600;
   line-height: 1.25;
@@ -91,7 +91,7 @@
 .order-meta {
   display: block;
   margin-top: 10rpx;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 25rpx;
   line-height: 1.5;
 }
@@ -102,7 +102,7 @@
   padding: 12rpx 18rpx;
   border-radius: 999rpx;
   background: rgba(107, 120, 151, 0.11);
-  color: #6B7A99;
+  color: #66789A;
   font-size: 22rpx;
   font-weight: 600;
   line-height: 1.25;
@@ -110,8 +110,8 @@
 }
 
 .status-pill.ready {
-  background: rgba(63, 115, 246, 0.12);
-  color: #3F73F6;
+  background: rgba(47, 109, 255, 0.12);
+  color: #2F6DFF;
 }
 
 .order-info {
@@ -119,7 +119,7 @@
   flex-direction: column;
   gap: 8rpx;
   margin-top: 24rpx;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 24rpx;
   line-height: 1.5;
 }
@@ -131,7 +131,7 @@
   margin-top: 26rpx;
   padding-top: 22rpx;
   border-top: 1rpx solid #ecf1fa;
-  color: #3F73F6;
+  color: #2F6DFF;
   font-size: 27rpx;
   font-weight: 600;
 }
@@ -155,7 +155,7 @@
 
 .empty-title {
   display: block;
-  color: #102454;
+  color: #081B3A;
   font-size: 36rpx;
   font-weight: 600;
 }

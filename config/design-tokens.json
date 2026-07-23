@@ -1,12 +1,13 @@
 {
   "colors": {
-    "brandBlue": "#3F73F6",
-    "navyText": "#102454",
-    "deepNavy": "#102454",
-    "mutedText": "#6B7A99",
-    "softMuted": "#94A0B8",
-    "background": "#F4F7FD",
-    "stroke": "#DCE5F5",
+    "brandBlue": "#2F6DFF",
+    "accentCyan": "#19D8F2",
+    "navyText": "#081B3A",
+    "deepNavy": "#081B3A",
+    "mutedText": "#66789A",
+    "softMuted": "#8DA0BD",
+    "background": "#F3F7FF",
+    "stroke": "#D9E6FA",
     "success": "#2DC38A",
     "white": "#FFFFFF"
   },

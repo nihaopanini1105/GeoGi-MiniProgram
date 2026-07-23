@@ -8,14 +8,17 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 
 
 PAGE_W, PAGE_H = A4
-BLUE = colors.HexColor("#1768ff")
-DARK = colors.HexColor("#0d1b4c")
-MUTED = colors.HexColor("#5f6f91")
-LINE = colors.HexColor("#dbe4f2")
-BG = colors.HexColor("#f5f8ff")
+BLUE = colors.HexColor("#2F6DFF")
+CYAN = colors.HexColor("#19D8F2")
+DARK = colors.HexColor("#081B3A")
+DEEP = colors.HexColor("#061731")
+MUTED = colors.HexColor("#66789A")
+LINE = colors.HexColor("#D9E6FA")
+BG = colors.HexColor("#F3F7FF")
 GREEN = colors.HexColor("#2dc38a")
 RED = colors.HexColor("#ef4b4b")
 ORANGE = colors.HexColor("#f59b28")
@@ -31,6 +34,9 @@ FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
     "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
 ]
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+LOGO_PATH = os.path.join(PROJECT_ROOT, "assets", "brand", "geogi_logo_dark_1024.png")
+LOGO_MARK_PATH = os.path.join(PROJECT_ROOT, "assets", "brand", "geogi_logo_mark_dark_512.png")
 
 
 def main():
@@ -70,27 +76,29 @@ def draw_cover(c, data):
     brand = text(form.get("brandName")) or "品牌"
     score = score_overall(data)
 
-    c.setFillColor(BLUE)
+    c.setFillColor(DEEP)
     c.rect(0, 0, PAGE_W, PAGE_H, fill=1, stroke=0)
-    c.setFillColor(colors.HexColor("#0b2c76"))
+    c.setFillColor(colors.HexColor("#0A2250"))
     c.rect(0, 0, PAGE_W, 260, fill=1, stroke=0)
-    c.setStrokeColor(colors.Color(1, 1, 1, alpha=0.24))
+    c.setStrokeColor(colors.Color(0.1, 0.86, 0.95, alpha=0.28))
     c.setLineWidth(1.2)
     c.circle(PAGE_W - 95, PAGE_H - 230, 165, fill=0, stroke=1)
+    c.setStrokeColor(colors.Color(0.18, 0.43, 1, alpha=0.18))
+    c.circle(PAGE_W - 114, PAGE_H - 218, 122, fill=0, stroke=1)
 
-    c.setFillColor(colors.white)
-    rounded_rect(c, 40, PAGE_H - 76, 28, 28, 8, colors.white, colors.white)
-    c.setFillColor(BLUE)
-    c.circle(54, PAGE_H - 62, 8, fill=0, stroke=1)
+    draw_logo(c, 36, PAGE_H - 112, 86, 86, LOGO_MARK_PATH)
     c.setFont("GeoGiCJK", 13)
     c.setFillColor(colors.white)
-    c.drawString(78, PAGE_H - 56, "GeoGi 几何智引")
+    c.drawString(128, PAGE_H - 58, "GeoGi 几何智引")
     c.setFont("GeoGiCJK", 8)
-    c.drawString(78, PAGE_H - 72, "AI 可见度增长")
+    c.setFillColor(colors.Color(1, 1, 1, alpha=0.66))
+    c.drawString(128, PAGE_H - 74, "Generate to be Found.")
 
     c.setFont("GeoGiCJK", 12)
+    c.setFillColor(CYAN)
     c.drawString(40, PAGE_H - 198, "AI Visibility Diagnosis")
     c.setFont("GeoGiCJK", 29)
+    c.setFillColor(colors.white)
     c.drawString(40, PAGE_H - 248, brand)
     c.drawString(40, PAGE_H - 288, "AI 可见度诊断报告")
     c.setFont("GeoGiCJK", 11)
@@ -287,17 +295,23 @@ def draw_actions(c, data):
 def header(c, right):
     c.setFillColor(BG)
     c.rect(0, 0, PAGE_W, PAGE_H, fill=1, stroke=0)
-    c.setFillColor(BLUE)
-    rounded_rect(c, 40, PAGE_H - 72, 18, 18, 5, BLUE, BLUE)
+    draw_logo(c, 40, PAGE_H - 76, 34, 34, LOGO_MARK_PATH)
     c.setFillColor(DARK)
     c.setFont("GeoGiCJK", 11)
-    c.drawString(66, PAGE_H - 55, "GeoGi 几何智引")
+    c.drawString(82, PAGE_H - 55, "GeoGi 几何智引")
     c.setFont("GeoGiCJK", 8)
     c.setFillColor(MUTED)
-    c.drawString(66, PAGE_H - 69, "AI 可见度增长")
+    c.drawString(82, PAGE_H - 69, "Generate to be Found.")
     c.drawRightString(PAGE_W - 40, PAGE_H - 58, right)
     c.setStrokeColor(LINE)
     c.line(40, PAGE_H - 90, PAGE_W - 40, PAGE_H - 90)
+
+
+def draw_logo(c, x, y, w, h, logo_path=LOGO_PATH):
+    if not os.path.exists(logo_path):
+        rounded_rect(c, x, y, w, h, 8, BLUE, BLUE)
+        return
+    c.drawImage(ImageReader(logo_path), x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
 
 
 def footer(c, page):

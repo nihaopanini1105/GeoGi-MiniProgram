@@ -14,14 +14,14 @@
   ],
   "window": {
     "navigationBarTitleText": "GeoGi 几何智引",
-    "navigationBarBackgroundColor": "#F4F7FD",
+    "navigationBarBackgroundColor": "#F3F7FF",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#F4F7FD",
+    "backgroundColor": "#F3F7FF",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
-    "color": "#6B7A99",
-    "selectedColor": "#3F73F6",
+    "color": "#66789A",
+    "selectedColor": "#2F6DFF",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [

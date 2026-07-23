@@ -1,10 +1,11 @@
 const assets = {
   brand: {
-    appIcon: '/assets/brand/geogi_app_icon_512.png',
-    mark: '/assets/brand/geogi_mark_transparent_512.png'
+    appIcon: '/assets/brand/geogi_logo_mark_dark_512.png',
+    mark: '/assets/brand/geogi_logo_mark_dark_512.png',
+    logo: '/assets/brand/geogi_logo_dark_512.png'
   },
   hero: {
-    mark: '/assets/hero/geogi_hero_mark_512.png'
+    mark: '/assets/brand/geogi_logo_dark_512.png'
   },
   icons: {
     arrowRight: '/assets/icons/png/64/arrow-right.png',

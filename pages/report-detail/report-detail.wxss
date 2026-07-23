@@ -33,7 +33,7 @@
 .dimension-name,
 .platform-name {
   display: block;
-  color: #102454;
+  color: #081B3A;
   font-weight: 600;
 }
 
@@ -58,7 +58,7 @@
   margin-top: 24rpx;
   padding-top: 22rpx;
   border-top: 1rpx solid #ecf1fa;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 24rpx;
   line-height: 1.5;
 }
@@ -71,7 +71,7 @@
   display: flex;
   gap: 28rpx;
   align-items: center;
-  background: linear-gradient(135deg, #0f2d89, #3F73F6);
+  background: linear-gradient(135deg, #0f2d89, #2F6DFF);
   color: #ffffff;
 }
 
@@ -138,15 +138,15 @@
 .platform-status {
   padding: 10rpx 16rpx;
   border-radius: 999rpx;
-  background: rgba(63, 115, 246, 0.1);
-  color: #3F73F6;
+  background: rgba(47, 109, 255, 0.1);
+  color: #2F6DFF;
   font-size: 22rpx;
   font-weight: 600;
   line-height: 1.2;
 }
 
 .dimension-score {
-  color: #102454;
+  color: #081B3A;
   font-size: 34rpx;
   font-weight: 600;
 }
@@ -162,7 +162,7 @@
 .score-fill {
   height: 100%;
   border-radius: 999rpx;
-  background: linear-gradient(90deg, #3F73F6, #28c7a8);
+  background: linear-gradient(90deg, #2F6DFF, #28c7a8);
 }
 
 .finding-row,
@@ -192,7 +192,7 @@
 .platform-question {
   display: block;
   margin-top: 22rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 28rpx;
   font-weight: 600;
   line-height: 1.55;
@@ -201,7 +201,7 @@
 .answer-preview {
   display: block;
   margin-top: 16rpx;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 25rpx;
   line-height: 1.7;
 }
@@ -217,7 +217,7 @@
   padding: 10rpx 14rpx;
   border-radius: 999rpx;
   background: #f1f5fb;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 22rpx;
   font-weight: 600;
 }
@@ -227,7 +227,7 @@
   margin-top: 20rpx;
   padding-top: 18rpx;
   border-top: 1rpx solid #ecf1fa;
-  color: #102454;
+  color: #081B3A;
   font-size: 26rpx;
   font-weight: 600;
   line-height: 1.6;
@@ -235,7 +235,7 @@
 
 .advice-num {
   flex: 0 0 auto;
-  color: #3F73F6;
+  color: #2F6DFF;
   font-weight: 600;
 }
 

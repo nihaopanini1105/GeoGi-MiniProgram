@@ -30,7 +30,7 @@
   align-items: center;
   gap: 14rpx;
   min-height: 58rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 27rpx;
   font-weight: 500;
 }
@@ -78,7 +78,7 @@
 }
 
 .section-title {
-  color: #102454;
+  color: #081B3A;
   font-size: 38rpx;
   font-weight: 600;
   line-height: 1.2;
@@ -96,7 +96,7 @@
   flex-direction: column;
   align-items: center;
   min-height: 130rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 23rpx;
   font-weight: 500;
 }
@@ -118,7 +118,7 @@
   align-items: center;
   gap: 14rpx;
   min-height: 54rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 28rpx;
   font-weight: 500;
 }
@@ -147,7 +147,7 @@
 .delivery-card text {
   display: block;
   margin-top: 14rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 28rpx;
   font-weight: 500;
 }
@@ -161,14 +161,14 @@
 }
 
 .note-title {
-  color: #102454;
+  color: #081B3A;
   font-size: 34rpx;
   font-weight: 600;
 }
 
 .note-copy {
   margin-top: 10rpx;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 26rpx;
   line-height: 1.55;
 }
@@ -196,7 +196,7 @@
 .progress-fill {
   height: 100%;
   border-radius: 999rpx;
-  background: #3F73F6;
+  background: #2F6DFF;
 }
 
 .step-1 {
@@ -224,31 +224,31 @@
   height: 54rpx;
   border-radius: 999rpx;
   background: #edf4ff;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 24rpx;
   font-weight: 600;
 }
 
 .step-dot.active {
-  background: #3F73F6;
+  background: #2F6DFF;
   color: #ffffff;
 }
 
 .step-line {
   flex: 1;
   height: 4rpx;
-  background: #DCE5F5;
+  background: #D9E6FA;
 }
 
 .step-line.active {
-  background: #3F73F6;
+  background: #2F6DFF;
 }
 
 .step-labels {
   display: flex;
   justify-content: space-between;
   margin-top: 14rpx;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 23rpx;
 }
 
@@ -257,7 +257,7 @@
 }
 
 .form-title {
-  color: #102454;
+  color: #081B3A;
   font-size: 36rpx;
   font-weight: 600;
 }
@@ -268,7 +268,7 @@
 
 .field-label {
   margin-bottom: 14rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 28rpx;
   font-weight: 600;
 }
@@ -277,10 +277,10 @@ input,
 textarea,
 .select-field {
   width: 100%;
-  border: 1rpx solid #DCE5F5;
+  border: 1rpx solid #D9E6FA;
   border-radius: 24rpx;
   background: #f8fbff;
-  color: #102454;
+  color: #081B3A;
   font-size: 28rpx;
 }
 
@@ -306,25 +306,25 @@ textarea {
   gap: 18rpx;
   min-height: 92rpx;
   padding: 0 24rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 28rpx;
 }
 
 .select-field.empty {
-  color: #94A0B8;
+  color: #8DA0BD;
 }
 
 .select-arrow {
   width: 16rpx;
   height: 16rpx;
-  border-right: 3rpx solid #6B7A99;
-  border-bottom: 3rpx solid #6B7A99;
+  border-right: 3rpx solid #66789A;
+  border-bottom: 3rpx solid #66789A;
   transform: rotate(45deg);
   flex: 0 0 auto;
 }
 
 .placeholder {
-  color: #94A0B8;
+  color: #8DA0BD;
 }
 
 .chip-grid {
@@ -346,9 +346,9 @@ textarea {
 }
 
 .select-chip.active {
-  border-color: rgba(63, 115, 246, 0.28);
-  background: rgba(63, 115, 246, 0.1);
-  color: #3F73F6;
+  border-color: rgba(47, 109, 255, 0.28);
+  background: rgba(47, 109, 255, 0.1);
+  color: #2F6DFF;
 }
 
 .field-error,
@@ -375,7 +375,7 @@ textarea {
   border: 1rpx dashed #b9c8dd;
   border-radius: 24rpx;
   background: #f8fbff;
-  color: #3F73F6;
+  color: #2F6DFF;
   font-size: 27rpx;
   font-weight: 600;
 }
@@ -398,7 +398,7 @@ textarea {
   padding: 0 18rpx;
   border-radius: 18rpx;
   background: #f3f7ff;
-  color: #102454;
+  color: #081B3A;
   font-size: 25rpx;
 }
 
@@ -436,14 +436,14 @@ textarea {
 }
 
 .check.checked {
-  border-color: #3F73F6;
-  background: #3F73F6;
+  border-color: #2F6DFF;
+  background: #2F6DFF;
 }
 
 .privacy-link {
   min-height: 64rpx;
   margin-top: 14rpx;
-  color: #3F73F6;
+  color: #2F6DFF;
   font-size: 25rpx;
   font-weight: 600;
   text-align: left;
@@ -456,10 +456,10 @@ textarea {
   gap: 16rpx;
   min-height: 92rpx;
   padding: 0 24rpx;
-  border: 1rpx solid #DCE5F5;
+  border: 1rpx solid #D9E6FA;
   border-radius: 24rpx;
   background: #f8fbff;
-  color: #102454;
+  color: #081B3A;
   font-size: 28rpx;
   font-weight: 600;
 }
@@ -468,8 +468,8 @@ textarea {
   flex: 0 0 auto;
   padding: 8rpx 16rpx;
   border-radius: 999rpx;
-  background: rgba(63, 115, 246, 0.1);
-  color: #3F73F6;
+  background: rgba(47, 109, 255, 0.1);
+  color: #2F6DFF;
   font-size: 23rpx;
 }
 

@@ -23,14 +23,14 @@
 }
 
 .process-index {
-  color: #3F73F6;
+  color: #2F6DFF;
   font-size: 24rpx;
   font-weight: 600;
 }
 
 .process-title {
   margin-top: 12rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 28rpx;
   font-weight: 600;
 }
@@ -47,7 +47,7 @@
 
 .service-title {
   margin: 20rpx 0 12rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 38rpx;
   font-weight: 600;
   line-height: 1.22;
@@ -74,19 +74,19 @@
 .action-panel {
   padding: 34rpx 30rpx;
   border-radius: 34rpx;
-  background: linear-gradient(135deg, rgba(63, 115, 246, 0.1), rgba(255, 255, 255, 0.96));
-  border: 1rpx solid rgba(63, 115, 246, 0.16);
+  background: linear-gradient(135deg, rgba(47, 109, 255, 0.1), rgba(255, 255, 255, 0.96));
+  border: 1rpx solid rgba(47, 109, 255, 0.16);
 }
 
 .action-title {
-  color: #102454;
+  color: #081B3A;
   font-size: 38rpx;
   font-weight: 600;
 }
 
 .action-copy {
   margin: 14rpx 0 24rpx;
-  color: #6B7A99;
+  color: #66789A;
   font-size: 28rpx;
   line-height: 1.75;
 }

@@ -3,22 +3,23 @@
 
   <view class="hero">
     <view class="hero-copy">
-      <text class="h1 hero-title">AI 会推荐你的品牌吗？</text>
-      <text class="lead hero-lead">1分钟提交资料，专业诊断即刻体验</text>
+      <text class="h1 hero-title">看看 AI 会不会
+推荐你的品牌</text>
+      <text class="lead hero-lead">1分钟查看品牌曝光、竞品表现和优化方向</text>
 
       <view class="hero-tips">
         <view class="tip">
           <image src="{{assets.icons.checkCircle}}" mode="aspectFit"></image>
-          <text>1 分钟提交资料</text>
+          <text>5大AI平台</text>
         </view>
         <view class="tip">
           <image src="{{assets.icons.checkCircle}}" mode="aspectFit"></image>
-          <text>无需理解 GEO 术语</text>
+          <text>品牌对比结果</text>
         </view>
       </view>
 
       <button class="primary-button hero-button" bindtap="goDiagnosis">
-        <text>立即免费诊断</text>
+        <text>免费检测</text>
         <image src="{{assets.icons.arrowRight}}" mode="aspectFit"></image>
       </button>
     </view>

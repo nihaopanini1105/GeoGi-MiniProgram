@@ -22,7 +22,7 @@
 .block-title {
   display: block;
   margin-bottom: 22rpx;
-  color: #102454;
+  color: #081B3A;
   font-size: 32rpx;
   font-weight: 600;
   line-height: 1.28;
@@ -34,14 +34,14 @@
   padding: 18rpx 20rpx;
   border-radius: 18rpx;
   background: #f5f8ff;
-  color: #3F73F6;
+  color: #2F6DFF;
   font-size: 25rpx;
   font-weight: 600;
   line-height: 1.35;
 }
 
 .muted-id {
-  color: #6B7A99;
+  color: #66789A;
 }
 
 .next-row,
@@ -56,7 +56,7 @@
 }
 
 .next-num {
-  color: #3F73F6;
+  color: #2F6DFF;
   font-weight: 600;
   flex: 0 0 auto;
 }
@@ -79,7 +79,7 @@
 }
 
 .arrow {
-  color: #3F73F6;
+  color: #2F6DFF;
   font-size: 42rpx;
 }
 
