@@ -13,33 +13,39 @@
     "pages/contact/contact"
   ],
   "window": {
-    "navigationBarTitleText": "GeoGi 几何智引",
-    "navigationBarBackgroundColor": "#F3F7FF",
-    "navigationBarTextStyle": "black",
-    "backgroundColor": "#F3F7FF",
+    "navigationBarTitleText": "GeoGi",
+    "navigationBarBackgroundColor": "#050B16",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#050B16",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
-    "color": "#66789A",
-    "selectedColor": "#2F6DFF",
-    "backgroundColor": "#ffffff",
-    "borderStyle": "white",
+    "color": "#71809B",
+    "selectedColor": "#4A8BFF",
+    "backgroundColor": "#07111F",
+    "borderStyle": "black",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "GeoGi",
+        "text": "首页",
         "iconPath": "assets/tabbar/home.png",
         "selectedIconPath": "assets/tabbar/home_selected.png"
       },
       {
+        "pagePath": "pages/diagnosis/diagnosis",
+        "text": "诊断",
+        "iconPath": "assets/tabbar/diagnosis.png",
+        "selectedIconPath": "assets/tabbar/diagnosis_selected.png"
+      },
+      {
         "pagePath": "pages/research/research",
-        "text": "知识库",
+        "text": "研究",
         "iconPath": "assets/tabbar/research.png",
         "selectedIconPath": "assets/tabbar/research_selected.png"
       },
       {
         "pagePath": "pages/mine/mine",
-        "text": "我的",
+        "text": "报告",
         "iconPath": "assets/tabbar/mine.png",
         "selectedIconPath": "assets/tabbar/mine_selected.png"
       }
