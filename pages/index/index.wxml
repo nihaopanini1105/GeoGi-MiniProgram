@@ -1,27 +1,23 @@
 <view class="page index-page">
   <view class="top-safe"></view>
 
-  <view class="brand-row">
-    <image class="brand-logo" src="{{assets.brand.logo}}" mode="widthFix"></image>
-    <text class="brand-badge">中国市场 GEO</text>
-  </view>
-
   <view class="hero card">
     <image class="hero-bg" src="{{assets.hero.background}}" mode="aspectFit"></image>
-    <view class="hero-glow hero-glow-a"></view>
-    <view class="hero-glow hero-glow-b"></view>
+    <view class="brand-row">
+      <image class="brand-logo" src="{{assets.brand.logo}}" mode="widthFix"></image>
+    </view>
 
     <view class="hero-copy">
       <text class="hero-kicker">GEO INTELLIGENCE FOR BRANDS</text>
-      <text class="hero-title">让品牌在 AI 时代\n被看见、被理解、被选择</text>
-      <text class="hero-lead">面向中国市场品牌的 GEO 诊断、优化方案与执行服务。</text>
+      <text class="hero-title">让品牌在 AI 时代
+被看见、被理解、被选择</text>
+      <text class="hero-lead">面向品牌的 GEO 诊断、优化方案与执行服务。</text>
 
       <view class="hero-actions">
         <button class="primary-button hero-primary" bindtap="goDiagnosis">
           <text>开始品牌初步诊断</text>
           <image src="{{assets.icons.arrowRight}}" mode="aspectFit"></image>
         </button>
-        <button class="secondary-button hero-secondary" bindtap="goReport">查看我的诊断报告</button>
       </view>
     </view>
   </view>
@@ -30,9 +26,8 @@
     <view class="section-row">
       <view>
         <text class="section-eyebrow">AI PLATFORMS</text>
-        <text class="section-title">覆盖中国主流 AI 平台</text>
+        <text class="section-title">覆盖主流 AI 平台</text>
       </view>
-      <text class="section-note">当前重点平台</text>
     </view>
 
     <view class="platform-card card">
@@ -49,53 +44,7 @@
 
   <view class="section services-section">
     <text class="section-eyebrow">WHAT GEOGI DOES</text>
-    <text class="section-title">从发现问题，到真正完成优化</text>
-
-    <view class="service-list">
-      <view class="service-card card" wx:for="{{services}}" wx:key="title" data-key="{{item.key}}" bindtap="openService">
-        <view class="service-icon">
-          <image src="{{item.icon}}" mode="aspectFit"></image>
-        </view>
-        <view class="service-copy">
-          <text class="service-title">{{item.title}}</text>
-          <text class="service-desc">{{item.desc}}</text>
-        </view>
-        <image class="service-arrow" src="{{assets.icons.arrowRight}}" mode="aspectFit"></image>
-      </view>
-    </view>
-  </view>
-
-  <view class="section research-section">
-    <view class="section-row research-head">
-      <view>
-        <text class="section-eyebrow">GEOGI RESEARCH</text>
-        <text class="section-title">最新研究</text>
-      </view>
-      <button class="text-button" bindtap="goResearch">查看全部</button>
-    </view>
-
-    <view class="research-list">
-      <view class="research-card card" wx:for="{{latestArticles}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
-        <view class="research-meta">
-          <text class="pill">{{item.category}}</text>
-          <text class="article-date">{{item.date}}</text>
-        </view>
-        <text class="article-title">{{item.title}}</text>
-        <view class="article-bottom">
-          <text>来自 GeoGi 研究中心</text>
-          <image src="{{assets.icons.arrowRight}}" mode="aspectFit"></image>
-        </view>
-      </view>
-    </view>
-  </view>
-
-  <view class="section contact-card card">
-    <view class="contact-copy-wrap">
-      <text class="contact-kicker">NEED HELP?</text>
-      <text class="contact-title">不确定品牌是否适合做 GEO？</text>
-      <text class="contact-copy">可以先和 GeoGi 顾问沟通你的行业、品牌和当前问题。</text>
-    </view>
-    <button class="secondary-button contact-button" bindtap="goContact">联系顾问</button>
+    <text class="section-title">从发现问题，到完成优化</text>
   </view>
 
   <view class="safe-bottom"></view>
