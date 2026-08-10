@@ -17,7 +17,9 @@ async function getResearchArticles(query) {
       return {
         ok: false,
         userMessage: `研究中心未完成配置：${missingEnv.join(', ')}`,
-        articles: []
+        items: [],
+        articles: [],
+        categories: ['全部']
       };
     }
 
@@ -28,19 +30,34 @@ async function getResearchArticles(query) {
       tableId: process.env.FEISHU_ARTICLES_TABLE_ID,
       pageSize: 100
     });
-    const category = query.category || '全部';
-    const limit = Math.min(Number(query.limit || 50), 100);
-    const articles = records
+
+    const published = records
       .map(normalizeArticle)
       .filter((article) => article.status === '已发布')
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+    const categories = ['全部'].concat(unique(published.map((article) => article.category).filter(Boolean)));
+    const category = text(query.category) || '全部';
+    const keyword = text(query.keyword || query.q).toLowerCase();
+    const limit = Math.min(Math.max(Number(query.limit || 50), 1), 100);
+
+    const articles = published
       .filter((article) => category === '全部' || article.category === category)
-      .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+      .filter((article) => {
+        if (!keyword) return true;
+        const haystack = [article.title, article.desc, article.keywords, article.category]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(keyword);
+      })
       .slice(0, limit);
 
     return {
       ok: true,
       items: articles,
       articles,
+      categories,
       page: 1,
       hasMore: false
     };
@@ -49,7 +66,9 @@ async function getResearchArticles(query) {
     return {
       ok: false,
       userMessage: '研究中心加载失败',
-      articles: []
+      items: [],
+      articles: [],
+      categories: ['全部']
     };
   }
 }
@@ -84,7 +103,7 @@ function normalizeArticle(record) {
     id: text(fields.文章ID || fields.slug || record.record_id),
     title: text(fields.标题),
     desc: text(fields.摘要),
-    category: text(fields.分类 || 'GEO 基础'),
+    category: text(fields.分类),
     date: text(fields.发布日期 || fields.更新时间),
     updatedAt: text(fields.更新时间 || fields.发布日期),
     author: text(fields.作者 || 'GeoGi Research'),
@@ -93,6 +112,7 @@ function normalizeArticle(record) {
     keywords: text(fields.关键词),
     source: text(fields.参考来源),
     canonicalUrl: text(fields.官网原文链接 || fields.canonical_url || fields.URL || fields.url),
+    cover: text(fields.封面图 || fields.cover || fields.cover_url),
     recordId: record.record_id
   };
 }
@@ -106,9 +126,14 @@ function text(value) {
     if (value.name) return String(value.name);
     if (value.value) return String(value.value);
     if (value.link) return String(value.link);
+    if (value.url) return String(value.url);
     return JSON.stringify(value);
   }
   return String(value || '').trim();
+}
+
+function unique(values) {
+  return Array.from(new Set(values));
 }
 
 module.exports = {
