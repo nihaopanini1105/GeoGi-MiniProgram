@@ -4,6 +4,8 @@ const {
 } = require('./feishu');
 
 const REPORT_PLATFORMS = ['豆包', '元宝', '千问', 'DeepSeek', 'Kimi'];
+const PUBLISHED_REPORT_STATUS = '已发布';
+const CONFIRMED_REVIEW_STATUS = '已确认';
 
 async function listCustomerProjects({ clientId }) {
   try {
@@ -32,12 +34,10 @@ async function listCustomerProjects({ clientId }) {
     const orders = leads.map((lead) => {
       const fields = lead.fields || {};
       const projectId = text(fields.项目编号);
-      const project = projectById.get(projectId);
-      const report = reportByProject.get(projectId);
       return normalizeOrder({
         lead,
-        project,
-        report
+        project: projectById.get(projectId),
+        report: reportByProject.get(projectId)
       });
     }).filter((item) => item.projectId);
 
@@ -50,7 +50,7 @@ async function listCustomerProjects({ clientId }) {
     };
   } catch (error) {
     console.error('listCustomerProjects failed', error);
-    return fail('订单读取失败，请稍后重试');
+    return fail('报告状态读取失败，请稍后重试');
   }
 }
 
@@ -58,7 +58,7 @@ async function getCustomerReport({ clientId, projectId }) {
   try {
     const cleanClientId = clean(clientId);
     const cleanProjectId = clean(projectId);
-    if (!cleanClientId || !cleanProjectId) return fail('缺少客户编号或项目编号');
+    if (!cleanClientId || !cleanProjectId) return fail('缺少客户编号或诊断编号');
 
     const tenantToken = await getTenantAccessToken();
     const lead = await findOne({
@@ -66,18 +66,28 @@ async function getCustomerReport({ clientId, projectId }) {
       tableId: process.env.FEISHU_LEADS_TABLE_ID,
       predicate: (fields) => text(fields.客户编号) === cleanClientId && text(fields.项目编号) === cleanProjectId
     });
-    if (!lead) return fail('没有找到这条诊断订单');
+    if (!lead) return fail('没有找到这条诊断记录');
 
     const project = await findOne({
       tenantToken,
       tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
-      predicate: (fields) => text(fields.项目编号) === cleanProjectId
+      predicate: (fields) => text(fields.项目编号) === cleanProjectId && text(fields.客户编号) === cleanClientId
     });
     const report = await findOne({
       tenantToken,
       tableId: process.env.FEISHU_REPORTS_TABLE_ID,
-      predicate: (fields) => text(fields.项目编号) === cleanProjectId
+      predicate: (fields) => text(fields.项目编号) === cleanProjectId && text(fields.客户编号) === cleanClientId
     });
+
+    const order = normalizeOrder({ lead, project, report });
+    if (!order.reportReady) {
+      return {
+        ok: true,
+        order,
+        report: buildPendingReport({ lead, project, report, order })
+      };
+    }
+
     const analyses = await listByProject({
       tenantToken,
       tableId: process.env.FEISHU_ANALYSIS_TABLE_ID,
@@ -91,7 +101,7 @@ async function getCustomerReport({ clientId, projectId }) {
 
     return {
       ok: true,
-      order: normalizeOrder({ lead, project, report }),
+      order,
       report: buildReportTemplate({
         lead,
         project,
@@ -111,8 +121,12 @@ function normalizeOrder({ lead, project, report }) {
   const projectFields = (project && project.fields) || {};
   const reportFields = (report && report.fields) || {};
   const reportStatus = text(reportFields.报告状态);
+  const reviewStatus = text(reportFields.审核状态);
   const projectStage = text(projectFields.当前阶段);
   const leadStatus = text(leadFields.当前状态);
+  const rawReportLink = text(reportFields.报告链接);
+  const reportReady = isPublishedReport({ reportStatus, reviewStatus, reportLink: rawReportLink });
+  const status = mapCustomerStatus({ reportReady, reportStatus, reviewStatus, projectStage, leadStatus });
 
   return {
     clientId: text(leadFields.客户编号),
@@ -122,13 +136,63 @@ function normalizeOrder({ lead, project, report }) {
     industry: text(leadFields.一级行业),
     segment: text(leadFields.细分业务),
     submittedAt: text(leadFields.提交时间) || text(projectFields.开始时间),
-    status: reportStatus || projectStage || leadStatus || '诊断准备中',
-    reportReady: Boolean(reportStatus && !reportStatus.includes('待补充')),
-    reportLink: text(reportFields.报告链接),
-    reportStatus,
-    projectStage,
-    nextAction: text(leadFields.下一步动作) || text(reportFields.下一步建议),
+    completedAt: reportReady ? (text(reportFields.更新时间) || text(projectFields.实际交付时间)) : '',
+    status,
+    reportReady,
+    reportLink: reportReady ? rawReportLink : '',
+    version: reportReady ? text(reportFields.报告版本) : '',
+    nextAction: customerNextAction(status),
     updatedAt: text(reportFields.更新时间) || text(projectFields.实际交付时间) || text(projectFields.开始时间)
+  };
+}
+
+function isPublishedReport({ reportStatus, reviewStatus, reportLink }) {
+  return reportStatus === PUBLISHED_REPORT_STATUS
+    && reviewStatus === CONFIRMED_REVIEW_STATUS
+    && Boolean(reportLink);
+}
+
+function mapCustomerStatus({ reportReady, reportStatus, reviewStatus, projectStage, leadStatus }) {
+  if (reportReady) return '报告已完成';
+  const combined = [reportStatus, reviewStatus, projectStage, leadStatus].filter(Boolean).join(' ');
+  if (/待补充|补充材料|资料不全/.test(combined)) return '资料待补充';
+  if (/报告初稿|报告待复核|报告审核|报告质检|待审核|待复核/.test(combined)) return '报告审核中';
+  if (/AI|检测|测试|品牌资料|品牌档案|诊断问题|诊断中|处理中|生成中/.test(combined)) return '诊断处理中';
+  return '已提交';
+}
+
+function customerNextAction(status) {
+  if (status === '资料待补充') return '请补充诊断所需资料，必要时联系 GeoGi 顾问。';
+  if (status === '诊断处理中') return 'GeoGi 正在完成品牌研究与 AI 平台检测。';
+  if (status === '报告审核中') return '诊断已完成，报告正在进行人工审核。';
+  if (status === '报告已完成') return '报告已发布，可查看完整诊断并预约报告解读。';
+  return 'GeoGi 已收到资料，将进入诊断处理流程。';
+}
+
+function buildPendingReport({ lead, project, report, order }) {
+  const leadFields = (lead && lead.fields) || {};
+  const projectFields = (project && project.fields) || {};
+  const reportFields = (report && report.fields) || {};
+  const brandName = text(leadFields.品牌名称) || text(projectFields.品牌名称) || text(reportFields.品牌名称);
+  return {
+    title: `${brandName || '品牌'} AI 可见度诊断`,
+    status: order.status,
+    version: '',
+    createdAt: '',
+    updatedAt: order.updatedAt,
+    summary: order.nextAction,
+    conclusion: '',
+    overallScore: 0,
+    dimensions: [],
+    platforms: [],
+    keyFindings: [],
+    recommendations: [],
+    scope: [
+      `品牌：${brandName || '待确认'}`,
+      `行业：${text(leadFields.一级行业) || '待确认'} / ${text(leadFields.细分业务) || '待确认'}`
+    ],
+    evidenceCount: 0,
+    reportLink: ''
   };
 }
 
@@ -146,11 +210,11 @@ function buildReportTemplate({ lead, project, report, analyses, tests }) {
 
   return {
     title: `${brandName || '品牌'} AI 可见度诊断报告`,
-    status: text(reportFields.报告状态) || text(projectFields.当前阶段) || '诊断中',
+    status: '报告已完成',
     version: text(reportFields.报告版本),
     createdAt: text(reportFields.创建时间),
     updatedAt: text(reportFields.更新时间),
-    summary: text(reportFields.交付说明) || '报告正在生成中，完成后会展示诊断摘要、平台表现、问题证据和优化建议。',
+    summary: text(reportFields.交付说明) || 'GeoGi 已完成本次品牌 AI 可见度诊断。',
     overallScore,
     conclusion: buildConclusion({ overallScore, issueSummary, brandName }),
     dimensions,
@@ -163,7 +227,7 @@ function buildReportTemplate({ lead, project, report, analyses, tests }) {
       `品牌：${brandName || '待确认'}`,
       `行业：${text(leadFields.一级行业) || '待确认'} / ${text(leadFields.细分业务) || '待确认'}`,
       `目标市场：${text(leadFields.主要市场) || '待确认'}`,
-      `测试平台：${platforms.map((item) => item.name).join('、') || '待测试'}`
+      `测试平台：${platforms.map((item) => item.name).join('、') || '待确认'}`
     ],
     evidenceCount: tests.length,
     reportLink: text(reportFields.报告链接)
@@ -172,21 +236,14 @@ function buildReportTemplate({ lead, project, report, analyses, tests }) {
 
 function buildDimensions(analyses) {
   const scores = analyses.map((record) => record.fields || {});
-  if (!scores.length) {
-    return [
-      { key: 'brand', name: '品牌识别', score: 0, level: '待检测', desc: '等待AI平台问答完成后生成。' },
-      { key: 'recommend', name: '主动推荐', score: 0, level: '待检测', desc: '等待AI平台问答完成后生成。' },
-      { key: 'accuracy', name: '信息准确', score: 0, level: '待检测', desc: '等待AI平台问答完成后生成。' },
-      { key: 'source', name: '信源可信', score: 0, level: '待检测', desc: '等待AI平台问答完成后生成。' }
-    ];
-  }
+  if (!scores.length) return [];
 
   return [
     {
       key: 'brand',
       name: '品牌识别',
       score: average(scores.map((item) => numberText(item.品牌识别得分))),
-      desc: 'AI是否能识别品牌主体、业务和适用场景。'
+      desc: 'AI 是否能识别品牌主体、业务和适用场景。'
     },
     {
       key: 'recommend',
@@ -198,7 +255,7 @@ function buildDimensions(analyses) {
       key: 'accuracy',
       name: '信息准确',
       score: average(scores.map((item) => numberText(item.信息准确得分))),
-      desc: '回答中关于业务、优势、市场和联系方式是否准确。'
+      desc: '回答中关于业务、优势、市场和品牌信息是否准确。'
     },
     {
       key: 'source',
@@ -215,14 +272,11 @@ function buildDimensions(analyses) {
 function buildPlatforms({ analyses, tests, brandName }) {
   if (!tests.length && !analyses.length) return [];
 
-  const analysisByKey = new Map();
   const analysisByPlatform = new Map();
   const analysesByPlatform = new Map();
   analyses.forEach((record) => {
     const fields = record.fields || {};
     const platform = canonicalPlatform(text(fields.平台));
-    const questionId = text(fields.问题编号);
-    if (platform && questionId) analysisByKey.set(`${platform}:${questionId}`, fields);
     if (platform && !analysisByPlatform.has(platform)) analysisByPlatform.set(platform, fields);
     if (platform) {
       if (!analysesByPlatform.has(platform)) analysesByPlatform.set(platform, []);
@@ -246,23 +300,22 @@ function buildPlatforms({ analyses, tests, brandName }) {
     const mentionedCount = platformTests.filter((fields) => text(fields.是否提到品牌) === '是').length;
     const recommendedCount = platformTests.filter((fields) => text(fields.是否主动推荐) === '是').length;
     const answer = text(representative.回答原文);
-    const questionId = text(representative.问题编号);
 
     return {
       name: platform,
-      questionId,
-      question: text(representative.提问内容) || '该平台检测问题待补充',
+      questionId: text(representative.问题编号),
+      question: text(representative.提问内容) || '检测问题未展示',
       answerPreview: answer.slice(0, 260),
-      mentioned: `${mentionedCount}/${platformTests.length || 6}`,
-      recommended: `${recommendedCount}/${platformTests.length || 6}`,
+      mentioned: `${mentionedCount}/${platformTests.length || 0}`,
+      recommended: `${recommendedCount}/${platformTests.length || 0}`,
       accurate: average(platformTests.map((fields) => yesScore(fields.信息是否准确))) ? '部分准确' : '待复核',
       competitors: firstValue(platformTests, '提到的竞品') || '未发现明显竞品压制',
-      issue: text(analysis.核心问题) || (answer.includes(brandName) ? 'AI已提到品牌，需继续复核推荐理由。' : 'AI回答中品牌可见度不足。'),
+      issue: text(analysis.核心问题) || (answer.includes(brandName) ? 'AI 已提到品牌，需结合推荐理由继续分析。' : 'AI 回答中品牌可见度不足。'),
       advice: text(analysis.优化建议),
       link: firstValue(platformTests, '证据截图/链接') || firstValue(platformTests, '引用或信源'),
-      status: platformTests.length ? `问答 ${platformTests.length}/6 条` : '待补充平台问答'
+      status: platformTests.length ? `已检测 ${platformTests.length} 条` : '无有效检测记录'
     };
-  });
+  }).filter((item) => item.status !== '无有效检测记录');
 }
 
 function buildIssueSummary({ analyses, brandName }) {
@@ -270,14 +323,8 @@ function buildIssueSummary({ analyses, brandName }) {
   const recommendations = analyses.map((record) => text(record.fields && record.fields.优化建议)).filter(Boolean);
   if (!keyFindings.length) {
     return {
-      keyFindings: [
-        '诊断报告尚未生成，当前订单仍处于资料审核或AI平台问答阶段。',
-        '报告完成后，这里会展示品牌识别、主动推荐、信息准确和信源可信四类结论。'
-      ],
-      recommendations: [
-        `优先补充${brandName || '品牌'}官网、品牌介绍、客户案例和可信第三方信源。`,
-        '完成五个平台问答后，再进行正式报告复核。'
-      ]
+      keyFindings: ['正式报告已发布，具体结论请以 PDF 报告为准。'],
+      recommendations: [`结合 ${brandName || '品牌'} 当前诊断结果制定后续 GEO 优化计划。`]
     };
   }
   return {
@@ -287,10 +334,10 @@ function buildIssueSummary({ analyses, brandName }) {
 }
 
 function buildConclusion({ overallScore, issueSummary, brandName }) {
-  if (!overallScore) return `${brandName || '品牌'}的诊断报告正在准备中。`;
-  if (overallScore >= 75) return `${brandName || '品牌'}在AI平台已有一定识别基础，下一步重点是强化可信信源和推荐理由。`;
+  if (!overallScore) return `${brandName || '品牌'}的正式诊断报告已发布，请查看报告正文。`;
+  if (overallScore >= 75) return `${brandName || '品牌'}在 AI 平台已有一定识别基础，下一步重点是强化可信信源和推荐理由。`;
   if (overallScore >= 50) return `${brandName || '品牌'}已有部分平台识别，但主动推荐和信源支撑仍需要补强。`;
-  return `${brandName || '品牌'}当前AI可见度偏弱，需要优先建设品牌实体信息、业务解释和第三方可信来源。`;
+  return `${brandName || '品牌'}当前 AI 可见度偏弱，需要优先建设品牌实体信息、业务解释和第三方可信来源。`;
 }
 
 async function listByClient({ tenantToken, tableId, clientId }) {
