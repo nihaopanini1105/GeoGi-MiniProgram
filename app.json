@@ -13,17 +13,17 @@
     "pages/contact/contact"
   ],
   "window": {
-    "navigationBarTitleText": "GeoGi",
-    "navigationBarBackgroundColor": "#050B16",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#050B16",
-    "backgroundTextStyle": "dark"
+    "navigationBarTitleText": "GeoGi 几何智引",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F7F9FC",
+    "backgroundTextStyle": "light"
   },
   "tabBar": {
-    "color": "#71809B",
-    "selectedColor": "#4A8BFF",
-    "backgroundColor": "#07111F",
-    "borderStyle": "black",
+    "color": "#7B879B",
+    "selectedColor": "#176BFF",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",
