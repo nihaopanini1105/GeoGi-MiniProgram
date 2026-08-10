@@ -1,6 +1,5 @@
 const { platforms } = require('../../config/platforms');
 const { assets } = require('../../config/assets');
-const { track } = require('../../utils/analytics');
 
 Page({
   data: {
@@ -29,7 +28,7 @@ Page({
     latestArticles: [
       {
         id: 'what-is-geo',
-        category: 'GEO基础',
+        category: 'GEO 基础',
         title: '什么是 GEO：AI 搜索时代品牌如何被看见',
         date: '2026-07-21'
       },
@@ -43,16 +42,26 @@ Page({
   },
 
   onShow() {
-    track('home_view');
+    this.safeTrack('home_view');
+  },
+
+  safeTrack(eventName, params) {
+    try {
+      const { track } = require('../../utils/analytics');
+      track(eventName, params || {});
+    } catch (error) {
+      console.warn('analytics unavailable', error);
+    }
   },
 
   goDiagnosis() {
-    track('diagnosis_cta_click', { position: 'home' });
+    this.safeTrack('diagnosis_cta_click', { position: 'home' });
+    wx.setStorageSync('geogi_start_new_diagnosis', true);
     wx.switchTab({ url: '/pages/diagnosis/diagnosis' });
   },
 
   goReport() {
-    track('report_cta_click', { position: 'home' });
+    this.safeTrack('report_cta_click', { position: 'home' });
     wx.switchTab({ url: '/pages/mine/mine' });
   },
 
@@ -66,7 +75,7 @@ Page({
 
   openService(event) {
     const key = event.currentTarget.dataset.key;
-    track('service_card_click', { key });
+    this.safeTrack('service_card_click', { key });
     if (key === 'diagnosis') {
       this.goDiagnosis();
     }
@@ -74,7 +83,7 @@ Page({
 
   openArticle(event) {
     const id = event.currentTarget.dataset.id;
-    track('research_card_click', { article_id: id });
+    this.safeTrack('research_card_click', { article_id: id });
     wx.switchTab({ url: '/pages/research/research' });
   }
 });
