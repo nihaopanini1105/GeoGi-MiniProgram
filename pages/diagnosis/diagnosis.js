@@ -41,26 +41,18 @@ Page({
     marketIndex: 0,
     assets,
     platforms: platforms.filter((item) => item.enabled),
-    checks: [
-      '品牌是否被 AI 识别',
-      '是否被主动推荐',
-      '信息是否准确完整',
-      '哪些竞品被优先推荐',
-      '内容和信源缺口'
-    ],
-    deliveries: ['品牌基础研究', '跨平台检测证据', '诊断结论', '优化建议'],
     industries: ['旅游与文旅', '企业服务', '软件与互联网', '消费品与零售', '教育培训', '医疗健康', '其他行业'],
     industrySegments: {
-      '旅游与文旅': ['定制旅行', '目的地服务', '景区/乐园', '酒店民宿', '文旅营销', '研学/亲子游', '其他文旅服务'],
+      '旅游与文旅': ['旅行社/定制旅行', '机票/商旅服务', '酒店/住宿', '目的地服务', '研学/亲子游', '文旅营销', '其他旅游服务'],
       '企业服务': ['品牌营销', '咨询服务', '人力资源', '财税法务', '销售获客', '企业培训', '其他企业服务'],
       '软件与互联网': ['SaaS 软件', 'AI 工具', '数据服务', '电商平台', '内容社区', '开发者服务', '其他软件互联网'],
       '消费品与零售': ['食品饮料', '美妆个护', '服饰配饰', '母婴亲子', '家居生活', '线下零售', '其他消费零售'],
       '教育培训': ['职业教育', '企业培训', 'K12/素质教育', '留学语培', '知识付费', '教育科技', '其他教育培训'],
-      '医疗健康': ['健康管理', '医疗服务', '医美口腔', '营养保健', '康复护理', '医疗科技', '其他医疗健康'],
+      '医疗健康': ['医美', '口腔', '健康管理', '医疗服务', '康复护理', '医疗科技', '其他医疗健康'],
       '其他行业': ['本地生活', '专业服务', '制造业', '房地产/空间', '公益/机构', '其他业务']
     },
-    segmentOptions: ['定制旅行', '目的地服务', '景区/乐园', '酒店民宿', '文旅营销', '研学/亲子游', '其他文旅服务'],
-    marketOptions: ['全国市场', '本地市场', '全球市场', '海外市场', 'B2B 企业客户', 'C 端消费者'],
+    segmentOptions: ['旅行社/定制旅行', '机票/商旅服务', '酒店/住宿', '目的地服务', '研学/亲子游', '文旅营销', '其他旅游服务'],
+    marketOptions: ['全国市场', '区域市场', '本地市场', 'B2B 企业客户', 'C 端消费者'],
     goalOptions: [
       { label: 'AI 是否会主动推荐我的品牌', selected: false },
       { label: '检查品牌信息是否准确', selected: false },
@@ -89,12 +81,13 @@ Page({
     const draft = wx.getStorageSync(draftKey);
     if (draft) {
       const form = this.normalizeForm({ ...initialForm, ...draft });
+      const segmentOptions = this.getSegmentOptions(form.industry);
       this.setData({
         started: Boolean(options.start) || this.hasDraftContent(form),
         form,
         industryIndex: this.getOptionIndex(this.data.industries, form.industry),
-        segmentOptions: this.getSegmentOptions(form.industry),
-        segmentIndex: this.getOptionIndex(this.getSegmentOptions(form.industry), form.segment),
+        segmentOptions,
+        segmentIndex: this.getOptionIndex(segmentOptions, form.segment),
         marketIndex: this.getOptionIndex(this.data.marketOptions, form.targetMarket[0]),
         goalOptions: this.syncGoalOptions(form.goals)
       });
@@ -186,8 +179,7 @@ Page({
     const index = Number(event.detail.value);
     const industry = this.data.industries[index];
     const segmentOptions = this.getSegmentOptions(industry);
-    this.setData({ industryIndex: index });
-    this.setData({ segmentOptions, segmentIndex: 0 });
+    this.setData({ industryIndex: index, segmentOptions, segmentIndex: 0 });
     this.setFormValue('industry', industry);
     this.setFormValue('segment', '');
   },
@@ -283,12 +275,7 @@ Page({
   setFormValue(key, value) {
     const fieldErrors = { ...this.data.fieldErrors };
     delete fieldErrors[key];
-
-    const form = this.normalizeForm({
-      ...this.data.form,
-      [key]: value
-    });
-
+    const form = this.normalizeForm({ ...this.data.form, [key]: value });
     this.setData({ form, fieldErrors });
     wx.setStorageSync(draftKey, form);
   },
@@ -326,6 +313,7 @@ Page({
     if (step === 1) {
       if (!form.brandName) errors.brandName = '请填写品牌名称';
       if (!form.industry) errors.industry = '请选择所属行业';
+      if (!form.segment) errors.segment = '请选择细分领域';
     }
 
     if (step === 2) {
@@ -352,7 +340,7 @@ Page({
     if (!isApiConfigured()) {
       this.setData({
         fieldErrors: {
-          submit: '请先把 config/api.js 里的服务器域名换成正式 HTTPS 地址'
+          submit: '诊断服务暂未连接，请稍后再试'
         }
       });
       return;
@@ -378,26 +366,30 @@ Page({
         throw new Error(result && result.userMessage ? result.userMessage : '提交失败，请稍后重试');
       }
 
-      wx.setStorageSync('geogi_last_submission', {
+      const submission = {
         clientId: result.clientId,
         projectId: result.projectId,
-        status: result.status,
+        status: '已提交',
+        internalStatus: result.status || '',
         submittedAt: result.submittedAt || submittedAt,
-        notificationStatus: result.notificationStatus,
+        notificationStatus: result.notificationStatus || '',
         recordUrl: result.recordUrl || ''
-      });
+      };
+      wx.setStorageSync('geogi_last_submission', submission);
       this.saveOrderSnapshot({
         clientId: result.clientId,
         projectId: result.projectId,
         brandName: form.brandName,
         industry: form.industry,
         segment: form.segment,
-        status: result.status,
+        status: '已提交',
+        internalStatus: result.status || '',
         submittedAt: result.submittedAt || submittedAt
       });
       wx.removeStorageSync(draftKey);
       track('form_submit_success', {
         client_id: result.clientId,
+        project_id: result.projectId,
         industry: form.industry
       });
       this.resetForm();
@@ -442,9 +434,7 @@ Page({
     const url = '/pages/submit-success/submit-success';
     wx.navigateTo({
       url,
-      fail: () => {
-        wx.reLaunch({ url });
-      }
+      fail: () => wx.reLaunch({ url })
     });
   },
 
@@ -498,10 +488,7 @@ Page({
   },
 
   scrollToTop() {
-    wx.pageScrollTo({
-      scrollTop: 0,
-      duration: 180
-    });
+    wx.pageScrollTo({ scrollTop: 0, duration: 180 });
   },
 
   goPrivacy() {
@@ -513,6 +500,6 @@ Page({
   },
 
   goReport() {
-    wx.navigateTo({ url: '/pages/sample-report/sample-report' });
+    wx.switchTab({ url: '/pages/mine/mine' });
   }
 });
