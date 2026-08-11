@@ -21,9 +21,7 @@ const storage = multer.diskStorage({
 
 const uploadMiddleware = multer({
   storage,
-  limits: {
-    fileSize: 20 * 1024 * 1024
-  },
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter(_req, file, cb) {
     const ext = extension(file.originalname);
     if (!allowedExtensions.has(ext)) {
@@ -35,14 +33,11 @@ const uploadMiddleware = multer({
 }).single('file');
 
 function normalizeUpload(file) {
-  const relativePath = path.relative(uploadRoot, file.path).split(path.sep).join('/');
-  const publicBaseUrl = process.env.PUBLIC_UPLOAD_BASE_URL || '';
   return {
     ok: true,
     fileId: path.basename(file.filename, path.extname(file.filename)),
     name: file.originalname,
-    size: file.size,
-    url: publicBaseUrl ? `${publicBaseUrl.replace(/\/$/, '')}/${relativePath}` : `/uploads/${relativePath}`
+    size: file.size
   };
 }
 
