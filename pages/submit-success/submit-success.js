@@ -4,33 +4,25 @@ Page({
   data: {
     assets,
     submission: {},
-    submittedAtText: '',
     nextSteps: [
       {
-        title: '建立品牌画像',
-        desc: '整理品牌基础信息、业务定位和客户场景。'
+        title: '资料核对',
+        desc: '核对品牌、业务与联系人信息是否完整。'
       },
       {
-        title: '设计行业 AI 问题集',
-        desc: '结合行业和细分领域构建诊断问题。'
+        title: '诊断分析',
+        desc: '结合品牌资料与主流 AI 平台表现完成诊断。'
       },
       {
-        title: '检测中国主流 AI 平台表现',
-        desc: '分析品牌识别、推荐和信息准确情况。'
-      },
-      {
-        title: '生成 GEO 诊断报告',
-        desc: '完成审核后进入报告中心查看。'
+        title: '报告发布',
+        desc: '完成审核后，正式报告会出现在「报告」页面。'
       }
     ]
   },
 
   onShow() {
     const submission = wx.getStorageSync('geogi_last_submission') || {};
-    this.setData({
-      submission,
-      submittedAtText: this.formatDate(submission.submittedAt)
-    });
+    this.setData({ submission });
   },
 
   previewWecomQr() {
@@ -38,17 +30,6 @@ Page({
       current: this.data.assets.contact.wecomQr,
       urls: [this.data.assets.contact.wecomQr]
     });
-  },
-
-  formatDate(value) {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-  },
-
-  goContact() {
-    wx.navigateTo({ url: '/pages/contact/contact' });
   },
 
   goReport() {
