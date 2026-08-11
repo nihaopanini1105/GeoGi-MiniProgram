@@ -2,7 +2,14 @@
   <view class="contact-hero card">
     <text class="eyebrow">CONTACT GEOGI</text>
     <text class="h1">联系 GeoGi 顾问</text>
-    <text class="lead">需要确认诊断范围、资料填写方式或报告解读，可以通过已确认的官方渠道联系 GeoGi。</text>
+    <text class="lead">需要确认诊断范围、资料填写方式或报告解读，可以通过官方渠道联系 GeoGi。</text>
+  </view>
+
+  <view class="section info-card card">
+    <text class="info-title">企业微信顾问</text>
+    <text class="info-hint">扫码添加 GeoGi 顾问，获取诊断咨询与报告解读服务。</text>
+    <image class="wecom-qr" src="{{assets.contact.wecomQr}}" mode="aspectFit" bindtap="previewWecomQr"></image>
+    <text class="qr-tip">点击二维码放大查看</text>
   </view>
 
   <view class="section info-card card">
