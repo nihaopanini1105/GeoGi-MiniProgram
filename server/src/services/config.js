@@ -9,13 +9,13 @@ function getConfig() {
       { key: 'kimi', name: 'Kimi', enabled: true }
     ],
     services: [
-      { key: 'quick-check', name: 'AI 可见度快检' },
-      { key: 'diagnosis', name: 'GEO 全景诊断' },
-      { key: 'subscription', name: '订阅优化' }
+      { key: 'diagnosis', name: 'GEO诊断' },
+      { key: 'plan', name: 'GEO优化方案' },
+      { key: 'execution', name: 'GEO优化执行' }
     ],
     contact: {
-      wechatId: process.env.CONTACT_WECHAT_ID || '',
-      workHours: process.env.CONTACT_WORK_HOURS || '工作日 10:00-19:00'
+      email: 'geogi@geogi.cn',
+      website: 'www.geogi.cn'
     }
   };
 }
