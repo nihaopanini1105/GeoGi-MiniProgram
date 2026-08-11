@@ -2,8 +2,8 @@
   <view class="success-hero card">
     <view class="success-mark">✓</view>
     <text class="success-kicker">DIAGNOSIS SUBMITTED</text>
-    <text class="success-title">品牌诊断申请已提交</text>
-    <text class="success-copy">GeoGi 已收到你的品牌资料。团队将完成品牌研究、AI 平台检测和诊断分析，并在报告完成后通知你。</text>
+    <text class="success-title">诊断申请已提交</text>
+    <text class="success-copy">我们已收到你的品牌资料。GeoGi 将继续进行资料核对与诊断分析，状态更新会显示在「报告」中。</text>
 
     <view class="status-row">
       <view>
@@ -11,27 +11,6 @@
         <text class="status-value">{{submission.status || '已提交'}}</text>
       </view>
       <view class="status-dot"></view>
-    </view>
-  </view>
-
-  <view class="section identity-card card">
-    <text class="section-kicker">YOUR DIAGNOSIS</text>
-    <text class="section-title">请保存你的诊断编号</text>
-    <text class="identity-tip">后续查询诊断进度、查看报告和联系顾问时会使用该编号。</text>
-
-    <view class="identity-list">
-      <view class="identity-row" wx:if="{{submission.clientId}}">
-        <text class="identity-label">客户编号</text>
-        <text class="identity-value">{{submission.clientId}}</text>
-      </view>
-      <view class="identity-row" wx:if="{{submission.projectId}}">
-        <text class="identity-label">诊断编号</text>
-        <text class="identity-value project-id">{{submission.projectId}}</text>
-      </view>
-      <view class="identity-row" wx:if="{{submittedAtText}}">
-        <text class="identity-label">提交时间</text>
-        <text class="identity-value">{{submittedAtText}}</text>
-      </view>
     </view>
   </view>
 
@@ -51,18 +30,16 @@
   </view>
 
   <view class="section info-card card">
-    <text class="section-title">添加 GeoGi 顾问</text>
-    <text class="info-hint">如需补充资料或了解诊断进度，可以通过企业微信联系。</text>
+    <text class="section-title">获取 GEO 优化建议</text>
+    <text class="info-hint">添加 GeoGi 顾问，可补充资料，并在报告完成后沟通报告解读与后续优化。</text>
     <image class="wecom-qr" src="{{assets.contact.wecomQr}}" mode="aspectFit" bindtap="previewWecomQr"></image>
     <text class="qr-tip">点击二维码放大查看</text>
   </view>
 
   <view class="section report-card card">
     <text class="report-title">报告完成后会出现在「报告」页面</text>
-    <text class="report-copy">GeoGi 完成诊断审核后，你可以查看完整分析结果。</text>
+    <text class="report-copy">完成审核后，你可以在这里查看正式诊断结果。</text>
     <button class="primary-button full-button" bindtap="goReport">查看诊断状态</button>
     <button class="secondary-button full-button secondary-action" bindtap="goHome">返回首页</button>
   </view>
-
-  <navigator class="consult-entry" url="/pages/contact/contact">有问题？联系 GeoGi 顾问</navigator>
 </view>
