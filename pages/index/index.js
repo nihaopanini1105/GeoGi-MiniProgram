@@ -16,27 +16,13 @@ Page({
         key: 'optimization',
         icon: assets.icons.optimization,
         title: 'GEO 优化方案',
-        desc: '分析品牌问题根因，制定行业和场景化优化方向。'
+        desc: '分析问题根因，形成品牌、内容与信源的优化优先级。'
       },
       {
         key: 'execution',
         icon: assets.icons.research,
         title: 'GEO 优化执行',
-        desc: '通过内容、信源和品牌信息治理持续提升 AI 表现。'
-      }
-    ],
-    latestArticles: [
-      {
-        id: 'what-is-geo',
-        category: 'GEO 基础',
-        title: '什么是 GEO：AI 搜索时代品牌如何被看见',
-        date: '2026-07-21'
-      },
-      {
-        id: 'brand-entity',
-        category: '品牌诊断',
-        title: '品牌实体画像：让 AI 正确认识你的品牌',
-        date: '2026-07-21'
+        desc: '围绕内容、信源和品牌信息治理推进具体优化工作。'
       }
     ]
   },
@@ -60,16 +46,13 @@ Page({
     wx.switchTab({ url: '/pages/diagnosis/diagnosis' });
   },
 
-  goReport() {
-    this.safeTrack('report_cta_click', { position: 'home' });
-    wx.switchTab({ url: '/pages/mine/mine' });
-  },
-
   goResearch() {
+    this.safeTrack('research_cta_click', { position: 'home' });
     wx.switchTab({ url: '/pages/research/research' });
   },
 
   goContact() {
+    this.safeTrack('contact_advisor_click', { page: 'home', position: 'home_bottom' });
     wx.navigateTo({ url: '/pages/contact/contact' });
   },
 
@@ -78,12 +61,8 @@ Page({
     this.safeTrack('service_card_click', { key });
     if (key === 'diagnosis') {
       this.goDiagnosis();
+      return;
     }
-  },
-
-  openArticle(event) {
-    const id = event.currentTarget.dataset.id;
-    this.safeTrack('research_card_click', { article_id: id });
-    wx.switchTab({ url: '/pages/research/research' });
+    wx.navigateTo({ url: '/pages/services/services' });
   }
 });
