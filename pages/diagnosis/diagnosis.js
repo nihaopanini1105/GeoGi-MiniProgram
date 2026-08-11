@@ -54,11 +54,12 @@ Page({
     segmentOptions: ['旅行社/定制旅行', '机票/商旅服务', '酒店/住宿', '目的地服务', '研学/亲子游', '文旅营销', '其他旅游服务'],
     marketOptions: ['全国市场', '区域市场', '本地市场', 'B2B 企业客户', 'C 端消费者'],
     goalOptions: [
-      { label: 'AI 是否会主动推荐我的品牌', selected: false },
-      { label: '检查品牌信息是否准确', selected: false },
-      { label: '比较竞品推荐情况', selected: false },
-      { label: '找到内容和信源缺口', selected: false },
-      { label: '准备做 GEO 优化', selected: false }
+      { label: 'AI 为什么没提到我的品牌', selected: false },
+      { label: '为什么 AI 更常推荐竞品', selected: false },
+      { label: 'AI 对我的品牌理解是否准确', selected: false },
+      { label: '品牌信息是否存在过期或错误', selected: false },
+      { label: '想了解多个 AI 平台的表现差异', selected: false },
+      { label: '准备开始 GEO 优化', selected: false }
     ]
   },
 
@@ -74,7 +75,7 @@ Page({
       wx.removeStorageSync('geogi_start_new_diagnosis');
       wx.removeStorageSync(draftKey);
       wx.removeStorageSync('geogi_last_submission');
-      if (phoneAuth.phoneNumber) this.startForm({ forceNew: true });
+      this.startForm({ forceNew: true });
       return;
     }
 
@@ -91,7 +92,7 @@ Page({
         marketIndex: this.getOptionIndex(this.data.marketOptions, form.targetMarket[0]),
         goalOptions: this.syncGoalOptions(form.goals)
       });
-    } else if (options.start && this.data.phoneAuthorized) {
+    } else if (options.start) {
       this.startForm();
     }
   },
@@ -101,18 +102,18 @@ Page({
     wx.removeStorageSync('geogi_start_new_diagnosis');
     wx.removeStorageSync(draftKey);
     wx.removeStorageSync('geogi_last_submission');
-    if (this.data.phoneAuthorized) this.startForm({ forceNew: true });
+    this.startForm({ forceNew: true });
   },
 
   async onGetPhoneNumber(event) {
     const detail = event.detail || {};
     if (!/ok/i.test(detail.errMsg || '') || !detail.code) {
-      this.setData({ phoneAuthError: '需要先授权手机号，才能提交正式诊断申请。' });
+      this.setData({ phoneAuthError: '提交诊断需要手机号，用于确认报告归属和同步处理状态。' });
       return;
     }
 
     if (!isApiConfigured()) {
-      this.setData({ phoneAuthError: '请先配置服务器 HTTPS 地址，再进行手机号授权。' });
+      this.setData({ phoneAuthError: '手机号授权服务暂不可用，请稍后再试或联系 GeoGi 顾问。' });
       return;
     }
 
@@ -135,7 +136,7 @@ Page({
         phoneAuthError: ''
       });
       this.setFormValue('contactMethod', phoneAuth.phoneNumber);
-      this.startForm({ forceNew: true });
+      wx.showToast({ title: '手机号已授权', icon: 'success' });
     } catch (error) {
       this.setData({
         phoneAuthError: error && error.message ? error.message : '手机号授权失败，请稍后重试'
@@ -318,9 +319,9 @@ Page({
 
     if (step === 2) {
       if (!form.offerings) errors.offerings = '请填写核心产品或服务';
-      if (!form.audiences) errors.audiences = '请填写主要客户与需求';
+      if (!form.audiences) errors.audiences = '请填写目标客户与主要需求';
       if (!form.targetMarket.length) errors.targetMarket = '请选择主要市场';
-      if (this.splitCompetitors(form.competitors).length > 3) errors.competitors = '最多填写 3 个竞品';
+      if (this.splitCompetitors(form.competitors).length > 3) errors.competitors = '最多填写 3 个竞争品牌';
       if (!form.goals.length) errors.goals = '请选择本次诊断目标';
     }
 
@@ -370,10 +371,7 @@ Page({
         clientId: result.clientId,
         projectId: result.projectId,
         status: '已提交',
-        internalStatus: result.status || '',
-        submittedAt: result.submittedAt || submittedAt,
-        notificationStatus: result.notificationStatus || '',
-        recordUrl: result.recordUrl || ''
+        submittedAt: result.submittedAt || submittedAt
       };
       wx.setStorageSync('geogi_last_submission', submission);
       this.saveOrderSnapshot({
@@ -383,7 +381,6 @@ Page({
         industry: form.industry,
         segment: form.segment,
         status: '已提交',
-        internalStatus: result.status || '',
         submittedAt: result.submittedAt || submittedAt
       });
       wx.removeStorageSync(draftKey);
