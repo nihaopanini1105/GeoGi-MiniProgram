@@ -5,7 +5,7 @@ async function verifyCustomerAccess({ phoneNumber, clientId, projectId }) {
   const phone = normalizePhone(phoneNumber);
   const cleanClientId = clean(clientId);
   const cleanProjectId = clean(projectId);
-  if (!phone || !cleanClientId) {
+  if (!phone || (!cleanClientId && !cleanProjectId)) {
     return { ok: false, userMessage: '客户身份验证失败' };
   }
 
@@ -27,7 +27,7 @@ async function verifyCustomerAccess({ phoneNumber, clientId, projectId }) {
 
     const matched = records.find((record) => {
       const fields = (record && record.fields) || {};
-      if (text(fields.客户编号) !== cleanClientId) return false;
+      if (cleanClientId && text(fields.客户编号) !== cleanClientId) return false;
       if (cleanProjectId && text(fields.项目编号) !== cleanProjectId) return false;
       return normalizePhone(text(fields.联系方式)) === phone;
     });
