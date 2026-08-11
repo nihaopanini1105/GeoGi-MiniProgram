@@ -1,33 +1,41 @@
 <view class="page">
-  <view class="article-hero card">
-    <text class="eyebrow">{{article.category}}</text>
-    <text class="h1">{{article.title}}</text>
-    <text class="lead">{{article.desc}}</text>
-    <text class="article-meta">GeoGi Research · {{article.date}}</text>
+  <view wx:if="{{loading}}" class="article-hero card state-card">
+    <text class="eyebrow">GEOGI RESEARCH</text>
+    <text class="h1">正在同步研究内容</text>
+    <text class="lead">请稍候。</text>
   </view>
 
-  <view class="article-body card">
-    <view class="article-section" wx:for="{{article.sections}}" wx:key="body">
-      <text wx:if="{{item.title}}" class="section-title">{{item.title}}</text>
-      <text class="body">{{item.body}}</text>
-    </view>
-    <view class="source-box">
-      <text class="source-title">来源</text>
-      <text class="body">研究中心内容以 GeoGi 官网为唯一内容源；小程序通过服务器同步标题、摘要、日期和原文链接。</text>
-      <text wx:if="{{article.canonicalUrl}}" class="source-link">{{article.canonicalUrl}}</text>
-    </view>
+  <view wx:elif="{{error}}" class="article-hero card state-card">
+    <text class="eyebrow">GEOGI RESEARCH</text>
+    <text class="h1">暂时无法打开文章</text>
+    <text class="lead">{{error}}</text>
+    <button class="primary-button full-button" bindtap="refresh">重新读取</button>
+    <button class="secondary-button full-button secondary-action" bindtap="goResearch">返回研究中心</button>
   </view>
 
-  <view class="section related-card card">
-    <text class="related-title">相关文章</text>
-    <view class="related-row" wx:for="{{related}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
-      <text>{{item.title}}</text>
-      <text class="arrow">›</text>
+  <block wx:else>
+    <view class="article-hero card">
+      <text class="eyebrow">{{article.category}}</text>
+      <text class="h1">{{article.title}}</text>
+      <text class="lead">{{article.desc}}</text>
+      <text class="article-meta">{{article.author || 'GeoGi Research'}} · {{article.date}}</text>
     </view>
-  </view>
 
-  <view class="section cta-panel">
-    <text class="cta-title">想知道你的品牌是否进入 AI 答案？</text>
-    <button class="primary-button full-button" bindtap="goDiagnosis">申请品牌诊断</button>
-  </view>
+    <view class="article-body card">
+      <view class="article-section" wx:for="{{article.sections}}" wx:key="body">
+        <text wx:if="{{item.title}}" class="section-title">{{item.title}}</text>
+        <text class="body">{{item.body}}</text>
+      </view>
+      <view class="source-box">
+        <text class="source-title">内容来源</text>
+        <text class="body">研究中心内容以 GeoGi 官网研究资产为统一内容源，小程序通过服务端同步。</text>
+        <text wx:if="{{article.canonicalUrl}}" class="source-link">{{article.canonicalUrl}}</text>
+      </view>
+    </view>
+
+    <view class="section cta-panel">
+      <text class="cta-title">想了解品牌在 AI 答案中的真实表现？</text>
+      <button class="primary-button full-button" bindtap="goDiagnosis">开始品牌初步诊断</button>
+    </view>
+  </block>
 </view>
