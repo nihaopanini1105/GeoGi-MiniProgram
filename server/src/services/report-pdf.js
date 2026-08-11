@@ -10,13 +10,20 @@ function getReportRoot() {
   return REPORT_DIR;
 }
 
+function getReportPath(projectId) {
+  const cleanProjectId = safeFileName(projectId);
+  if (!cleanProjectId) return '';
+  return path.join(getReportRoot(), `${cleanProjectId}-geogi-report.pdf`);
+}
+
 async function generateReportPdf({ projectId, form, conversations, analyses, report, testedAt, quality }) {
   fs.mkdirSync(REPORT_DIR, { recursive: true });
   fs.mkdirSync(TMP_DIR, { recursive: true });
 
-  const fileName = `${safeFileName(projectId)}-geogi-report.pdf`;
-  const outputPath = path.join(REPORT_DIR, fileName);
-  const inputPath = path.join(TMP_DIR, `${safeFileName(projectId)}.json`);
+  const cleanProjectId = safeFileName(projectId);
+  const fileName = `${cleanProjectId}-geogi-report.pdf`;
+  const outputPath = getReportPath(projectId);
+  const inputPath = path.join(TMP_DIR, `${cleanProjectId}.json`);
   const payload = {
     projectId,
     form,
@@ -41,7 +48,7 @@ async function generateReportPdf({ projectId, form, conversations, analyses, rep
     return {
       ok: false,
       error,
-      userMessage: `PDF报告生成失败：${error}`
+      userMessage: 'PDF报告生成失败，请检查服务器 PDF 组件'
     };
   }
 
@@ -49,23 +56,17 @@ async function generateReportPdf({ projectId, form, conversations, analyses, rep
     ok: true,
     fileName,
     path: outputPath,
-    url: `${publicBaseUrl()}/reports/${encodeURIComponent(fileName)}`
+    reportId: cleanProjectId,
+    url: `/api/customer/reports/${encodeURIComponent(projectId)}/download`
   };
 }
 
-function publicBaseUrl() {
-  const configured = process.env.PUBLIC_BASE_URL || process.env.API_PUBLIC_BASE_URL;
-  if (configured) return configured.replace(/\/+$/, '');
-  const host = process.env.HOST || '127.0.0.1';
-  const port = process.env.PORT || '3000';
-  return `http://${host}:${port}`;
-}
-
 function safeFileName(value) {
-  return String(value || 'report').replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 80);
+  return String(value || '').replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 80);
 }
 
 module.exports = {
   generateReportPdf,
-  getReportRoot
+  getReportRoot,
+  getReportPath
 };
