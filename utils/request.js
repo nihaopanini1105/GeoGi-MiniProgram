@@ -9,6 +9,20 @@ function getAuthHeader() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function persistCustomerSession(response) {
+  if (!response || !response.customerToken) return;
+  wx.setStorageSync('geogi_customer_token', response.customerToken);
+  if (response.customerTokenExpiresAt) {
+    wx.setStorageSync('geogi_customer_token_expires_at', response.customerTokenExpiresAt);
+  }
+}
+
+function resolveUrl(url) {
+  const value = String(url || '');
+  if (/^https:\/\//i.test(value)) return value;
+  return `${API_BASE_URL}${value.startsWith('/') ? value : `/${value}`}`;
+}
+
 function request({ url, method = 'GET', data = {} }) {
   if (!isApiConfigured()) {
     return Promise.reject(new Error('API_BASE_URL_NOT_CONFIGURED'));
@@ -16,7 +30,7 @@ function request({ url, method = 'GET', data = {} }) {
 
   return new Promise((resolve, reject) => {
     wx.request({
-      url: `${API_BASE_URL}${url}`,
+      url: resolveUrl(url),
       method,
       data,
       timeout: REQUEST_TIMEOUT,
@@ -26,6 +40,7 @@ function request({ url, method = 'GET', data = {} }) {
       },
       success: ({ statusCode, data: response }) => {
         if (statusCode >= 200 && statusCode < 300) {
+          persistCustomerSession(response);
           resolve(response);
           return;
         }
@@ -54,7 +69,7 @@ function uploadFile(url, filePath, name = 'file', formData = {}) {
 
   return new Promise((resolve, reject) => {
     wx.uploadFile({
-      url: `${API_BASE_URL}${url}`,
+      url: resolveUrl(url),
       filePath,
       name,
       formData,
@@ -79,10 +94,33 @@ function uploadFile(url, filePath, name = 'file', formData = {}) {
   });
 }
 
+function downloadFile(url) {
+  if (!isApiConfigured()) {
+    return Promise.reject(new Error('API_BASE_URL_NOT_CONFIGURED'));
+  }
+
+  return new Promise((resolve, reject) => {
+    wx.downloadFile({
+      url: resolveUrl(url),
+      header: getAuthHeader(),
+      timeout: REQUEST_TIMEOUT,
+      success: (res) => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(res);
+          return;
+        }
+        reject(new Error(res.statusCode === 401 ? '身份验证已失效，请重新授权手机号' : '报告下载失败'));
+      },
+      fail: reject
+    });
+  });
+}
+
 module.exports = {
   get,
   post,
   uploadFile,
+  downloadFile,
   getAuthHeader,
   getCustomerToken,
   isApiConfigured
