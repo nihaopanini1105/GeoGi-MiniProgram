@@ -1,8 +1,8 @@
 <view class="page report-page">
   <view wx:if="{{loading}}" class="state-card card">
     <image class="state-icon" src="/assets/icons/png/96/report.png" mode="aspectFit"></image>
-    <text class="state-title">正在读取诊断状态</text>
-    <text class="body">GeoGi 正在更新你的品牌诊断信息。</text>
+    <text class="state-title">正在读取报告</text>
+    <text class="body">正在读取最新诊断状态。</text>
   </view>
 
   <view wx:elif="{{error}}" class="state-card card">
@@ -15,30 +15,29 @@
 
   <block wx:elif="{{order && !order.reportReady}}">
     <view class="report-hero card pending-hero">
-      <text class="eyebrow">DIAGNOSIS IN PROGRESS</text>
-      <text class="h1">{{report.title || '品牌 AI 可见度诊断'}}</text>
-      <text class="status-highlight">{{order.status}}</text>
-      <text class="lead">{{report.summary || order.nextAction}}</text>
-      <view class="report-meta">
-        <text>诊断编号：{{order.projectId}}</text>
-        <text wx:if="{{order.submittedAt}}">提交时间：{{order.submittedAt}}</text>
-      </view>
+      <text class="eyebrow">GEOGI DIAGNOSIS</text>
+      <text class="h1">{{order.brandName || '品牌诊断'}}</text>
+      <text class="status-pill">当前状态：{{order.status}}</text>
+      <text wx:if="{{order.status === '资料待补充'}}" class="lead">当前需要补充资料，请联系 GeoGi 顾问确认。</text>
+      <text wx:else class="lead">GeoGi 正在进行品牌资料核对与诊断分析，正式报告发布后会自动出现在「报告」中。</text>
+      <text wx:if="{{order.submittedAt}}" class="submitted-at">提交时间：{{order.submittedAt}}</text>
     </view>
 
     <view class="section card progress-card">
-      <text class="block-title">GeoGi 正在完成</text>
-      <view class="progress-row"><text class="progress-index">01</text><text>品牌与业务信息分析</text></view>
-      <view class="progress-row"><text class="progress-index">02</text><text>行业与客户问题设计</text></view>
-      <view class="progress-row"><text class="progress-index">03</text><text>主流 AI 平台表现检测</text></view>
-      <view class="progress-row"><text class="progress-index">04</text><text>诊断结论与优化建议审核</text></view>
-      <text class="pending-tip">报告完成并通过审核后，完整评分、平台表现、关键发现和优化建议会在这里展示。</text>
+      <text class="block-title">诊断进度</text>
+      <view class="progress-row"><text class="progress-index">01</text><text>资料核对</text></view>
+      <view class="progress-row"><text class="progress-index">02</text><text>诊断分析</text></view>
+      <view class="progress-row"><text class="progress-index">03</text><text>报告审核与发布</text></view>
+      <text class="pending-tip">正式报告发布前不会展示临时评分或未经审核的诊断结论。</text>
       <button class="secondary-button full-button" bindtap="refresh">刷新诊断状态</button>
     </view>
 
-    <view class="section card contact-card">
-      <text class="block-title">需要补充资料或确认问题？</text>
-      <text class="body">可以联系 GeoGi 顾问，获取 GEO 优化建议或补充本次诊断所需信息。</text>
-      <button class="primary-button full-button" bindtap="goContact">获取 GEO 优化建议</button>
+    <view wx:if="{{order.status === '资料待补充'}}" class="section card contact-card">
+      <text class="block-title">补充诊断资料</text>
+      <text class="body">添加 GeoGi 顾问，确认本次诊断需要补充的资料内容。</text>
+      <image class="wecom-qr" src="{{assets.contact.wecomQr}}" mode="aspectFit" bindtap="previewWecomQr"></image>
+      <text class="qr-tip">点击二维码放大查看</text>
+      <button class="primary-button full-button" bindtap="goContact">联系 GeoGi 顾问</button>
     </view>
   </block>
 
@@ -48,11 +47,10 @@
       <text class="h1">{{report.title}}</text>
       <text class="lead">{{report.conclusion}}</text>
       <view class="report-meta">
-        <text>诊断编号：{{order.projectId}}</text>
         <text>报告状态：{{report.status}}</text>
         <text wx:if="{{report.updatedAt}}">更新时间：{{report.updatedAt}}</text>
       </view>
-      <button wx:if="{{report.reportLink}}" class="primary-button full-button pdf-button" bindtap="openPdf">打开 PDF 报告</button>
+      <button class="primary-button full-button pdf-button" bindtap="openPdf">打开 PDF 报告</button>
     </view>
 
     <view class="section card finding-card" wx:if="{{report.keyFindings.length}}">
@@ -63,7 +61,7 @@
       </view>
     </view>
 
-    <view class="section score-card card">
+    <view class="section score-card card" wx:if="{{report.dimensions.length}}">
       <view>
         <text class="score-label">综合可见度</text>
         <text class="score-value">{{report.overallScore}}</text>
@@ -109,6 +107,11 @@
       </view>
     </view>
 
+    <view class="section card state-card compact" wx:else>
+      <text class="block-title">平台表现</text>
+      <text class="body">本次报告暂未提供平台明细，请以正式 PDF 报告内容为准。</text>
+    </view>
+
     <view class="section card advice-card" wx:if="{{report.recommendations.length}}">
       <text class="block-title">下一步优化建议</text>
       <view class="advice-row" wx:for="{{report.recommendations}}" wx:key="*this">
@@ -118,11 +121,11 @@
     </view>
 
     <view class="section card contact-card">
-      <text class="block-title">想把诊断结果转成具体优化动作？</text>
-      <text class="body">GeoGi 顾问可以结合本次诊断，进一步确认品牌信息、内容与信源的优化优先级。</text>
+      <text class="block-title">预约报告解读</text>
+      <text class="body">添加 GeoGi 顾问，可沟通报告结论与后续 GEO 优化方向。</text>
       <image class="wecom-qr" src="{{assets.contact.wecomQr}}" mode="aspectFit" bindtap="previewWecomQr"></image>
       <text class="qr-tip">点击二维码放大查看</text>
-      <button class="primary-button full-button" bindtap="goContact">获取 GEO 优化建议</button>
+      <button class="primary-button full-button" bindtap="goContact">查看官方联系方式</button>
     </view>
   </block>
 </view>
