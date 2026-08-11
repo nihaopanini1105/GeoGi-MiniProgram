@@ -14,13 +14,8 @@ async function getResearchArticles(query) {
   try {
     const missingEnv = REQUIRED_ENV.filter((key) => !process.env[key]);
     if (missingEnv.length) {
-      return {
-        ok: false,
-        userMessage: `研究中心未完成配置：${missingEnv.join(', ')}`,
-        items: [],
-        articles: [],
-        categories: ['全部']
-      };
+      console.error('Research service missing configuration', missingEnv);
+      return unavailable();
     }
 
     const tenantToken = await getTenantAccessToken();
@@ -63,13 +58,7 @@ async function getResearchArticles(query) {
     };
   } catch (error) {
     console.error('getResearchArticles failed', error);
-    return {
-      ok: false,
-      userMessage: '研究中心加载失败',
-      items: [],
-      articles: [],
-      categories: ['全部']
-    };
+    return unavailable();
   }
 }
 
@@ -92,7 +81,7 @@ async function getResearchArticle(id) {
     console.error('getResearchArticle failed', error);
     return {
       ok: false,
-      userMessage: '文章加载失败'
+      userMessage: '文章暂时无法打开'
     };
   }
 }
@@ -106,7 +95,7 @@ function normalizeArticle(record) {
     category: text(fields.分类),
     date: text(fields.发布日期 || fields.更新时间),
     updatedAt: text(fields.更新时间 || fields.发布日期),
-    author: text(fields.作者 || 'GeoGi Research'),
+    author: text(fields.作者),
     status: text(fields.状态 || '草稿'),
     body: text(fields.正文),
     keywords: text(fields.关键词),
@@ -114,6 +103,16 @@ function normalizeArticle(record) {
     canonicalUrl: text(fields.官网原文链接 || fields.canonical_url || fields.URL || fields.url),
     cover: text(fields.封面图 || fields.cover || fields.cover_url),
     recordId: record.record_id
+  };
+}
+
+function unavailable() {
+  return {
+    ok: false,
+    userMessage: '研究中心暂时不可用，请稍后再试',
+    items: [],
+    articles: [],
+    categories: ['全部']
   };
 }
 
