@@ -9,19 +9,19 @@ Page({
       {
         key: 'diagnosis',
         icon: assets.icons.quickCheck,
-        title: 'GEO 诊断',
+        title: 'GEO诊断',
         desc: '检测品牌在 AI 平台中的可见度、理解度与推荐表现。'
       },
       {
         key: 'optimization',
         icon: assets.icons.optimization,
-        title: 'GEO 优化方案',
+        title: 'GEO优化方案',
         desc: '分析问题根因，形成品牌、内容与信源的优化优先级。'
       },
       {
         key: 'execution',
         icon: assets.icons.research,
-        title: 'GEO 优化执行',
+        title: 'GEO优化执行',
         desc: '围绕内容、信源和品牌信息治理推进具体优化工作。'
       }
     ]
