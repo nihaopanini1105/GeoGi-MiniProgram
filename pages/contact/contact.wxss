@@ -4,7 +4,8 @@
 
 .info-title,
 .info-copy,
-.info-hint {
+.info-hint,
+.qr-tip {
   display: block;
 }
 
@@ -25,10 +26,26 @@
 }
 
 .info-hint {
-  margin: -10rpx 0 24rpx;
+  margin: 10rpx 0 24rpx;
   color: #66789A;
   font-size: 24rpx;
   line-height: 1.5;
+}
+
+.wecom-qr {
+  display: block;
+  width: 420rpx;
+  height: 420rpx;
+  margin: 8rpx auto 0;
+  border-radius: 26rpx;
+  background: #F4F8FF;
+}
+
+.qr-tip {
+  margin-top: 16rpx;
+  color: #8A97A9;
+  font-size: 21rpx;
+  text-align: center;
 }
 
 .copy-button {
