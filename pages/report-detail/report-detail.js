@@ -1,7 +1,9 @@
+const { assets } = require('../../config/assets');
 const { get, isApiConfigured } = require('../../utils/request');
 
 Page({
   data: {
+    assets,
     loading: true,
     error: '',
     clientId: '',
@@ -23,7 +25,7 @@ Page({
     if (!clientId || !projectId) {
       this.setData({
         loading: false,
-        error: '缺少订单信息，请回到“我的”重新打开。'
+        error: '缺少诊断信息，请返回「报告」重新打开。'
       });
       return;
     }
@@ -31,7 +33,7 @@ Page({
     if (!isApiConfigured()) {
       this.setData({
         loading: false,
-        error: '服务地址还未配置，暂时无法查看报告。'
+        error: '诊断报告服务暂未连接，请稍后再试。'
       });
       return;
     }
@@ -41,7 +43,7 @@ Page({
       const result = await get(`/api/customer/reports/${encodeURIComponent(projectId)}`, { clientId });
       if (!result || !result.ok) throw new Error(result && result.userMessage ? result.userMessage : '报告读取失败');
       this.setData({
-        order: result.order,
+        order: result.order || null,
         report: this.normalizeReport(result.report),
         error: ''
       });
@@ -68,6 +70,13 @@ Page({
 
   refresh() {
     this.loadReport();
+  },
+
+  previewWecomQr() {
+    wx.previewImage({
+      current: this.data.assets.contact.wecomQr,
+      urls: [this.data.assets.contact.wecomQr]
+    });
   },
 
   goContact() {
