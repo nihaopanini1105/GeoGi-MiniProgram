@@ -7,6 +7,9 @@ const assets = {
   hero: {
     background: '/assets/hero/home_hero_orbit_bg_512.png'
   },
+  contact: {
+    wecomQr: '/assets/contact/geogi-wecom-qr.png'
+  },
   icons: {
     arrowRight: '/assets/icons/png/64/arrow-right.png',
     quickCheck: '/assets/icons/png/64/quick-check.png',
