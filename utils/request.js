@@ -23,6 +23,12 @@ function resolveUrl(url) {
   return `${API_BASE_URL}${value.startsWith('/') ? value : `/${value}`}`;
 }
 
+function isTrustedApiUrl(url) {
+  const value = String(url || '');
+  if (!/^https:\/\//i.test(value)) return true;
+  return value === API_BASE_URL || value.startsWith(`${API_BASE_URL}/`);
+}
+
 function request({ url, method = 'GET', data = {} }) {
   if (!isApiConfigured()) {
     return Promise.reject(new Error('API_BASE_URL_NOT_CONFIGURED'));
@@ -102,7 +108,7 @@ function downloadFile(url) {
   return new Promise((resolve, reject) => {
     wx.downloadFile({
       url: resolveUrl(url),
-      header: getAuthHeader(),
+      header: isTrustedApiUrl(url) ? getAuthHeader() : {},
       timeout: REQUEST_TIMEOUT,
       success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
