@@ -1,5 +1,8 @@
+const { assets } = require('../../config/assets');
+
 Page({
   data: {
+    assets,
     submission: {},
     submittedAtText: '',
     nextSteps: [
@@ -30,11 +33,22 @@ Page({
     });
   },
 
+  previewWecomQr() {
+    wx.previewImage({
+      current: this.data.assets.contact.wecomQr,
+      urls: [this.data.assets.contact.wecomQr]
+    });
+  },
+
   formatDate(value) {
     if (!value) return '';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  },
+
+  goContact() {
+    wx.navigateTo({ url: '/pages/contact/contact' });
   },
 
   goReport() {
