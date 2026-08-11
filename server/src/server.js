@@ -1,26 +1,35 @@
 require('dotenv').config();
 
+const crypto = require('crypto');
+const fs = require('fs');
 const express = require('express');
 const helmet = require('helmet');
 const { submitDiagnosis } = require('./services/diagnosis');
 const { runWorkflowCommand } = require('./services/workflow-command');
 const { getResearchArticles, getResearchArticle } = require('./services/research');
 const { getConfig } = require('./services/config');
-const { getSampleReport } = require('./services/sample-report');
 const { listCustomerProjects, getCustomerReport } = require('./services/customer-portal');
 const { getPhoneNumber } = require('./services/wechat-auth');
-const { getReportRoot } = require('./services/report-pdf');
+const { getReportPath } = require('./services/report-pdf');
 const { trackEvent } = require('./services/events');
-const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
+const { uploadMiddleware, normalizeUpload } = require('./services/uploads');
+const { verifyCustomerSession, getBearerToken, normalizePhone } = require('./services/customer-auth');
+const { verifyCustomerAccess } = require('./services/customer-access');
+const { rateLimit } = require('./services/rate-limit');
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '127.0.0.1';
 
+app.disable('x-powered-by');
 app.use(helmet());
 app.use(express.json({ limit: '512kb' }));
-app.use('/uploads', express.static(getUploadRoot()));
-app.use('/reports', express.static(getReportRoot()));
+
+const publicLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, keyPrefix: 'public' });
+const phoneLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, keyPrefix: 'phone' });
+const customerLimiter = rateLimit({ windowMs: 60 * 1000, max: 90, keyPrefix: 'customer' });
+const submitLimiter = rateLimit({ windowMs: 60 * 1000, max: 12, keyPrefix: 'submit' });
+const internalLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, keyPrefix: 'internal' });
 
 app.get('/health', (_req, res) => {
   res.json({
@@ -29,67 +38,55 @@ app.get('/health', (_req, res) => {
   });
 });
 
-app.get('/api/config', (_req, res) => {
+app.get('/api/config', publicLimiter, (_req, res) => {
   res.json(getConfig());
 });
 
-app.get(['/api/articles', '/api/research/articles'], async (req, res) => {
+app.get(['/api/articles', '/api/research/articles'], publicLimiter, async (req, res) => {
   const result = await getResearchArticles(req.query || {});
-  res.status(result.ok ? 200 : 500).json(result);
+  res.status(result.ok ? 200 : 503).json(result);
 });
 
-app.get('/api/articles/:id', async (req, res) => {
+app.get('/api/articles/:id', publicLimiter, async (req, res) => {
   const result = await getResearchArticle(req.params.id);
   res.status(result.ok ? 200 : 404).json(result);
 });
 
-app.get('/api/sample-report', (_req, res) => {
-  res.json(getSampleReport());
-});
-
-app.get('/api/customer/projects', async (req, res) => {
-  const result = await listCustomerProjects(req.query || {});
-  res.status(result.ok ? 200 : 400).json(result);
-});
-
-app.get('/api/customer/reports/:projectId', async (req, res) => {
-  const result = await getCustomerReport({
-    clientId: req.query && req.query.clientId,
-    projectId: req.params.projectId
-  });
-  res.status(result.ok ? 200 : 404).json(result);
-});
-
-app.post(['/api/leads', '/api/diagnosis/submit'], async (req, res) => {
-  const result = await submitDiagnosis(req.body || {});
-  res.status(result.ok ? 200 : 400).json(result);
-});
-
-app.post('/api/wechat/phone', async (req, res) => {
+app.post('/api/wechat/phone', phoneLimiter, async (req, res) => {
   const result = await getPhoneNumber(req.body || {});
   res.status(result.ok ? 200 : 400).json(result);
 });
 
-app.post('/api/feishu/command', async (req, res) => {
-  const result = await runWorkflowCommand(req.body || {});
-  res.status(result.ok ? 200 : 400).json(result);
-});
-
-app.post('/api/feishu/events', async (req, res) => {
-  if (req.body && req.body.type === 'url_verification') {
-    res.json({ challenge: req.body.challenge });
+app.post(['/api/leads', '/api/diagnosis/submit'], submitLimiter, authenticateCustomer, async (req, res) => {
+  const form = (req.body && req.body.form) || {};
+  if (normalizePhone(form.contactMethod) !== req.customer.phoneNumber) {
+    res.status(403).json({
+      ok: false,
+      userMessage: '手机号与当前授权身份不一致，请重新授权'
+    });
     return;
   }
 
-  const event = req.body && (req.body.event || req.body);
-  const text = event && event.message && event.message.content
-    ? parseFeishuMessageText(event.message.content)
-    : '';
-  const result = await runWorkflowCommand({ text });
-  res.status(result.ok ? 200 : 400).json(result);
+  const result = await submitDiagnosis(req.body || {});
+  if (!result.ok) {
+    res.status(400).json({
+      ok: false,
+      userMessage: publicDiagnosisError(result.userMessage)
+    });
+    return;
+  }
+
+  res.json({
+    ok: true,
+    duplicated: Boolean(result.duplicated),
+    clientId: result.clientId,
+    projectId: result.projectId,
+    status: '已提交',
+    submittedAt: result.submittedAt
+  });
 });
 
-app.post('/api/uploads', (req, res) => {
+app.post('/api/uploads', customerLimiter, authenticateCustomer, (req, res) => {
   uploadMiddleware(req, res, (error) => {
     if (error) {
       res.status(400).json({
@@ -111,7 +108,93 @@ app.post('/api/uploads', (req, res) => {
   });
 });
 
-app.post('/api/events', (req, res) => {
+app.get('/api/customer/projects', customerLimiter, authenticateCustomer, async (req, res) => {
+  const clientId = String((req.query && req.query.clientId) || '').trim();
+  const access = await verifyCustomerAccess({
+    phoneNumber: req.customer.phoneNumber,
+    clientId
+  });
+  if (!access.ok) {
+    res.status(403).json(access);
+    return;
+  }
+
+  const result = await listCustomerProjects({ clientId });
+  res.status(result.ok ? 200 : 400).json(result);
+});
+
+app.get('/api/customer/reports/:projectId', customerLimiter, authenticateCustomer, async (req, res) => {
+  const clientId = String((req.query && req.query.clientId) || '').trim();
+  const projectId = String(req.params.projectId || '').trim();
+  const access = await verifyCustomerAccess({
+    phoneNumber: req.customer.phoneNumber,
+    clientId,
+    projectId
+  });
+  if (!access.ok) {
+    res.status(403).json(access);
+    return;
+  }
+
+  const result = await getCustomerReport({ clientId, projectId });
+  res.status(result.ok ? 200 : 404).json(result);
+});
+
+app.get('/api/customer/reports/:projectId/download', customerLimiter, authenticateCustomer, async (req, res) => {
+  const clientId = String((req.query && req.query.clientId) || '').trim();
+  const projectId = String(req.params.projectId || '').trim();
+  const access = await verifyCustomerAccess({
+    phoneNumber: req.customer.phoneNumber,
+    clientId,
+    projectId
+  });
+  if (!access.ok) {
+    res.status(403).json(access);
+    return;
+  }
+
+  const reportResult = await getCustomerReport({ clientId, projectId });
+  if (!reportResult.ok || !reportResult.order || !reportResult.order.reportReady) {
+    res.status(404).json({
+      ok: false,
+      userMessage: '正式报告尚未发布'
+    });
+    return;
+  }
+
+  const reportPath = getReportPath(projectId);
+  if (!reportPath || !fs.existsSync(reportPath)) {
+    res.status(404).json({
+      ok: false,
+      userMessage: 'PDF 报告暂时不可用'
+    });
+    return;
+  }
+
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.download(reportPath, `${projectId}-GeoGi-report.pdf`);
+});
+
+app.post('/api/feishu/command', internalLimiter, requireAdminSecret, async (req, res) => {
+  const result = await runWorkflowCommand(req.body || {});
+  res.status(result.ok ? 200 : 400).json(result);
+});
+
+app.post('/api/feishu/events', internalLimiter, requireFeishuVerificationToken, async (req, res) => {
+  if (req.body && req.body.type === 'url_verification') {
+    res.json({ challenge: req.body.challenge });
+    return;
+  }
+
+  const event = req.body && (req.body.event || req.body);
+  const text = event && event.message && event.message.content
+    ? parseFeishuMessageText(event.message.content)
+    : '';
+  const result = await runWorkflowCommand({ text });
+  res.status(result.ok ? 200 : 400).json(result);
+});
+
+app.post('/api/events', publicLimiter, (req, res) => {
   res.json(trackEvent(req.body || {}));
 });
 
@@ -122,6 +205,64 @@ app.use((error, _req, res, _next) => {
     userMessage: '服务暂时不可用'
   });
 });
+
+function authenticateCustomer(req, res, next) {
+  const result = verifyCustomerSession(getBearerToken(req));
+  if (!result.ok) {
+    const unavailable = result.reason === 'SESSION_SECRET_MISSING';
+    res.status(unavailable ? 503 : 401).json({
+      ok: false,
+      userMessage: unavailable ? '客户身份服务暂时不可用' : '身份验证已失效，请重新授权手机号'
+    });
+    return;
+  }
+  req.customer = result.customer;
+  next();
+}
+
+function requireAdminSecret(req, res, next) {
+  const expected = String(process.env.ADMIN_COMMAND_SECRET || '').trim();
+  if (!expected) {
+    res.status(503).json({ ok: false, userMessage: '内部命令服务未启用' });
+    return;
+  }
+  const supplied = String(req.headers['x-geogi-admin-secret'] || getBearerToken(req) || '').trim();
+  if (!safeSecretEqual(supplied, expected)) {
+    res.status(403).json({ ok: false, userMessage: '禁止访问' });
+    return;
+  }
+  next();
+}
+
+function requireFeishuVerificationToken(req, res, next) {
+  const expected = String(process.env.FEISHU_EVENT_VERIFICATION_TOKEN || '').trim();
+  if (!expected) {
+    res.status(503).json({ ok: false, userMessage: '事件回调服务未启用' });
+    return;
+  }
+  const body = req.body || {};
+  const supplied = String((body.header && body.header.token) || body.token || '').trim();
+  if (!safeSecretEqual(supplied, expected)) {
+    res.status(403).json({ ok: false, userMessage: '禁止访问' });
+    return;
+  }
+  next();
+}
+
+function safeSecretEqual(a, b) {
+  const left = Buffer.from(String(a || ''));
+  const right = Buffer.from(String(b || ''));
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function publicDiagnosisError(message) {
+  const value = String(message || '');
+  if (/FEISHU_|配置|table|token|secret|app/i.test(value)) {
+    console.error('Diagnosis service configuration error:', value);
+    return '诊断服务暂时不可用，请稍后再试';
+  }
+  return value || '提交失败，请稍后重试';
+}
 
 function parseFeishuMessageText(content) {
   try {
