@@ -1,10 +1,22 @@
 const app = getApp();
+const { assets } = require('../../config/assets');
 const { track } = require('../../utils/analytics');
 
 Page({
   data: {
+    assets,
     email: app.globalData.contactEmail,
     website: app.globalData.officialWebsite
+  },
+
+  previewWecomQr() {
+    try {
+      track('contact_advisor_click', { page: 'contact', position: 'wecom_qr' });
+    } catch (error) {}
+    wx.previewImage({
+      current: assets.contact.wecomQr,
+      urls: [assets.contact.wecomQr]
+    });
   },
 
   copyEmail() {
