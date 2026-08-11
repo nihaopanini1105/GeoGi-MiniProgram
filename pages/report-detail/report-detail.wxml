@@ -1,8 +1,8 @@
 <view class="page report-page">
   <view wx:if="{{loading}}" class="state-card card">
     <image class="state-icon" src="/assets/icons/png/96/report.png" mode="aspectFit"></image>
-    <text class="state-title">正在读取报告</text>
-    <text class="body">正在同步诊断工作台数据。</text>
+    <text class="state-title">正在读取诊断状态</text>
+    <text class="body">GeoGi 正在更新你的品牌诊断信息。</text>
   </view>
 
   <view wx:elif="{{error}}" class="state-card card">
@@ -10,8 +10,37 @@
     <text class="state-title">暂时无法查看</text>
     <text class="body">{{error}}</text>
     <button class="primary-button full-button" bindtap="refresh">重新读取</button>
-    <button class="secondary-button full-button" bindtap="goMine">返回我的</button>
+    <button class="secondary-button full-button" bindtap="goMine">返回报告</button>
   </view>
+
+  <block wx:elif="{{order && !order.reportReady}}">
+    <view class="report-hero card pending-hero">
+      <text class="eyebrow">DIAGNOSIS IN PROGRESS</text>
+      <text class="h1">{{report.title || '品牌 AI 可见度诊断'}}</text>
+      <text class="status-highlight">{{order.status}}</text>
+      <text class="lead">{{report.summary || order.nextAction}}</text>
+      <view class="report-meta">
+        <text>诊断编号：{{order.projectId}}</text>
+        <text wx:if="{{order.submittedAt}}">提交时间：{{order.submittedAt}}</text>
+      </view>
+    </view>
+
+    <view class="section card progress-card">
+      <text class="block-title">GeoGi 正在完成</text>
+      <view class="progress-row"><text class="progress-index">01</text><text>品牌与业务信息分析</text></view>
+      <view class="progress-row"><text class="progress-index">02</text><text>行业与客户问题设计</text></view>
+      <view class="progress-row"><text class="progress-index">03</text><text>主流 AI 平台表现检测</text></view>
+      <view class="progress-row"><text class="progress-index">04</text><text>诊断结论与优化建议审核</text></view>
+      <text class="pending-tip">报告完成并通过审核后，完整评分、平台表现、关键发现和优化建议会在这里展示。</text>
+      <button class="secondary-button full-button" bindtap="refresh">刷新诊断状态</button>
+    </view>
+
+    <view class="section card contact-card">
+      <text class="block-title">需要补充资料或确认问题？</text>
+      <text class="body">可以联系 GeoGi 顾问，获取 GEO 优化建议或补充本次诊断所需信息。</text>
+      <button class="primary-button full-button" bindtap="goContact">获取 GEO 优化建议</button>
+    </view>
+  </block>
 
   <block wx:else>
     <view class="report-hero card">
@@ -19,60 +48,52 @@
       <text class="h1">{{report.title}}</text>
       <text class="lead">{{report.conclusion}}</text>
       <view class="report-meta">
-        <text>项目编号：{{order.projectId}}</text>
+        <text>诊断编号：{{order.projectId}}</text>
         <text>报告状态：{{report.status}}</text>
         <text wx:if="{{report.updatedAt}}">更新时间：{{report.updatedAt}}</text>
       </view>
-      <button wx:if="{{report.reportLink}}" class="primary-button full-button pdf-button" bindtap="openPdf">打开PDF报告</button>
+      <button wx:if="{{report.reportLink}}" class="primary-button full-button pdf-button" bindtap="openPdf">打开 PDF 报告</button>
     </view>
 
-    <view class="section score-card card">
-      <view>
-        <text class="score-label">综合可见度</text>
-        <text class="score-value">{{report.overallScore || '--'}}</text>
-      </view>
-      <text class="score-desc">{{report.summary}}</text>
-    </view>
-
-    <view class="section card scope-card">
-      <text class="block-title">诊断范围</text>
-      <view class="scope-row" wx:for="{{report.scope}}" wx:key="*this">
-        <text>{{item}}</text>
-      </view>
-    </view>
-
-    <view class="section">
-      <view class="section-head">
-        <text class="h2">核心评分</text>
-      </view>
-      <view class="dimension-card card" wx:for="{{report.dimensions}}" wx:key="key">
-        <view class="dimension-top">
-          <text class="dimension-name">{{item.name}}</text>
-          <view class="dimension-score-wrap">
-            <text class="dimension-level">{{item.level}}</text>
-            <text class="dimension-score">{{item.score || '--'}}</text>
-          </view>
-        </view>
-        <view class="score-track">
-          <view class="score-fill" style="width: {{item.score}}%;"></view>
-        </view>
-        <text class="body">{{item.desc}}</text>
-      </view>
-    </view>
-
-    <view class="section card finding-card">
-      <text class="block-title">关键发现</text>
+    <view class="section card finding-card" wx:if="{{report.keyFindings.length}}">
+      <text class="block-title">先看关键发现</text>
       <view class="finding-row" wx:for="{{report.keyFindings}}" wx:key="*this">
         <text class="dot"></text>
         <text>{{item}}</text>
       </view>
     </view>
 
-    <view class="section">
-      <view class="section-head">
-        <text class="h2">平台表现</text>
+    <view class="section score-card card">
+      <view>
+        <text class="score-label">综合可见度</text>
+        <text class="score-value">{{report.overallScore}}</text>
       </view>
-      <view wx:if="{{report.platforms.length}}" class="platform-card card" wx:for="{{report.platforms}}" wx:key="name">
+      <text class="score-desc">{{report.summary}}</text>
+    </view>
+
+    <view class="section card scope-card" wx:if="{{report.scope.length}}">
+      <text class="block-title">诊断范围</text>
+      <view class="scope-row" wx:for="{{report.scope}}" wx:key="*this"><text>{{item}}</text></view>
+    </view>
+
+    <view class="section" wx:if="{{report.dimensions.length}}">
+      <view class="section-head"><text class="h2">核心评分</text></view>
+      <view class="dimension-card card" wx:for="{{report.dimensions}}" wx:key="key">
+        <view class="dimension-top">
+          <text class="dimension-name">{{item.name}}</text>
+          <view class="dimension-score-wrap">
+            <text class="dimension-level">{{item.level}}</text>
+            <text class="dimension-score">{{item.score}}</text>
+          </view>
+        </view>
+        <view class="score-track"><view class="score-fill" style="width: {{item.score}}%;"></view></view>
+        <text class="body">{{item.desc}}</text>
+      </view>
+    </view>
+
+    <view class="section" wx:if="{{report.platforms.length}}">
+      <view class="section-head"><text class="h2">平台表现</text></view>
+      <view class="platform-card card" wx:for="{{report.platforms}}" wx:key="name">
         <view class="platform-top">
           <text class="platform-name">{{item.name}}</text>
           <text class="platform-status">{{item.status}}</text>
@@ -86,14 +107,10 @@
         </view>
         <text class="platform-issue">{{item.issue}}</text>
       </view>
-      <view wx:if="{{!report.platforms.length}}" class="state-card card compact">
-        <text class="state-title">平台问答待完成</text>
-        <text class="body">完成五个平台问答并在飞书群触发生成报告后，这里会显示平台表现和证据。</text>
-      </view>
     </view>
 
-    <view class="section card advice-card">
-      <text class="block-title">优化建议</text>
+    <view class="section card advice-card" wx:if="{{report.recommendations.length}}">
+      <text class="block-title">下一步优化建议</text>
       <view class="advice-row" wx:for="{{report.recommendations}}" wx:key="*this">
         <text class="advice-num">0{{index + 1}}</text>
         <text>{{item}}</text>
@@ -101,9 +118,11 @@
     </view>
 
     <view class="section card contact-card">
-      <text class="block-title">需要解读报告？</text>
-      <text class="body">诊断顾问可以帮你确认品牌主体、信源缺口和下一步优化优先级。</text>
-      <button class="primary-button full-button" bindtap="goContact">联系诊断顾问</button>
+      <text class="block-title">想把诊断结果转成具体优化动作？</text>
+      <text class="body">GeoGi 顾问可以结合本次诊断，进一步确认品牌信息、内容与信源的优化优先级。</text>
+      <image class="wecom-qr" src="{{assets.contact.wecomQr}}" mode="aspectFit" bindtap="previewWecomQr"></image>
+      <text class="qr-tip">点击二维码放大查看</text>
+      <button class="primary-button full-button" bindtap="goContact">获取 GEO 优化建议</button>
     </view>
   </block>
 </view>
