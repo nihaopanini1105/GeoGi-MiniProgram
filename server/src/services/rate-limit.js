@@ -27,8 +27,7 @@ function rateLimit({ windowMs = 60 * 1000, max = 60, keyPrefix = 'api' } = {}) {
 }
 
 function clientKey(req) {
-  const forwarded = String((req.headers && req.headers['x-forwarded-for']) || '').split(',')[0].trim();
-  return forwarded || req.ip || (req.socket && req.socket.remoteAddress) || 'unknown';
+  return req.ip || (req.socket && req.socket.remoteAddress) || 'unknown';
 }
 
 module.exports = {
