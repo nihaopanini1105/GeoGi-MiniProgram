@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
@@ -35,7 +36,7 @@ const uploadMiddleware = multer({
 function normalizeUpload(file) {
   return {
     ok: true,
-    fileId: path.basename(file.filename, path.extname(file.filename)),
+    fileId: fileIdFromPath(file.path || file.filename),
     name: file.originalname,
     size: file.size
   };
@@ -69,19 +70,131 @@ function validateStoredUpload(file) {
   }
 }
 
+function registerUpload(file, { phoneNumber } = {}) {
+  if (!file || !file.path || !fs.existsSync(file.path)) return null;
+  const metadata = {
+    fileId: fileIdFromPath(file.path),
+    name: String(file.originalname || '').slice(0, 240),
+    size: Number(file.size || 0),
+    ownerHash: identityHash(phoneNumber),
+    uploadedAt: new Date().toISOString(),
+    clientId: '',
+    projectId: '',
+    boundAt: ''
+  };
+  writeMetadata(file.path, metadata);
+  return metadata;
+}
+
+function bindUploadsToProject(uploads, { phoneNumber, clientId, projectId } = {}) {
+  const ownerHash = identityHash(phoneNumber);
+  const cleanClientId = safeName(clientId);
+  const cleanProjectId = safeName(projectId);
+  const bound = [];
+  const rejected = [];
+
+  for (const item of Array.isArray(uploads) ? uploads : []) {
+    const fileId = safeName(item && item.fileId);
+    if (!fileId) continue;
+    const storedPath = findStoredUpload(fileId);
+    if (!storedPath) {
+      rejected.push({ fileId, reason: 'FILE_NOT_FOUND' });
+      continue;
+    }
+    const metadata = readMetadata(storedPath);
+    if (!metadata || !metadata.ownerHash || metadata.ownerHash !== ownerHash) {
+      rejected.push({ fileId, reason: 'OWNER_MISMATCH' });
+      continue;
+    }
+    const next = {
+      ...metadata,
+      clientId: cleanClientId,
+      projectId: cleanProjectId,
+      boundAt: new Date().toISOString()
+    };
+    writeMetadata(storedPath, next);
+    bound.push(publicMetadata(next));
+  }
+
+  return { ok: rejected.length === 0, bound, rejected };
+}
+
+function listProjectUploads(projectId) {
+  const cleanProjectId = safeName(projectId);
+  if (!cleanProjectId || !fs.existsSync(uploadRoot)) return [];
+  const output = [];
+  forEachStoredFile((filePath) => {
+    const metadata = readMetadata(filePath);
+    if (metadata && metadata.projectId === cleanProjectId) output.push(publicMetadata(metadata));
+  });
+  return output.sort((a, b) => String(a.uploadedAt).localeCompare(String(b.uploadedAt)));
+}
+
+function getBoundUpload(fileId) {
+  const storedPath = findStoredUpload(fileId);
+  if (!storedPath) return null;
+  const metadata = readMetadata(storedPath);
+  if (!metadata || !metadata.clientId || !metadata.projectId) return null;
+  return { path: storedPath, metadata: publicMetadata(metadata) };
+}
+
 function findStoredUpload(fileId) {
   const cleanId = safeName(fileId);
   if (!cleanId || !fs.existsSync(uploadRoot)) return null;
+  let found = null;
+  forEachStoredFile((filePath) => {
+    if (!found && fileIdFromPath(filePath) === cleanId) found = filePath;
+  });
+  return found;
+}
+
+function forEachStoredFile(visitor) {
   const dirs = fs.readdirSync(uploadRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory());
   for (const dir of dirs) {
     const dirPath = path.join(uploadRoot, dir.name);
-    const match = fs.readdirSync(dirPath).find((name) => path.basename(name, path.extname(name)) === cleanId);
-    if (match) {
-      const filePath = path.join(dirPath, match);
-      if (filePath.startsWith(`${uploadRoot}${path.sep}`) && fs.statSync(filePath).isFile()) return filePath;
+    for (const name of fs.readdirSync(dirPath)) {
+      if (name.endsWith('.meta.json')) continue;
+      const filePath = path.join(dirPath, name);
+      if (filePath.startsWith(`${uploadRoot}${path.sep}`) && fs.statSync(filePath).isFile()) visitor(filePath);
     }
   }
-  return null;
+}
+
+function publicMetadata(metadata) {
+  return {
+    fileId: metadata.fileId,
+    name: metadata.name,
+    size: metadata.size,
+    uploadedAt: metadata.uploadedAt,
+    clientId: metadata.clientId,
+    projectId: metadata.projectId,
+    boundAt: metadata.boundAt,
+    downloadPath: metadata.fileId ? `/api/internal/uploads/${encodeURIComponent(metadata.fileId)}/download` : ''
+  };
+}
+
+function readMetadata(filePath) {
+  try {
+    const metaPath = `${filePath}.meta.json`;
+    if (!fs.existsSync(metaPath)) return null;
+    return JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+  } catch (error) {
+    console.error('read upload metadata failed', error);
+    return null;
+  }
+}
+
+function writeMetadata(filePath, metadata) {
+  fs.writeFileSync(`${filePath}.meta.json`, JSON.stringify(metadata, null, 2), { encoding: 'utf8', mode: 0o600 });
+}
+
+function identityHash(value) {
+  return crypto.createHash('sha256').update(String(value || '').trim()).digest('hex');
+}
+
+function fileIdFromPath(value) {
+  const fileName = path.basename(String(value || ''));
+  return path.basename(fileName, path.extname(fileName));
 }
 
 function getUploadRoot() {
@@ -98,12 +211,17 @@ function safeName(value) {
 
 function removeQuietly(filePath) {
   try { fs.unlinkSync(filePath); } catch (_error) {}
+  try { fs.unlinkSync(`${filePath}.meta.json`); } catch (_error) {}
 }
 
 module.exports = {
   uploadMiddleware,
   normalizeUpload,
   validateStoredUpload,
+  registerUpload,
+  bindUploadsToProject,
+  listProjectUploads,
+  getBoundUpload,
   findStoredUpload,
   getUploadRoot
 };
