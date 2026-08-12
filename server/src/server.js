@@ -12,7 +12,15 @@ const { listCustomerProjects, getCustomerReport } = require('./services/customer
 const { getPhoneNumber } = require('./services/wechat-auth');
 const { getReportPath } = require('./services/report-pdf');
 const { trackEvent } = require('./services/events');
-const { uploadMiddleware, normalizeUpload } = require('./services/uploads');
+const {
+  uploadMiddleware,
+  normalizeUpload,
+  validateStoredUpload,
+  registerUpload,
+  bindUploadsToProject,
+  listProjectUploads,
+  getBoundUpload
+} = require('./services/uploads');
 const { verifyCustomerSession, getBearerToken, normalizePhone } = require('./services/customer-auth');
 const { verifyCustomerAccess } = require('./services/customer-access');
 const { rateLimit } = require('./services/rate-limit');
@@ -32,10 +40,7 @@ const submitLimiter = rateLimit({ windowMs: 60 * 1000, max: 12, keyPrefix: 'subm
 const internalLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, keyPrefix: 'internal' });
 
 app.get('/health', (_req, res) => {
-  res.json({
-    ok: true,
-    service: 'geogi-mini-program-server'
-  });
+  res.json({ ok: true, service: 'geogi-mini-program-server' });
 });
 
 app.get('/api/config', publicLimiter, (_req, res) => {
@@ -60,20 +65,26 @@ app.post('/api/wechat/phone', phoneLimiter, async (req, res) => {
 app.post(['/api/leads', '/api/diagnosis/submit'], submitLimiter, authenticateCustomer, async (req, res) => {
   const form = (req.body && req.body.form) || {};
   if (normalizePhone(form.contactMethod) !== req.customer.phoneNumber) {
-    res.status(403).json({
-      ok: false,
-      userMessage: '手机号与当前授权身份不一致，请重新授权'
-    });
+    res.status(403).json({ ok: false, userMessage: '手机号与当前授权身份不一致，请重新授权' });
     return;
   }
 
   const result = await submitDiagnosis(req.body || {});
   if (!result.ok) {
-    res.status(400).json({
-      ok: false,
-      userMessage: publicDiagnosisError(result.userMessage)
-    });
+    res.status(400).json({ ok: false, userMessage: publicDiagnosisError(result.userMessage) });
     return;
+  }
+
+  const binding = bindUploadsToProject(form.uploads, {
+    phoneNumber: req.customer.phoneNumber,
+    clientId: result.clientId,
+    projectId: result.projectId
+  });
+  if (!binding.ok) {
+    console.error('Upload binding incomplete', {
+      projectId: result.projectId,
+      rejected: binding.rejected
+    });
   }
 
   res.json({
@@ -89,18 +100,29 @@ app.post(['/api/leads', '/api/diagnosis/submit'], submitLimiter, authenticateCus
 app.post('/api/uploads', customerLimiter, authenticateCustomer, (req, res) => {
   uploadMiddleware(req, res, (error) => {
     if (error) {
+      const tooLarge = error && error.code === 'LIMIT_FILE_SIZE';
       res.status(400).json({
         ok: false,
-        userMessage: error.message === 'FILE_TYPE_NOT_ALLOWED' ? '文件类型不支持' : '上传失败，请稍后重试'
+        userMessage: error.message === 'FILE_TYPE_NOT_ALLOWED'
+          ? '文件类型不支持'
+          : (tooLarge ? '单个文件不能超过 20MB' : '上传失败，请稍后重试')
       });
       return;
     }
 
     if (!req.file) {
-      res.status(400).json({
-        ok: false,
-        userMessage: '请选择要上传的文件'
-      });
+      res.status(400).json({ ok: false, userMessage: '请选择要上传的文件' });
+      return;
+    }
+
+    if (!validateStoredUpload(req.file)) {
+      res.status(400).json({ ok: false, userMessage: '文件内容与文件类型不匹配，请重新选择文件' });
+      return;
+    }
+
+    const registered = registerUpload(req.file, { phoneNumber: req.customer.phoneNumber });
+    if (!registered) {
+      res.status(500).json({ ok: false, userMessage: '文件保存失败，请稍后重试' });
       return;
     }
 
@@ -110,44 +132,33 @@ app.post('/api/uploads', customerLimiter, authenticateCustomer, (req, res) => {
 
 app.get('/api/customer/projects', customerLimiter, authenticateCustomer, async (req, res) => {
   const clientId = String((req.query && req.query.clientId) || '').trim();
-  const access = await verifyCustomerAccess({
-    phoneNumber: req.customer.phoneNumber,
-    clientId
-  });
+  const access = await verifyCustomerAccess({ phoneNumber: req.customer.phoneNumber, clientId });
   if (!access.ok) {
     res.status(403).json(access);
     return;
   }
 
   const result = await listCustomerProjects({ clientId });
-  res.status(result.ok ? 200 : 400).json(result);
+  res.status(result.ok ? 200 : 400).json(sanitizeCustomerProjects(result, clientId));
 });
 
 app.get('/api/customer/reports/:projectId', customerLimiter, authenticateCustomer, async (req, res) => {
   const clientId = String((req.query && req.query.clientId) || '').trim();
   const projectId = String(req.params.projectId || '').trim();
-  const access = await verifyCustomerAccess({
-    phoneNumber: req.customer.phoneNumber,
-    clientId,
-    projectId
-  });
+  const access = await verifyCustomerAccess({ phoneNumber: req.customer.phoneNumber, clientId, projectId });
   if (!access.ok) {
     res.status(403).json(access);
     return;
   }
 
   const result = await getCustomerReport({ clientId, projectId });
-  res.status(result.ok ? 200 : 404).json(result);
+  res.status(result.ok ? 200 : 404).json(sanitizeCustomerReport(result, clientId, projectId));
 });
 
 app.get('/api/customer/reports/:projectId/download', customerLimiter, authenticateCustomer, async (req, res) => {
   const clientId = String((req.query && req.query.clientId) || '').trim();
   const projectId = String(req.params.projectId || '').trim();
-  const access = await verifyCustomerAccess({
-    phoneNumber: req.customer.phoneNumber,
-    clientId,
-    projectId
-  });
+  const access = await verifyCustomerAccess({ phoneNumber: req.customer.phoneNumber, clientId, projectId });
   if (!access.ok) {
     res.status(403).json(access);
     return;
@@ -155,24 +166,33 @@ app.get('/api/customer/reports/:projectId/download', customerLimiter, authentica
 
   const reportResult = await getCustomerReport({ clientId, projectId });
   if (!reportResult.ok || !reportResult.order || !reportResult.order.reportReady) {
-    res.status(404).json({
-      ok: false,
-      userMessage: '正式报告尚未发布'
-    });
+    res.status(404).json({ ok: false, userMessage: '正式报告尚未发布' });
     return;
   }
 
   const reportPath = getReportPath(projectId);
   if (!reportPath || !fs.existsSync(reportPath)) {
-    res.status(404).json({
-      ok: false,
-      userMessage: 'PDF 报告暂时不可用'
-    });
+    res.status(404).json({ ok: false, userMessage: 'PDF 报告暂时不可用' });
     return;
   }
 
   res.setHeader('Cache-Control', 'private, no-store');
-  res.download(reportPath, `${projectId}-GeoGi-report.pdf`);
+  res.download(reportPath, 'GeoGi-diagnosis-report.pdf');
+});
+
+app.get('/api/internal/projects/:projectId/uploads', internalLimiter, requireAdminSecret, (req, res) => {
+  const projectId = String(req.params.projectId || '').trim();
+  res.json({ ok: true, items: listProjectUploads(projectId) });
+});
+
+app.get('/api/internal/uploads/:fileId/download', internalLimiter, requireAdminSecret, (req, res) => {
+  const stored = getBoundUpload(req.params.fileId);
+  if (!stored) {
+    res.status(404).json({ ok: false, userMessage: '附件不存在或尚未绑定项目' });
+    return;
+  }
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.download(stored.path, stored.metadata.name || 'GeoGi-customer-upload');
 });
 
 app.post('/api/feishu/command', internalLimiter, requireAdminSecret, async (req, res) => {
@@ -200,10 +220,7 @@ app.post('/api/events', publicLimiter, (req, res) => {
 
 app.use((error, _req, res, _next) => {
   console.error('Unhandled server error', error);
-  res.status(500).json({
-    ok: false,
-    userMessage: '服务暂时不可用'
-  });
+  res.status(500).json({ ok: false, userMessage: '服务暂时不可用' });
 });
 
 function authenticateCustomer(req, res, next) {
@@ -253,6 +270,32 @@ function safeSecretEqual(a, b) {
   const left = Buffer.from(String(a || ''));
   const right = Buffer.from(String(b || ''));
   return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function protectedReportUrl(projectId, clientId) {
+  if (!projectId || !clientId) return '';
+  return `/api/customer/reports/${encodeURIComponent(projectId)}/download?clientId=${encodeURIComponent(clientId)}`;
+}
+
+function sanitizeCustomerProjects(result, clientId) {
+  if (!result || !result.ok) return result;
+  return {
+    ...result,
+    orders: (result.orders || []).map((order) => ({
+      ...order,
+      reportLink: order.reportReady ? protectedReportUrl(order.projectId, clientId) : ''
+    }))
+  };
+}
+
+function sanitizeCustomerReport(result, clientId, projectId) {
+  if (!result || !result.ok) return result;
+  const link = result.order && result.order.reportReady ? protectedReportUrl(projectId, clientId) : '';
+  return {
+    ...result,
+    order: result.order ? { ...result.order, reportLink: link } : result.order,
+    report: result.report ? { ...result.report, reportLink: link } : result.report
+  };
 }
 
 function publicDiagnosisError(message) {
