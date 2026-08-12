@@ -9,6 +9,12 @@ function getAuthHeader() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function clearCustomerSession() {
+  wx.removeStorageSync('geogi_customer_token');
+  wx.removeStorageSync('geogi_customer_token_expires_at');
+  wx.removeStorageSync('geogi_phone_auth');
+}
+
 function persistCustomerSession(response) {
   if (!response || !response.customerToken) return;
   wx.setStorageSync('geogi_customer_token', response.customerToken);
@@ -24,9 +30,14 @@ function resolveUrl(url) {
 }
 
 function isTrustedApiUrl(url) {
-  const value = String(url || '');
+  const value = String(url || '').trim();
   if (!/^https:\/\//i.test(value)) return true;
-  return value === API_BASE_URL || value.startsWith(`${API_BASE_URL}/`);
+  const base = String(API_BASE_URL || '').replace(/\/+$/, '');
+  return value === base || value.startsWith(`${base}/`);
+}
+
+function authHeaderFor(url) {
+  return isTrustedApiUrl(url) ? getAuthHeader() : {};
 }
 
 function request({ url, method = 'GET', data = {} }) {
@@ -42,7 +53,7 @@ function request({ url, method = 'GET', data = {} }) {
       timeout: REQUEST_TIMEOUT,
       header: {
         'content-type': 'application/json',
-        ...getAuthHeader()
+        ...authHeaderFor(url)
       },
       success: ({ statusCode, data: response }) => {
         if (statusCode >= 200 && statusCode < 300) {
@@ -50,6 +61,7 @@ function request({ url, method = 'GET', data = {} }) {
           resolve(response);
           return;
         }
+        if (statusCode === 401) clearCustomerSession();
         const message = response && response.userMessage
           ? response.userMessage
           : (statusCode === 401 ? '身份验证已失效，请重新授权手机号' : `HTTP_${statusCode}`);
@@ -79,7 +91,7 @@ function uploadFile(url, filePath, name = 'file', formData = {}) {
       filePath,
       name,
       formData,
-      header: getAuthHeader(),
+      header: authHeaderFor(url),
       timeout: REQUEST_TIMEOUT,
       success: ({ statusCode, data }) => {
         let response = {};
@@ -93,6 +105,7 @@ function uploadFile(url, filePath, name = 'file', formData = {}) {
           resolve(response);
           return;
         }
+        if (statusCode === 401) clearCustomerSession();
         reject(new Error(response.userMessage || (statusCode === 401 ? '身份验证已失效，请重新授权手机号' : `HTTP_${statusCode}`)));
       },
       fail: reject
@@ -108,13 +121,14 @@ function downloadFile(url) {
   return new Promise((resolve, reject) => {
     wx.downloadFile({
       url: resolveUrl(url),
-      header: isTrustedApiUrl(url) ? getAuthHeader() : {},
+      header: authHeaderFor(url),
       timeout: REQUEST_TIMEOUT,
       success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(res);
           return;
         }
+        if (res.statusCode === 401) clearCustomerSession();
         reject(new Error(res.statusCode === 401 ? '身份验证已失效，请重新授权手机号' : '报告下载失败'));
       },
       fail: reject
