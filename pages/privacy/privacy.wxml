@@ -2,21 +2,41 @@
   <view class="privacy-card card">
     <text class="eyebrow">PRIVACY</text>
     <text class="h1">GeoGi 隐私说明</text>
-    <text class="lead">我们只会把你提交的信息用于品牌 AI 可见度诊断、服务沟通、报告制作和后续复测。</text>
+    <text class="lead">GeoGi 仅在完成品牌 GEO 诊断、报告交付与必要服务沟通所需的范围内处理你提交的信息。</text>
   </view>
 
   <view class="section privacy-card card">
-    <text class="privacy-title">我们会如何使用资料</text>
-    <text class="body">品牌名称、行业、业务、官方渠道、竞品和联系方式会用于品牌档案核验、测试问题设计、五平台人工测试和报告解读。</text>
+    <text class="privacy-title">我们会收集哪些信息</text>
+    <text class="body">当你提交品牌诊断时，我们可能处理品牌名称、公司名称、行业与业务信息、目标客户、官方渠道、竞争品牌、诊断目标、联系人、经你授权获取的手机号，以及你主动上传的品牌资料。</text>
   </view>
 
   <view class="section privacy-card card">
-    <text class="privacy-title">我们不会做什么</text>
-    <text class="body">未经单独授权，不公开客户名称、内部资料、联系人、未发布产品或原始诊断报告。案例展示会先脱敏或取得授权。</text>
+    <text class="privacy-title">这些信息用于什么</text>
+    <text class="body">上述信息用于确认诊断申请与报告归属、建立品牌诊断档案、设计检测问题、开展 AI 平台诊断、制作和审核报告、补充诊断资料，以及在必要时与你沟通报告解读与后续服务。</text>
   </view>
 
   <view class="section privacy-card card">
-    <text class="privacy-title">数据安全边界</text>
-    <text class="body">正式版本中，飞书令牌、Webhook 和访问密钥不会写入小程序前端；所有写入与通知会通过你的服务器后端完成。</text>
+    <text class="privacy-title">内部处理与协作</text>
+    <text class="body">为完成诊断工作，部分提交资料会通过 GeoGi 的服务器和内部飞书工作台进行处理与协作。相关访问令牌、Webhook、密钥等服务端凭证不会写入小程序前端，也不会向客户公开。</text>
+  </view>
+
+  <view class="section privacy-card card">
+    <text class="privacy-title">资料公开与使用边界</text>
+    <text class="body">未经单独授权，GeoGi 不会公开你的联系人、内部资料、未发布产品信息或原始诊断报告，也不会出售你提交的个人信息。对外案例展示会先进行必要脱敏或取得相应授权。</text>
+  </view>
+
+  <view class="section privacy-card card">
+    <text class="privacy-title">保存期限</text>
+    <text class="body">我们仅在完成诊断、报告交付、必要售后沟通及满足适用法律法规要求所必需的期限内保存相关信息；超出必要期限后，将根据实际情况删除或进行去标识化处理。</text>
+  </view>
+
+  <view class="section privacy-card card">
+    <text class="privacy-title">查询、更正与删除</text>
+    <text class="body">如需查询、更正、删除你提交的个人信息，或希望撤回相关授权，可以通过官方邮箱 geogi@geogi.cn 联系 GeoGi。我们会在核验申请人与相关诊断记录的关系后处理请求。</text>
+  </view>
+
+  <view class="section privacy-card card">
+    <text class="privacy-title">运营主体与平台规则</text>
+    <text class="body">本页面用于说明 GeoGi 小程序内的主要信息处理方式。正式上线时的运营主体信息及《用户隐私保护指引》以微信公众平台中该小程序实际登记和审核通过的信息为准。</text>
   </view>
 </view>
