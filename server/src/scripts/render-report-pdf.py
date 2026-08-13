@@ -23,6 +23,7 @@ GREEN = colors.HexColor("#2dc38a")
 RED = colors.HexColor("#ef4b4b")
 ORANGE = colors.HexColor("#f59b28")
 REPORT_PLATFORMS = ["豆包", "元宝", "千问", "DeepSeek", "Kimi"]
+CJK_LINE_START_FORBIDDEN = set("，。！？；：、）》】”’")
 FONT_NAME = "GeoGiCJK"
 FONT_CANDIDATES = [
     os.environ.get("REPORT_FONT_PATH", ""),
@@ -75,7 +76,8 @@ def draw_cover(c, data):
     form = data.get("form", {})
     report = data.get("report", {})
     brand = text(form.get("brandName")) or "品牌"
-    score = score_overall(data)
+    has_data = has_analysis_data(data)
+    score = score_overall(data) if has_data else None
 
     c.setFillColor(DEEP)
     c.rect(0, 0, PAGE_W, PAGE_H, fill=1, stroke=0)
@@ -99,15 +101,31 @@ def draw_cover(c, data):
     c.setFont("GeoGiCJK", 11)
     c.drawString(40, PAGE_H - 322, "品牌画像 / GEO数值分析 / 平台问答证据 / 优化建议")
 
-    rounded_rect(c, PAGE_W - 160, PAGE_H - 520, 72, 72, 18, colors.white, colors.white)
-    c.setFillColor(score_color(score))
-    c.setFont("GeoGiCJK", 25)
-    c.drawCentredString(PAGE_W - 124, PAGE_H - 486, str(score))
-    c.setFont("GeoGiCJK", 8)
-    c.setFillColor(MUTED)
-    c.drawCentredString(PAGE_W - 124, PAGE_H - 504, "/ 100")
-    c.setFillColor(DARK)
-    c.drawCentredString(PAGE_W - 124, PAGE_H - 514, score_level(score))
+    score_card_x = PAGE_W - 198 if not has_data else PAGE_W - 160
+    score_card_w = 110 if not has_data else 72
+    rounded_rect(c, score_card_x, PAGE_H - 520, score_card_w, 82, 18, colors.white, colors.white)
+    score_card_center = score_card_x + score_card_w / 2
+    if has_data:
+        c.setFillColor(score_color(score))
+        c.setFont("GeoGiCJK", 25)
+        c.drawCentredString(score_card_center, PAGE_H - 480, str(score))
+        c.setFont("GeoGiCJK", 8)
+        c.setFillColor(MUTED)
+        c.drawCentredString(score_card_center, PAGE_H - 498, "/ 100")
+        c.setFillColor(DARK)
+        c.drawCentredString(score_card_center, PAGE_H - 511, score_level(score))
+    else:
+        c.setFillColor(MUTED)
+        c.setFont("GeoGiCJK", 8)
+        c.drawCentredString(score_card_center, PAGE_H - 457, "综合得分")
+        c.setFillColor(DARK)
+        c.setFont("GeoGiCJK", 19)
+        c.drawCentredString(score_card_center, PAGE_H - 481, "待分析")
+        c.setFillColor(MUTED)
+        c.setFont("GeoGiCJK", 7)
+        c.drawCentredString(score_card_center, PAGE_H - 499, "状态")
+        c.setFont("GeoGiCJK", 8)
+        c.drawCentredString(score_card_center, PAGE_H - 512, "暂无分析结果")
 
     y = 92
     rounded_rect(c, 40, y, PAGE_W - 80, 166, 16, colors.HexColor("#f8fbff"), colors.HexColor("#f8fbff"))
@@ -132,18 +150,27 @@ def draw_cover(c, data):
 
     c.setFont("GeoGiCJK", 8)
     c.setFillColor(colors.Color(1, 1, 1, alpha=0.62))
-    c.drawString(40, 44, f"正式快检版 · {date_text(data.get('testedAt'))} · GeoGi 品牌 AI 可见度诊断")
+    edition = "正式快检版" if has_data else "渲染测试版"
+    c.drawString(40, 44, f"{edition} · {date_text(data.get('testedAt'))} · GeoGi 品牌 AI 可见度诊断")
     c.showPage()
 
 
 def draw_summary(c, data):
     form = data.get("form", {})
     brand = text(form.get("brandName")) or "品牌"
-    score = score_overall(data)
+    has_data = has_analysis_data(data)
+    conversations = data.get("conversations") or []
+    score = score_overall(data) if has_data else None
     header(c, "Executive Summary")
     section_label(c, "01 / 总览结论", 650)
-    title(c, f"{brand}的 AI 可见度已形成可诊断样本", 620)
-    paragraph(c, 40, 590, "本页结论来自客户资料、品牌档案、5 个 AI 平台问答记录与结构化表格/链接/图片证据。GeoGi 关注的是用户真实提问时，AI 是否能识别品牌、主动推荐、准确表达并给出可信信源。", 510)
+    if has_data:
+        title(c, f"{brand}的 AI 可见度已形成可诊断样本", 620)
+        paragraph(c, 40, 590, "本页结论来自客户资料、品牌档案、5 个 AI 平台问答记录与结构化表格/链接/图片证据。GeoGi 关注的是用户真实提问时，AI 是否能识别品牌、主动推荐、准确表达并给出可信信源。", 510)
+        conclusion = score_conclusion(brand, score)
+    else:
+        title(c, f"{brand}的 AI 可见度尚待完成分析", 620)
+        paragraph(c, 40, 590, "当前文件仅用于验证 GeoGi 报告渲染、中文字体、品牌视觉与 PDF 输出链路。尚未导入真实 AI 平台问答和分析结果，因此不形成客户诊断结论。", 510)
+        conclusion = "尚未获得真实平台分析数据。本页不对品牌 AI 可见度、推荐表现或优化优先级作出判断。"
 
     rounded_rect(c, 40, 450, 515, 100, 14, colors.white, LINE)
     c.setFillColor(BLUE)
@@ -154,7 +181,7 @@ def draw_summary(c, data):
         c,
         58,
         494,
-        f"{brand}已有一定 AI 可见度基础，下一步应围绕品牌实体、产品卖点、可信信源和推荐理由做系统补强。",
+        conclusion,
         470,
         size=12,
         leading=18,
@@ -162,9 +189,9 @@ def draw_summary(c, data):
     )
 
     metric_cards(c, 40, 362, [
-        ("综合可见度", f"{score}/100", score_level(score)),
-        ("测试问答", str(len(data.get("conversations") or [])), "跨平台样本"),
-        ("平台覆盖", platform_coverage_text(data), "数据校验"),
+        ("综合可见度", f"{score}/100" if has_data else "待分析", score_level(score) if has_data else "暂无分析结果"),
+        ("测试问答", str(len(conversations)) if conversations else "待检测", "跨平台样本" if conversations else "尚未导入问答"),
+        ("平台覆盖", platform_coverage_text(data) if conversations else "待检测", "数据校验" if conversations else "尚未开始检测"),
     ])
 
     draw_bullets(c, 58, 288, "数据复核", [
@@ -187,11 +214,12 @@ def draw_metrics(c, data):
     title(c, "识别、推荐、准确、信源四类指标联合判断", 620)
     paragraph(c, 40, 590, "GeoGi 将每条平台回答拆分为可复核的诊断单元。分数不是单纯曝光率，而是同时考虑品牌是否出现、是否被主动推荐、信息是否准确，以及答案是否有可信来源。", 510)
 
+    has_data = has_analysis_data(data)
     metrics = [
-        ("品牌识别度", score_dimension(data, "品牌识别得分"), "AI 能否正确识别品牌主体、业务和适用场景"),
-        ("主动推荐度", score_dimension(data, "主动推荐得分"), "用户没有点名品牌时，是否进入推荐候选"),
-        ("信息准确度", score_dimension(data, "信息准确得分"), "产品、优势、市场、服务边界是否表达准确"),
-        ("信源可信度", source_score(data), "是否引用官方、第三方、用户评价或行业信源"),
+        ("品牌识别度", score_dimension(data, "品牌识别得分") if has_data else None, "AI 能否正确识别品牌主体、业务和适用场景"),
+        ("主动推荐度", score_dimension(data, "主动推荐得分") if has_data else None, "用户没有点名品牌时，是否进入推荐候选"),
+        ("信息准确度", score_dimension(data, "信息准确得分") if has_data else None, "产品、优势、市场、服务边界是否表达准确"),
+        ("信源可信度", source_score(data) if has_data else None, "是否引用官方、第三方、用户评价或行业信源"),
     ]
     y = 520
     for name, score, desc in metrics:
@@ -230,8 +258,11 @@ def draw_platforms(c, data):
         raw = int(stat.get("raw") or len(items))
         answered = int(stat.get("answered") or 0)
         c.drawString(150, y - 16, f"问答 {len(items)}/{expected} 条 · 有效回答 {answered} 条 · 提到品牌 {mentioned} 条")
-        sample = text(items[0].get("question")) if items else "该平台检测问题待补充"
-        status = "数据已对齐" if len(items) == expected else f"原始读取 {raw} 条，需复核"
+        sample = text(items[0].get("question")) if items else "待检测"
+        if not items:
+            status = "尚未导入真实平台问答"
+        else:
+            status = "数据已对齐" if len(items) == expected else f"原始读取 {raw} 条，需复核"
         paragraph(c, 58, y - 34, f"{status}｜代表问题：{sample}", 440, size=8, leading=11)
         y -= 74
 
@@ -241,7 +272,8 @@ def draw_platforms(c, data):
 def draw_platform_details(c, data):
     header(c, "Evidence Review")
     section_label(c, "04 / 关键证据复核", 650)
-    title(c, "从平台回答中提炼可交付判断", 620)
+    has_data = has_analysis_data(data)
+    title(c, "从平台回答中提炼可交付判断" if has_data else "平台证据尚待导入与复核", 620)
     analyses_by_platform = {}
     for item in data.get("analyses") or []:
         platform = canonical_platform(text(item.get("平台"))) or "未标注平台"
@@ -250,8 +282,12 @@ def draw_platform_details(c, data):
     y = 548
     for platform in REPORT_PLATFORMS:
         items = analyses_by_platform.get(platform) or []
-        issue = first_text(items, "核心问题") or "该平台回答正文不足，暂不能形成正式判断。"
-        advice = first_text(items, "优化建议") or "补充该平台完整回答后，再复核品牌识别、推荐理由和信源可信度。"
+        if has_data:
+            issue = first_text(items, "核心问题") or "该平台回答正文不足，暂不能形成正式判断。"
+            advice = first_text(items, "优化建议") or "补充该平台完整回答后，再复核品牌识别、推荐理由和信源可信度。"
+        else:
+            issue = "尚未导入真实 AI 平台分析结果。"
+            advice = "待完成平台检测、证据复核和评分；当前不形成诊断结论。"
         rounded_rect(c, 40, y - 78, 515, 88, 12, colors.white, LINE)
         c.setFillColor(BLUE)
         c.setFont("GeoGiCJK", 11)
@@ -268,22 +304,33 @@ def draw_actions(c, data):
     brand = text(form.get("brandName")) or "品牌"
     header(c, "Optimization Roadmap")
     section_label(c, "05 / 优化建议", 650)
-    title(c, f"{brand}应优先补强可被 AI 引用的品牌证据", 620)
-    advice = recommendations(data)
-    y = 548
-    for idx, item in enumerate(advice[:5], start=1):
-        rounded_rect(c, 40, y - 48, 515, 58, 12, colors.white, LINE)
+    has_data = has_analysis_data(data)
+    if has_data:
+        title(c, f"{brand}应优先补强可被 AI 引用的品牌证据", 620)
+        advice = recommendations(data)
+        y = 548
+        for idx, item in enumerate(advice[:5], start=1):
+            rounded_rect(c, 40, y - 48, 515, 58, 12, colors.white, LINE)
+            c.setFillColor(BLUE)
+            c.setFont("GeoGiCJK", 13)
+            c.drawString(58, y - 18, f"0{idx}")
+            paragraph(c, 96, y - 12, item, 410, size=9, leading=13)
+            y -= 72
+        delivery_note = "本报告用于基础快检和方向判断。正式 GEO 增长服务会进一步补充官网内容、结构化问答、第三方信源、平台适配素材和周期性复测。"
+    else:
+        title(c, "完成平台检测与分析后生成优化建议", 620)
+        rounded_rect(c, 40, 430, 515, 126, 14, colors.white, LINE)
         c.setFillColor(BLUE)
-        c.setFont("GeoGiCJK", 13)
-        c.drawString(58, y - 18, f"0{idx}")
-        paragraph(c, 96, y - 12, item, 410, size=9, leading=13)
-        y -= 72
+        c.setFont("GeoGiCJK", 10)
+        c.drawString(58, 530, "当前状态")
+        paragraph(c, 58, 502, "尚未导入真实 AI 平台问答与分析结果，因此本页不生成品牌优化建议。完成五个平台检测、证据复核和评分后，系统再生成正式优化路线。", 470, size=11, leading=18, color=DARK)
+        delivery_note = "当前为报告渲染测试文件，仅用于验证 PDF 生成、中文字体、品牌视觉和页面布局，不作为客户诊断结果或优化方案。"
 
     rounded_rect(c, 40, 88, 515, 90, 14, colors.HexColor("#fff7eb"), colors.HexColor("#ffd398"))
     c.setFillColor(ORANGE)
     c.setFont("GeoGiCJK", 10)
     c.drawString(58, 148, "交付说明")
-    paragraph(c, 58, 128, "本报告用于基础快检和方向判断。正式 GEO 增长服务会进一步补充官网内容、结构化问答、第三方信源、平台适配素材和周期性复测。", 470, size=9, leading=14)
+    paragraph(c, 58, 128, delivery_note, 470, size=9, leading=14)
     footer(c, 6)
 
 
@@ -355,7 +402,7 @@ def metric_cards(c, x, y, items):
         c.setFillColor(MUTED)
         c.setFont("GeoGiCJK", 8)
         c.drawString(xx + 14, y + 50, label)
-        c.setFillColor(score_color(number(value)))
+        c.setFillColor(metric_value_color(value))
         c.setFont("GeoGiCJK", 19)
         c.drawString(xx + 14, y + 26, value)
         c.setFillColor(MUTED)
@@ -368,13 +415,14 @@ def score_bar(c, x, y, label, score, desc):
     c.setFillColor(DARK)
     c.setFont("GeoGiCJK", 10)
     c.drawString(x + 14, y - 6, label)
-    c.setFillColor(score_color(score))
+    c.setFillColor(score_color(score) if score is not None else MUTED)
     c.setFont("GeoGiCJK", 13)
-    c.drawRightString(x + 456, y - 6, f"{score}/100")
-    c.setFillColor(colors.HexColor("#edf3fb"))
-    c.rect(x + 14, y - 24, 270, 6, fill=1, stroke=0)
-    c.setFillColor(score_color(score))
-    c.rect(x + 14, y - 24, 270 * max(0, min(score, 100)) / 100, 6, fill=1, stroke=0)
+    c.drawRightString(x + 456, y - 6, f"{score}/100" if score is not None else "待分析")
+    if score is not None:
+        c.setFillColor(colors.HexColor("#edf3fb"))
+        c.rect(x + 14, y - 24, 270, 6, fill=1, stroke=0)
+        c.setFillColor(score_color(score))
+        c.rect(x + 14, y - 24, 270 * max(0, min(score, 100)) / 100, 6, fill=1, stroke=0)
     c.setFillColor(MUTED)
     c.setFont("GeoGiCJK", 8)
     for i, line in enumerate(wrap_to_width(desc, 410, 8)[:2]):
@@ -396,6 +444,18 @@ def score_overall(data):
     ]
     valid = [v for v in values if v > 0]
     return round(sum(valid) / len(valid)) if valid else 0
+
+
+def has_analysis_data(data):
+    return bool(data.get("analyses") or [])
+
+
+def score_conclusion(brand, score):
+    if score >= 75:
+        return f"{brand}当前 AI 可见度整体表现良好，下一步应重点巩固主动推荐、可信信源和核心竞争优势。"
+    if score >= 55:
+        return f"{brand}已形成一定 AI 可见度，但在主动推荐、信息准确性或可信信源方面仍有明确优化空间。"
+    return f"{brand}当前 AI 可见度基础较弱，应优先补强品牌识别、推荐理由、信息准确性和可信信源。"
 
 
 def score_dimension(data, field):
@@ -476,6 +536,8 @@ def platform_coverage_text(data):
 
 
 def quality_line(data):
+    if not data.get("conversations"):
+        return "尚未导入真实平台问答数据；当前仅完成报告渲染链路验证；不形成诊断结论。"
     quality = data.get("quality") or {}
     platforms = quality.get("platforms") or []
     if not platforms:
@@ -528,6 +590,12 @@ def score_color(score):
     return RED
 
 
+def metric_value_color(value):
+    if text(value) in {"待分析", "待检测"}:
+        return MUTED
+    return score_color(number(value))
+
+
 def score_level(score):
     value = number(score)
     if value >= 75:
@@ -560,8 +628,11 @@ def wrap_to_width(value, width, size, font=FONT_NAME):
         for char in raw:
             candidate = f"{current}{char}"
             if current and pdfmetrics.stringWidth(candidate, font, size) > width:
-                lines.append(current)
-                current = char
+                if char in CJK_LINE_START_FORBIDDEN:
+                    current = candidate
+                else:
+                    lines.append(current)
+                    current = char
             else:
                 current = candidate
         if current:
