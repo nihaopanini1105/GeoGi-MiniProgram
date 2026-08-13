@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 706 360" width="706" height="360">
+<defs>
+  <linearGradient id="geogiBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#53B6FF"/>
+    <stop offset="46%" stop-color="#3B82FF"/>
+    <stop offset="100%" stop-color="#315DEB"/>
+  </linearGradient>
+  <linearGradient id="ringGrad" x1="15%" y1="0%" x2="80%" y2="100%">
+    <stop offset="0%" stop-color="#FFFFFF"/>
+    <stop offset="36%" stop-color="#F7FBFF"/>
+    <stop offset="72%" stop-color="#D7F2FF"/>
+    <stop offset="100%" stop-color="#FFFFFF"/>
+  </linearGradient>
+  <radialGradient id="dotGrad" cx="34%" cy="24%" r="78%">
+    <stop offset="0%" stop-color="#FFFFFF"/>
+    <stop offset="68%" stop-color="#FAFDFF"/>
+    <stop offset="100%" stop-color="#D9F1FF"/>
+  </radialGradient>
+</defs>
+<path d="M789 -20C1144 -20 1400 216 1400 586V749H828V583H1214C1209 321 1038 156 789 156C515 156 307 364 307 744C307 1127 516 1334 778 1334C989 1334 1132 1214 1193 1023H1389C1335 1312 1092 1510 777 1510C395 1510 122 1217 122 744C122 273 391 -20 789 -20Z" fill="#FFFFFF" transform="translate(40.000,285.000) scale(0.10253906,-0.10253906)"/>
+<path d="M628 -24C857 -24 1024 91 1076 260L902 308C860 194 761 136 629 136C431 136 295 264 286 498H1094V573C1094 986 844 1132 607 1132C302 1132 104 893 104 550C104 206 304 -24 628 -24ZM287 650C298 821 415 972 607 972C791 972 894 840 911 650Z" fill="#FFFFFF" transform="translate(199.180,285.000) scale(0.10253906,-0.10253906)"/>
+<path d="M613 -24C918 -24 1124 207 1124 552C1124 902 918 1132 613 1132C309 1132 104 902 104 552C104 207 309 -24 613 -24ZM613 137C390 137 287 332 287 552C287 775 390 971 613 971C839 971 942 774 942 552C942 332 839 137 613 137Z" fill="#FFFFFF" transform="translate(324.111,285.000) scale(0.10253906,-0.10253906)"/>
+<path d="M789 -20C1144 -20 1400 216 1400 586V749H828V583H1214C1209 321 1038 156 789 156C515 156 307 364 307 744C307 1127 516 1334 778 1334C989 1334 1132 1214 1193 1023H1389C1335 1312 1092 1510 777 1510C395 1510 122 1217 122 744C122 273 391 -20 789 -20Z" fill="#FFFFFF" transform="translate(452.529,285.000) scale(0.10253906,-0.10253906)"/>
+<path d="M158 0H338V1118H158ZM249 1301C318 1301 375 1354 375 1420C375 1486 318 1539 249 1539C181 1539 124 1486 124 1420C124 1354 181 1301 249 1301Z" fill="#FFFFFF" transform="translate(611.709,285.000) scale(0.10253906,-0.10253906)"/>
+</svg>
