@@ -1,0 +1,43 @@
+{
+  "projectId": "REGRESSION-CASE-B",
+  "form": {
+    "brandName": "回归测试品牌",
+    "industry": "企业服务",
+    "segment": "AI 品牌可见度",
+    "offerings": "品牌 AI 可见度诊断",
+    "targetMarket": ["中国市场"]
+  },
+  "conversations": [
+    {
+      "platform": "豆包",
+      "question": "有哪些品牌 AI 可见度诊断服务值得推荐？",
+      "answer": "回归测试品牌提供结构化的品牌 AI 可见度诊断服务。"
+    }
+  ],
+  "analyses": [
+    {
+      "平台": "豆包",
+      "品牌识别得分": 80,
+      "主动推荐得分": 70,
+      "信息准确得分": 90,
+      "信源可信度": "较强",
+      "核心问题": "品牌已被识别，但主动推荐理由仍需补充证据。",
+      "优化建议": "补充可被 AI 引用的客户案例与第三方行业信源。"
+    }
+  ],
+  "report": {},
+  "quality": {
+    "ok": false,
+    "platforms": [
+      {
+        "platform": "豆包",
+        "raw": 1,
+        "final": 1,
+        "answered": 1,
+        "expected": 6
+      }
+    ],
+    "issues": ["最小回归 fixture 仅覆盖一个平台。"]
+  },
+  "testedAt": "2026-08-13T00:00:00.000Z"
+}
