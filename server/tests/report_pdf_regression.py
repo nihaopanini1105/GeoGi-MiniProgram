@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import importlib.util
+import inspect
 import io
 import subprocess
 import sys
@@ -118,6 +119,34 @@ def assert_logo_fail_fast(renderer):
         raise AssertionError("missing canonical logo must fail fast")
 
 
+def assert_score_conclusions(renderer):
+    expected = {
+        80: "测试品牌当前 AI 可见度整体表现良好，下一步应重点巩固主动推荐、可信信源和核心竞争优势。",
+        60: "测试品牌已形成一定 AI 可见度，但在主动推荐、信息准确性或可信信源方面仍有明确优化空间。",
+        40: "测试品牌当前 AI 可见度基础较弱，应优先补强品牌识别、推荐理由、信息准确性和可信信源。",
+    }
+    for score, conclusion in expected.items():
+        actual = renderer.score_conclusion("测试品牌", score)
+        if actual != conclusion:
+            raise AssertionError(f"score {score} conclusion mismatch: {actual}")
+
+
+def assert_logo_renderer_guards(renderer):
+    logo_source = inspect.getsource(renderer.header) + inspect.getsource(renderer.draw_logo)
+    prohibited = [
+        "LOGO_MARK_PATH",
+        "GeoGi 几何智引",
+        "Generate to be Found.",
+        "geogi_logo_dark_",
+        "geogi_logo_mark_dark_",
+        "geogi_logo_core_",
+        "geogi_mark_transparent_",
+    ]
+    found = [value for value in prohibited if value in logo_source]
+    if found:
+        raise AssertionError(f"header/logo renderer contains prohibited manual or legacy logo references: {found}")
+
+
 def verify_case_a(reader, pages):
     text = "\n".join(pages)
     assert_contains(text, [
@@ -143,6 +172,7 @@ def verify_case_a(reader, pages):
         "尚未导入真实 AI 平台问答与分析结果，因此本页不生成品牌优化建议。",
         "当前为报告渲染测试文件，仅用于验证 PDF 生成、中文字体、品牌视觉和页面布局，不作为客户诊断结果或优化方案。",
         "尚未导入真实平台问答数据；当前仅完成报告渲染链路验证；不形成诊断结论。",
+        "GeoGi 几何智引 · 让品牌在 AI 时代被看见、被理解、被选择",
     ], "CASE A")
     assert_absent(text, [
         "0 / 100",
@@ -153,7 +183,6 @@ def verify_case_a(reader, pages):
         "表现良好",
         "可优化",
         "补充回归测试品牌官网品牌介绍",
-        "GeoGi 几何智引",
         "Generate to be Found.",
     ], "CASE A")
     if text.count("待分析") < 6:
@@ -170,7 +199,7 @@ def verify_case_b(reader, pages):
         "表现良好",
         "正式快检版",
         "回归测试品牌的 AI 可见度已形成可诊断样本",
-        "回归测试品牌已有一定 AI 可见度基础",
+        "回归测试品牌当前 AI 可见度整体表现良好，下一步应重点巩固主动推荐、可信信源和核心竞争优势。",
         "品牌已被识别，但主动推荐理由仍需补充证据。",
         "回归测试品牌应优先补强可被 AI 引用的品牌证据",
         "补充可被 AI 引用的客户案例与第三方行业信源。",
@@ -180,7 +209,6 @@ def verify_case_b(reader, pages):
         "尚待完成分析",
         "暂无分析结果",
         "完成平台检测与分析后生成优化建议",
-        "GeoGi 几何智引",
         "Generate to be Found.",
     ], "CASE B")
     assert_logos(reader, "CASE B")
@@ -195,6 +223,8 @@ def main():
     renderer = load_renderer()
     assert_wrap_regression(renderer)
     assert_logo_fail_fast(renderer)
+    assert_score_conclusions(renderer)
+    assert_logo_renderer_guards(renderer)
 
     outputs = {
         "CASE A": args.output_dir / "geogi-report-case-a-no-data.pdf",
@@ -215,6 +245,8 @@ def main():
         print(f"{case_name} PASS: {outputs[case_name]}")
 
     print("CJK punctuation wrap PASS")
+    print("Score conclusion tiers PASS (80/60/40)")
+    print("Header/logo renderer guards PASS")
     print("Canonical logo fail-fast PASS")
     print("Canonical logo pixel checks PASS")
 

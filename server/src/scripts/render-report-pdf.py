@@ -166,7 +166,7 @@ def draw_summary(c, data):
     if has_data:
         title(c, f"{brand}的 AI 可见度已形成可诊断样本", 620)
         paragraph(c, 40, 590, "本页结论来自客户资料、品牌档案、5 个 AI 平台问答记录与结构化表格/链接/图片证据。GeoGi 关注的是用户真实提问时，AI 是否能识别品牌、主动推荐、准确表达并给出可信信源。", 510)
-        conclusion = f"{brand}已有一定 AI 可见度基础，下一步应围绕品牌实体、产品卖点、可信信源和推荐理由做系统补强。"
+        conclusion = score_conclusion(brand, score)
     else:
         title(c, f"{brand}的 AI 可见度尚待完成分析", 620)
         paragraph(c, 40, 590, "当前文件仅用于验证 GeoGi 报告渲染、中文字体、品牌视觉与 PDF 输出链路。尚未导入真实 AI 平台问答和分析结果，因此不形成客户诊断结论。", 510)
@@ -356,7 +356,7 @@ def footer(c, page):
     c.line(40, 42, PAGE_W - 40, 42)
     c.setFillColor(MUTED)
     c.setFont("GeoGiCJK", 8)
-    c.drawString(40, 24, "品牌 AI 可见度诊断 · 让品牌在 AI 时代被看见、被理解、被选择")
+    c.drawString(40, 24, "GeoGi 几何智引 · 让品牌在 AI 时代被看见、被理解、被选择")
     c.drawRightString(PAGE_W - 40, 24, f"{page:02d}")
     c.showPage()
 
@@ -448,6 +448,14 @@ def score_overall(data):
 
 def has_analysis_data(data):
     return bool(data.get("analyses") or [])
+
+
+def score_conclusion(brand, score):
+    if score >= 75:
+        return f"{brand}当前 AI 可见度整体表现良好，下一步应重点巩固主动推荐、可信信源和核心竞争优势。"
+    if score >= 55:
+        return f"{brand}已形成一定 AI 可见度，但在主动推荐、信息准确性或可信信源方面仍有明确优化空间。"
+    return f"{brand}当前 AI 可见度基础较弱，应优先补强品牌识别、推荐理由、信息准确性和可信信源。"
 
 
 def score_dimension(data, field):
