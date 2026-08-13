@@ -1,6 +1,21 @@
 {
   "version": "v1.1",
   "generatedAt": "2026-07-21",
+  "brandLogoSystem": {
+    "name": "GeoGi Logo System",
+    "version": "1.0.0",
+    "frozen": "2026-08-13",
+    "authority": "assets/brand/logo-system/v1.0/manifest.json",
+    "assets": {
+      "appIcon": "assets/brand/logo-system/v1.0/png/geogi-app-icon-512.png",
+      "mark": "assets/brand/logo-system/v1.0/png/geogi-mark-512.png",
+      "horizontalNavy": "assets/brand/logo-system/v1.0/png/geogi-logo-horizontal-navy-1024.png",
+      "horizontalWhite": "assets/brand/logo-system/v1.0/png/geogi-logo-horizontal-white-1024.png",
+      "verticalNavy": "assets/brand/logo-system/v1.0/png/geogi-logo-vertical-navy-800.png",
+      "verticalWhite": "assets/brand/logo-system/v1.0/png/geogi-logo-vertical-white-800.png"
+    },
+    "displayMode": "aspectFit"
+  },
   "items": [
     {
       "key": "home.hero",

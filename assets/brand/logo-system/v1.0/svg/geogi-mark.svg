@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+  <linearGradient id="geogiBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#53B6FF"/>
+    <stop offset="46%" stop-color="#3B82FF"/>
+    <stop offset="100%" stop-color="#315DEB"/>
+  </linearGradient>
+  <linearGradient id="ringGrad" x1="15%" y1="0%" x2="80%" y2="100%">
+    <stop offset="0%" stop-color="#FFFFFF"/>
+    <stop offset="36%" stop-color="#F7FBFF"/>
+    <stop offset="72%" stop-color="#D7F2FF"/>
+    <stop offset="100%" stop-color="#FFFFFF"/>
+  </linearGradient>
+  <radialGradient id="dotGrad" cx="34%" cy="24%" r="78%">
+    <stop offset="0%" stop-color="#FFFFFF"/>
+    <stop offset="68%" stop-color="#FAFDFF"/>
+    <stop offset="100%" stop-color="#D9F1FF"/>
+  </radialGradient>
+</defs>
+<g>
+  <rect x="73.040" y="73.040" width="877.920" height="877.920" rx="179.360" fill="url(#geogiBlue)"/>
+  <circle cx="512.000" cy="516.720" r="231.280" fill="none"
+          stroke="url(#ringGrad)" stroke-width="81.184" stroke-linecap="round"/>
+  <circle cx="695.136" cy="337.360" r="44.368" fill="url(#dotGrad)"/>
+</g>
+</svg>

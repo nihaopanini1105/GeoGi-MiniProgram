@@ -35,8 +35,9 @@ FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
 ]
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
-LOGO_PATH = os.path.join(PROJECT_ROOT, "assets", "brand", "geogi_logo_dark_1024.png")
-LOGO_MARK_PATH = os.path.join(PROJECT_ROOT, "assets", "brand", "geogi_logo_mark_dark_512.png")
+LOGO_SYSTEM_PATH = os.path.join(PROJECT_ROOT, "assets", "brand", "logo-system", "v1.0", "png")
+LOGO_PATH = os.path.join(LOGO_SYSTEM_PATH, "geogi-logo-horizontal-navy-1024.png")
+LOGO_INVERSE_PATH = os.path.join(LOGO_SYSTEM_PATH, "geogi-logo-horizontal-white-1024.png")
 
 
 def main():
@@ -86,13 +87,7 @@ def draw_cover(c, data):
     c.setStrokeColor(colors.Color(0.18, 0.43, 1, alpha=0.18))
     c.circle(PAGE_W - 114, PAGE_H - 218, 122, fill=0, stroke=1)
 
-    draw_logo(c, 36, PAGE_H - 112, 86, 86, LOGO_MARK_PATH)
-    c.setFont("GeoGiCJK", 13)
-    c.setFillColor(colors.white)
-    c.drawString(128, PAGE_H - 58, "GeoGi 几何智引")
-    c.setFont("GeoGiCJK", 8)
-    c.setFillColor(colors.Color(1, 1, 1, alpha=0.66))
-    c.drawString(128, PAGE_H - 74, "Generate to be Found.")
+    draw_logo(c, 36, PAGE_H - 104, 150, 67, LOGO_INVERSE_PATH)
 
     c.setFont("GeoGiCJK", 12)
     c.setFillColor(CYAN)
@@ -295,13 +290,9 @@ def draw_actions(c, data):
 def header(c, right):
     c.setFillColor(BG)
     c.rect(0, 0, PAGE_W, PAGE_H, fill=1, stroke=0)
-    draw_logo(c, 40, PAGE_H - 76, 34, 34, LOGO_MARK_PATH)
-    c.setFillColor(DARK)
-    c.setFont("GeoGiCJK", 11)
-    c.drawString(82, PAGE_H - 55, "GeoGi 几何智引")
+    draw_logo(c, 40, PAGE_H - 77, 92, 41, LOGO_PATH)
     c.setFont("GeoGiCJK", 8)
     c.setFillColor(MUTED)
-    c.drawString(82, PAGE_H - 69, "Generate to be Found.")
     c.drawRightString(PAGE_W - 40, PAGE_H - 58, right)
     c.setStrokeColor(LINE)
     c.line(40, PAGE_H - 90, PAGE_W - 40, PAGE_H - 90)
@@ -309,8 +300,7 @@ def header(c, right):
 
 def draw_logo(c, x, y, w, h, logo_path=LOGO_PATH):
     if not os.path.exists(logo_path):
-        rounded_rect(c, x, y, w, h, 8, BLUE, BLUE)
-        return
+        raise FileNotFoundError(f"GeoGi canonical logo not found: {logo_path}")
     c.drawImage(ImageReader(logo_path), x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
 
 
