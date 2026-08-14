@@ -1,0 +1,19 @@
+{
+  "projectId": "REGRESSION-CASE-A",
+  "form": {
+    "brandName": "回归测试品牌",
+    "industry": "测试行业",
+    "segment": "测试细分",
+    "offerings": "PDF 渲染链路验证",
+    "targetMarket": ["中国市场"]
+  },
+  "conversations": [],
+  "analyses": [],
+  "report": {},
+  "quality": {
+    "ok": false,
+    "platforms": [],
+    "issues": []
+  },
+  "testedAt": "2026-08-13T00:00:00.000Z"
+}

@@ -1,0 +1,34 @@
+{
+  "name": "GeoGi Logo System",
+  "version": "1.0.0",
+  "frozen_date": "2026-08-13",
+  "status": "canonical",
+  "wordmark": {
+    "style": "Inter Regular-derived vector paths",
+    "weight": "Regular / 400",
+    "navy": "#0B1F45",
+    "rule": "Do not use bold wordmark."
+  },
+  "mark": {
+    "description": "Blue rounded-square Orbit mark with white/light-cyan orbital ring and upper-right dot.",
+    "rule": "Do not redraw, recolor, distort, add white cards, or substitute legacy marks."
+  },
+  "usage": {
+    "app_mini_program_avatar_favicon": "geogi-app-icon",
+    "website_light_header": "geogi-logo-horizontal-navy",
+    "website_dark_header": "geogi-logo-horizontal-white",
+    "pdf_dark_cover": "geogi-logo-horizontal-white",
+    "pdf_light_inner_page": "geogi-logo-horizontal-navy",
+    "social_light": "horizontal-navy or vertical-navy",
+    "social_dark": "horizontal-white or vertical-white",
+    "narrow_space": "vertical lockup",
+    "very_small_space": "mark/icon only"
+  },
+  "retired_assets": [
+    "geogi_logo_dark_*",
+    "geogi_logo_mark_dark_*",
+    "geogi_logo_core_*",
+    "geogi_mark_transparent_*",
+    "legacy AI-redrawn or approximate logos"
+  ]
+}
