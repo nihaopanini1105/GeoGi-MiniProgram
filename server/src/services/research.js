@@ -94,11 +94,11 @@ async function getResearchArticle(id) {
 }
 
 async function loadRegistry() {
-  const websiteOrigin = websiteOrigin();
-  const githubRawBase = githubRawBase();
+  const resolvedWebsiteOrigin = websiteOrigin();
+  const resolvedGithubRawBase = githubRawBase();
   const candidates = [
-    `${websiteOrigin}${REGISTRY_PATH}`,
-    `${githubRawBase}${REGISTRY_PATH}`
+    `${resolvedWebsiteOrigin}${REGISTRY_PATH}`,
+    `${resolvedGithubRawBase}${REGISTRY_PATH}`
   ];
 
   let lastError = null;
