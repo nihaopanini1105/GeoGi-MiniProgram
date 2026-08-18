@@ -86,10 +86,33 @@ Page({
   },
 
   onShareAppMessage() {
+    const article = this.data.article || {};
+    const id = this.articleId || '';
+
     return {
-      title: this.data.article.title,
-      path: '/pages/research/research'
+      title: article.title || 'GeoGi GEO 研究中心',
+      path: id
+        ? `/pages/research-detail/research-detail?id=${encodeURIComponent(id)}&from=share`
+        : '/pages/research/research?from=share'
     };
+  },
+
+  onShareTimeline() {
+    const article = this.data.article || {};
+    const id = this.articleId || '';
+
+    return {
+      title: article.title || 'GeoGi GEO 研究中心',
+      query: id
+        ? `id=${encodeURIComponent(id)}&from=timeline`
+        : 'from=timeline'
+    };
+  },
+
+  onUnload() {
+    if (typeof wx.offCopyUrl === 'function') {
+      wx.offCopyUrl();
+    }
   },
 
   goDiagnosis() {

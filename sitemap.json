@@ -1,8 +1,28 @@
 {
-  "desc": "GeoGi MiniProgram sitemap",
+  "desc": "GeoGi public search pages",
   "rules": [
     {
       "action": "allow",
+      "page": "pages/index/index"
+    },
+    {
+      "action": "allow",
+      "page": "pages/services/services"
+    },
+    {
+      "action": "allow",
+      "page": "pages/research/research"
+    },
+    {
+      "action": "allow",
+      "page": "pages/research-detail/research-detail",
+      "params": [
+        "id"
+      ],
+      "matching": "inclusive"
+    },
+    {
+      "action": "disallow",
       "page": "*"
     }
   ]

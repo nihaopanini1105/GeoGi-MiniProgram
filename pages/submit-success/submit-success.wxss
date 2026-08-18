@@ -1,5 +1,5 @@
 .success-page { background:#F7F9FC; }
-.success-hero,.identity-card,.process-card,.report-card { padding:34rpx 30rpx; }
+.success-hero,.identity-card,.consult-card,.process-card,.report-card { padding:34rpx 30rpx; }
 .success-hero { background:linear-gradient(150deg,#FFFFFF,#F4F8FF); }
 .success-mark { display:flex; align-items:center; justify-content:center; width:88rpx; height:88rpx; border-radius:50%; background:#EAF2FF; color:#176BFF; font-size:50rpx; font-weight:700; }
 .success-kicker,.section-kicker { display:block; margin-top:26rpx; color:#176BFF; font-size:20rpx; font-weight:700; letter-spacing:.1em; }
@@ -15,6 +15,9 @@
 .identity-label { color:#7B879B; font-size:23rpx; }
 .identity-value { color:#20324F; font-size:23rpx; font-weight:600; text-align:right; }
 .project-id { color:#176BFF; }
+
+
+
 .process-row { display:flex; gap:18rpx; padding:20rpx 0; border-bottom:1rpx solid #EDF1F7; }
 .process-index { color:#176BFF; font-size:21rpx; font-weight:700; }
 .process-copy text { display:block; }
@@ -24,4 +27,3 @@
 .report-copy { display:block; margin-top:10rpx; color:#66789A; font-size:23rpx; line-height:1.6; }
 .full-button { width:100%; margin-top:24rpx; }
 .secondary-action { margin-top:14rpx; }
-.consult-entry { display:block; margin-top:26rpx; color:#176BFF; font-size:23rpx; font-weight:600; text-align:center; }

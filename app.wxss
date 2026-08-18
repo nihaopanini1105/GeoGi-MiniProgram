@@ -133,3 +133,30 @@ button {
 .full-button {
   width: 100%;
 }
+
+/* EXPERIENCE_V1_GLOBAL_START */
+
+button::after {
+  border: 0;
+}
+
+.primary-button,
+.secondary-button {
+  box-sizing: border-box;
+  padding-left: 28rpx;
+  padding-right: 28rpx;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.primary-button:active,
+.secondary-button:active {
+  opacity: 0.88;
+}
+
+.primary-button text,
+.secondary-button text {
+  line-height: 1.2;
+  text-align: center;
+}
+/* EXPERIENCE_V1_GLOBAL_END */

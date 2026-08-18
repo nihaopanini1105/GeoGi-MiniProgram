@@ -5,8 +5,7 @@
       <text class="h1">诊断报告</text>
       <text class="lead">查看品牌诊断进度，以及已通过人工审核并正式发布的报告。</text>
     </view>
-    <button class="refresh-button" loading="{{loading}}" bindtap="refresh">刷新</button>
-  </view>
+</view>
 
   <view wx:if="{{clientId}}" class="client-card card">
     <text class="client-label">客户编号</text>

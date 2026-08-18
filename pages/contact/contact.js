@@ -3,6 +3,7 @@ const { track } = require('../../utils/analytics');
 
 Page({
   data: {
+    wecomQr: '/assets/contact/geogi-wecom-qr.png',
     email: app.globalData.contactEmail,
     website: app.globalData.officialWebsite
   },

@@ -77,3 +77,57 @@ textarea { min-height:110rpx; padding:22rpx; line-height:1.55; }
 .bottom-actions { display:flex; gap:14rpx; margin-top:26rpx; }
 .half-button { flex:1; }
 .form-consult { text-align:center; }
+
+/* EXPERIENCE_V1_PLATFORM_FINAL_START */
+.platform-card .platform-grid {
+  align-items: flex-start;
+}
+
+.platform-card .platform-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  margin-bottom: 12rpx;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.platform-card .platform-icon-wrap image {
+  display: block;
+  width: 66rpx;
+  height: 66rpx;
+  border-radius: 18rpx;
+}
+
+.platform-card .platform-item {
+  justify-content: flex-start;
+  color: #5F6F87;
+  font-size: 19rpx;
+  line-height: 1.35;
+}
+/* EXPERIENCE_V1_PLATFORM_FINAL_END */
+
+
+.privacy-link-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 18rpx;
+}
+
+.privacy-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  color: #6B7B92;
+  font-size: 24rpx;
+  line-height: 1.5;
+  text-align: center;
+}

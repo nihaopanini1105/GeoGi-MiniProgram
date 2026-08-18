@@ -1,6 +1,6 @@
 const { platforms } = require('../../config/platforms');
 const { assets } = require('../../config/assets');
-const { post, uploadFile, isApiConfigured } = require('../../utils/request');
+const { post, uploadFile, getCustomerToken, isApiConfigured } = require('../../utils/request');
 const { track } = require('../../utils/analytics');
 
 const draftKey = 'geogi_diagnosis_draft';
@@ -41,18 +41,26 @@ Page({
     marketIndex: 0,
     assets,
     platforms: platforms.filter((item) => item.enabled),
+    checks: [
+      '品牌是否被 AI 识别',
+      '是否被主动推荐',
+      '信息是否准确完整',
+      '哪些竞品被优先推荐',
+      '内容和信源缺口'
+    ],
+    deliveries: ['品牌基础研究', '跨平台检测证据', '诊断结论', '优化建议'],
     industries: ['旅游与文旅', '企业服务', '软件与互联网', '消费品与零售', '教育培训', '医疗健康', '其他行业'],
     industrySegments: {
-      '旅游与文旅': ['旅行社/定制旅行', '机票/商旅服务', '酒店/住宿', '目的地服务', '研学/亲子游', '文旅营销', '其他旅游服务'],
+      '旅游与文旅': ['旅行社/旅游服务商', '机票/航旅服务', '酒店/住宿', '商旅服务', '定制旅行', '目的地服务', '其他旅游服务'],
       '企业服务': ['品牌营销', '咨询服务', '人力资源', '财税法务', '销售获客', '企业培训', '其他企业服务'],
       '软件与互联网': ['SaaS 软件', 'AI 工具', '数据服务', '电商平台', '内容社区', '开发者服务', '其他软件互联网'],
       '消费品与零售': ['食品饮料', '美妆个护', '服饰配饰', '母婴亲子', '家居生活', '线下零售', '其他消费零售'],
       '教育培训': ['职业教育', '企业培训', 'K12/素质教育', '留学语培', '知识付费', '教育科技', '其他教育培训'],
-      '医疗健康': ['医美', '口腔', '健康管理', '医疗服务', '康复护理', '医疗科技', '其他医疗健康'],
+      '医疗健康': ['医疗美容', '口腔服务', '医疗服务', '健康管理', '康复护理', '医疗科技', '其他医疗健康'],
       '其他行业': ['本地生活', '专业服务', '制造业', '房地产/空间', '公益/机构', '其他业务']
     },
-    segmentOptions: ['旅行社/定制旅行', '机票/商旅服务', '酒店/住宿', '目的地服务', '研学/亲子游', '文旅营销', '其他旅游服务'],
-    marketOptions: ['全国市场', '区域市场', '本地市场', 'B2B 企业客户', 'C 端消费者'],
+    segmentOptions: ['旅行社/旅游服务商', '机票/航旅服务', '酒店/住宿', '商旅服务', '定制旅行', '目的地服务', '其他旅游服务'],
+    marketOptions: ['全国市场', '本地市场', 'B2B 企业客户', 'C 端消费者', '海外业务客户', '其他市场'],
     goalOptions: [
       { label: 'AI 是否会主动推荐我的品牌', selected: false },
       { label: '检查品牌信息是否准确', selected: false },
@@ -63,7 +71,7 @@ Page({
   },
 
   onLoad(options) {
-    const phoneAuth = wx.getStorageSync('geogi_phone_auth') || {};
+    const phoneAuth = this.readValidPhoneAuth();
     const shouldStartNew = wx.getStorageSync('geogi_start_new_diagnosis') || options.start === '1';
     this.setData({
       phoneAuthorized: Boolean(phoneAuth.phoneNumber),
@@ -74,7 +82,7 @@ Page({
       wx.removeStorageSync('geogi_start_new_diagnosis');
       wx.removeStorageSync(draftKey);
       wx.removeStorageSync('geogi_last_submission');
-      if (phoneAuth.phoneNumber) this.startForm({ forceNew: true });
+      this.startForm({ forceNew: true });
       return;
     }
 
@@ -84,24 +92,47 @@ Page({
       const segmentOptions = this.getSegmentOptions(form.industry);
       this.setData({
         started: Boolean(options.start) || this.hasDraftContent(form),
-        form,
+        form: {
+          ...form,
+          contactMethod: phoneAuth.phoneNumber || form.contactMethod || ''
+        },
         industryIndex: this.getOptionIndex(this.data.industries, form.industry),
         segmentOptions,
         segmentIndex: this.getOptionIndex(segmentOptions, form.segment),
         marketIndex: this.getOptionIndex(this.data.marketOptions, form.targetMarket[0]),
         goalOptions: this.syncGoalOptions(form.goals)
       });
-    } else if (options.start && this.data.phoneAuthorized) {
-      this.startForm();
     }
   },
 
   onShow() {
+    const phoneAuth = this.readValidPhoneAuth();
+    this.setData({
+      phoneAuthorized: Boolean(phoneAuth.phoneNumber),
+      phoneDisplay: phoneAuth.phoneNumber || ''
+    });
+
     if (!wx.getStorageSync('geogi_start_new_diagnosis')) return;
     wx.removeStorageSync('geogi_start_new_diagnosis');
     wx.removeStorageSync(draftKey);
     wx.removeStorageSync('geogi_last_submission');
-    if (this.data.phoneAuthorized) this.startForm({ forceNew: true });
+    this.startForm({ forceNew: true });
+  },
+
+  readValidPhoneAuth() {
+    const phoneAuth = wx.getStorageSync('geogi_phone_auth') || {};
+    const token = getCustomerToken();
+    const expiresAt = phoneAuth.customerTokenExpiresAt || wx.getStorageSync('geogi_customer_token_expires_at') || '';
+    const expired = expiresAt && new Date(expiresAt).getTime() <= Date.now();
+    if (!phoneAuth.phoneNumber || !token || expired) {
+      if (expired || (!token && phoneAuth.phoneNumber)) {
+        wx.removeStorageSync('geogi_phone_auth');
+        wx.removeStorageSync('geogi_customer_token');
+        wx.removeStorageSync('geogi_customer_token_expires_at');
+      }
+      return {};
+    }
+    return phoneAuth;
   },
 
   async onGetPhoneNumber(event) {
@@ -112,30 +143,35 @@ Page({
     }
 
     if (!isApiConfigured()) {
-      this.setData({ phoneAuthError: '请先配置服务器 HTTPS 地址，再进行手机号授权。' });
+      this.setData({ phoneAuthError: '诊断服务暂未连接，请稍后再试。' });
       return;
     }
 
     this.setData({ phoneAuthLoading: true, phoneAuthError: '' });
     try {
       const result = await post('/api/wechat/phone', { code: detail.code });
-      if (!result || !result.ok || !result.phoneNumber) {
+      if (!result || !result.ok || !result.phoneNumber || !result.customerToken) {
         throw new Error(result && result.userMessage ? result.userMessage : '手机号授权失败');
       }
       const phoneAuth = {
         phoneNumber: result.phoneNumber,
         purePhoneNumber: result.purePhoneNumber || result.phoneNumber,
         countryCode: result.countryCode || '',
+        customerTokenExpiresAt: result.customerTokenExpiresAt || '',
         authorizedAt: new Date().toISOString()
       };
       wx.setStorageSync('geogi_phone_auth', phoneAuth);
+      wx.setStorageSync('geogi_customer_token', result.customerToken);
+      if (result.customerTokenExpiresAt) {
+        wx.setStorageSync('geogi_customer_token_expires_at', result.customerTokenExpiresAt);
+      }
       this.setData({
         phoneAuthorized: true,
         phoneDisplay: phoneAuth.phoneNumber,
         phoneAuthError: ''
       });
       this.setFormValue('contactMethod', phoneAuth.phoneNumber);
-      this.startForm({ forceNew: true });
+      wx.showToast({ title: '手机号已授权', icon: 'success' });
     } catch (error) {
       this.setData({
         phoneAuthError: error && error.message ? error.message : '手机号授权失败，请稍后重试'
@@ -147,12 +183,13 @@ Page({
 
   startForm(options = {}) {
     const forceNew = Boolean(options.forceNew);
-    const phoneAuth = wx.getStorageSync('geogi_phone_auth') || {};
+    const phoneAuth = this.readValidPhoneAuth();
     const form = {
       ...(forceNew ? initialForm : this.data.form),
-      contactMethod: phoneAuth.phoneNumber || this.data.form.contactMethod || '',
+      contactMethod: phoneAuth.phoneNumber || '',
       submissionId: forceNew ? this.makeSubmissionId() : (this.data.form.submissionId || this.makeSubmissionId())
     };
+    const firstIndustry = this.data.industries[0];
     this.setData({
       started: true,
       step: 1,
@@ -161,7 +198,7 @@ Page({
       form,
       industryIndex: 0,
       segmentIndex: 0,
-      segmentOptions: this.getSegmentOptions(this.data.industries[0]),
+      segmentOptions: this.getSegmentOptions(firstIndustry),
       marketIndex: 0,
       goalOptions: this.syncGoalOptions([])
     }, this.scrollToTop);
@@ -171,8 +208,7 @@ Page({
 
   updateField(event) {
     const key = event.currentTarget.dataset.key;
-    const value = event.detail.value;
-    this.setFormValue(key, value);
+    this.setFormValue(key, event.detail.value);
   },
 
   chooseIndustry(event) {
@@ -200,21 +236,14 @@ Page({
     const value = event.currentTarget.dataset.value;
     const goals = [...this.data.form.goals];
     const index = goals.indexOf(value);
-
     if (index >= 0) {
       goals.splice(index, 1);
     } else if (goals.length < 3) {
       goals.push(value);
     } else {
-      this.setData({
-        fieldErrors: {
-          ...this.data.fieldErrors,
-          goals: '最多选择 3 项'
-        }
-      });
+      this.setData({ fieldErrors: { ...this.data.fieldErrors, goals: '最多选择 3 项' } });
       return;
     }
-
     this.setFormValue('goals', goals);
     this.setData({ goalOptions: this.syncGoalOptions(goals) });
   },
@@ -228,7 +257,6 @@ Page({
         const current = this.data.form.uploads || [];
         const next = [];
         const rejected = [];
-
         tempFiles.forEach((file) => {
           const ext = String(file.name || '').split('.').pop().toLowerCase();
           const sizeMb = Number(file.size || 0) / 1024 / 1024;
@@ -240,22 +268,11 @@ Page({
             rejected.push(`${file.name} 超过 20MB`);
             return;
           }
-          next.push({
-            name: file.name,
-            size: file.size,
-            path: file.path,
-            uploaded: false
-          });
+          next.push({ name: file.name, size: file.size, path: file.path, uploaded: false });
         });
-
         this.setFormValue('uploads', current.concat(next).slice(0, 3));
         if (rejected.length) {
-          this.setData({
-            fieldErrors: {
-              ...this.data.fieldErrors,
-              uploads: rejected[0]
-            }
-          });
+          this.setData({ fieldErrors: { ...this.data.fieldErrors, uploads: rejected[0] } });
         }
       }
     });
@@ -309,13 +326,11 @@ Page({
   validateStep(step) {
     const { form } = this.data;
     const errors = {};
-
     if (step === 1) {
       if (!form.brandName) errors.brandName = '请填写品牌名称';
       if (!form.industry) errors.industry = '请选择所属行业';
       if (!form.segment) errors.segment = '请选择细分领域';
     }
-
     if (step === 2) {
       if (!form.offerings) errors.offerings = '请填写核心产品或服务';
       if (!form.audiences) errors.audiences = '请填写主要客户与需求';
@@ -323,45 +338,29 @@ Page({
       if (this.splitCompetitors(form.competitors).length > 3) errors.competitors = '最多填写 3 个竞品';
       if (!form.goals.length) errors.goals = '请选择本次诊断目标';
     }
-
     if (step === 3) {
+      const phoneAuth = this.readValidPhoneAuth();
       if (!form.contactName) errors.contactName = '请填写联系人';
-      if (!this.data.phoneAuthorized || !form.contactMethod) errors.contactMethod = '请先完成手机号授权';
+      if (!phoneAuth.phoneNumber || form.contactMethod !== phoneAuth.phoneNumber) errors.contactMethod = '请先完成手机号授权';
       if (!form.privacyAccepted) errors.privacyAccepted = '提交前需要同意隐私说明';
     }
-
     this.setData({ fieldErrors: errors });
     return Object.keys(errors).length === 0;
   },
 
   async submit() {
     if (!this.validateStep(3) || this.data.submitting) return;
-
     if (!isApiConfigured()) {
-      this.setData({
-        fieldErrors: {
-          submit: '诊断服务暂未连接，请稍后再试'
-        }
-      });
+      this.setData({ fieldErrors: { submit: '诊断服务暂未连接，请稍后再试。' } });
       return;
     }
 
     this.setData({ submitting: true, fieldErrors: {} });
     const submittedAt = new Date().toISOString();
-
     try {
       const uploadedFiles = await this.uploadAttachments();
-      const form = {
-        ...this.data.form,
-        uploads: uploadedFiles,
-        submittedAt
-      };
-
-      const result = await post('/api/leads', {
-        form,
-        source: 'wechat_miniprogram'
-      });
-
+      const form = { ...this.data.form, uploads: uploadedFiles, submittedAt };
+      const result = await post('/api/leads', { form, source: 'wechat_miniprogram' });
       if (!result || !result.ok) {
         throw new Error(result && result.userMessage ? result.userMessage : '提交失败，请稍后重试');
       }
@@ -369,40 +368,30 @@ Page({
       const submission = {
         clientId: result.clientId,
         projectId: result.projectId,
-        status: '已提交',
-        internalStatus: result.status || '',
-        submittedAt: result.submittedAt || submittedAt,
-        notificationStatus: result.notificationStatus || '',
-        recordUrl: result.recordUrl || ''
+        status: result.status || '已提交',
+        submittedAt: result.submittedAt || submittedAt
       };
       wx.setStorageSync('geogi_last_submission', submission);
       this.saveOrderSnapshot({
-        clientId: result.clientId,
-        projectId: result.projectId,
+        ...submission,
         brandName: form.brandName,
         industry: form.industry,
-        segment: form.segment,
-        status: '已提交',
-        internalStatus: result.status || '',
-        submittedAt: result.submittedAt || submittedAt
+        segment: form.segment
       });
       wx.removeStorageSync(draftKey);
-      track('form_submit_success', {
-        client_id: result.clientId,
-        project_id: result.projectId,
-        industry: form.industry
-      });
+      track('form_submit_success', { industry: form.industry });
       this.resetForm();
       this.goSubmitSuccess();
     } catch (error) {
-      track('form_submit_fail', {
-        error_code: error && error.message ? error.message : 'unknown'
-      });
-      this.setData({
-        fieldErrors: {
-          submit: error && error.message ? error.message : '提交失败，资料已保留'
-        }
-      });
+      const message = error && error.message ? error.message : '提交失败，资料已保留';
+      if (/身份验证|授权手机号|401/.test(message)) {
+        wx.removeStorageSync('geogi_phone_auth');
+        wx.removeStorageSync('geogi_customer_token');
+        wx.removeStorageSync('geogi_customer_token_expires_at');
+        this.setData({ phoneAuthorized: false, phoneDisplay: '' });
+      }
+      track('form_submit_fail', { error_code: message });
+      this.setData({ fieldErrors: { submit: message } });
     } finally {
       this.setData({ submitting: false });
     }
@@ -411,23 +400,19 @@ Page({
   uploadAttachments() {
     const uploads = this.data.form.uploads || [];
     if (!uploads.length) return Promise.resolve([]);
-
-    return uploads.reduce((chain, file) => {
-      return chain.then(async (result) => {
-        if (file.fileId || !file.path) return result.concat(file);
-        const response = await uploadFile('/api/uploads', file.path, 'file', {
-          submissionId: this.data.form.submissionId,
-          fileName: file.name
-        });
-        return result.concat({
-          ...file,
-          fileId: response.fileId,
-          url: response.url,
-          uploaded: true,
-          path: ''
-        });
+    return uploads.reduce((chain, file) => chain.then(async (result) => {
+      if (file.fileId || !file.path) return result.concat(file);
+      const response = await uploadFile('/api/uploads', file.path, 'file', {
+        submissionId: this.data.form.submissionId,
+        fileName: file.name
       });
-    }, Promise.resolve([]));
+      return result.concat({
+        name: response.name || file.name,
+        size: response.size || file.size,
+        fileId: response.fileId,
+        uploaded: true
+      });
+    }), Promise.resolve([]));
   },
 
   goSubmitSuccess() {
@@ -450,10 +435,7 @@ Page({
   },
 
   splitCompetitors(value) {
-    return String(value || '')
-      .split(/[、,，\n]/)
-      .map((item) => item.trim())
-      .filter(Boolean);
+    return String(value || '').split(/[、,，\n]/).map((item) => item.trim()).filter(Boolean);
   },
 
   hasDraftContent(form) {
@@ -465,11 +447,12 @@ Page({
   },
 
   resetForm() {
+    const phoneAuth = this.readValidPhoneAuth();
     this.setData({
       started: false,
       submitting: false,
       fieldErrors: {},
-      form: { ...initialForm },
+      form: { ...initialForm, contactMethod: phoneAuth.phoneNumber || '' },
       industryIndex: 0,
       segmentIndex: 0,
       segmentOptions: this.getSegmentOptions(this.data.industries[0]),

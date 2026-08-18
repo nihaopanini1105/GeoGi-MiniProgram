@@ -21,6 +21,34 @@ Page({
     });
   },
 
+  onShareAppMessage() {
+    try {
+      track('share_app_message', {
+        page: 'research',
+        category: this.data.activeCategory || '全部'
+      });
+    } catch (error) {}
+
+    return {
+      title: 'GeoGi GEO 研究中心｜品牌 AI 可见度与 GEO',
+      path: '/pages/research/research?from=share'
+    };
+  },
+
+  onShareTimeline() {
+    try {
+      track('share_timeline', {
+        page: 'research',
+        category: this.data.activeCategory || '全部'
+      });
+    } catch (error) {}
+
+    return {
+      title: 'GeoGi GEO 研究中心｜品牌 AI 可见度与 GEO',
+      query: 'from=timeline'
+    };
+  },
+
   async loadArticles() {
     if (!isApiConfigured()) {
       this.setData({

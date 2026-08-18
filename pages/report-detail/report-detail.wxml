@@ -41,6 +41,7 @@
       </view>
     </view>
 
+    <block wx:if="{{order.reportReady}}">
     <view class="section">
       <view class="section-head">
         <text class="h2">核心评分</text>
@@ -100,10 +101,11 @@
       </view>
     </view>
 
-    <view class="section card contact-card">
-      <text class="block-title">需要解读报告？</text>
-      <text class="body">诊断顾问可以帮你确认品牌主体、信源缺口和下一步优化优先级。</text>
-      <button class="primary-button full-button" bindtap="goContact">联系诊断顾问</button>
+    </block>
+
+    <view wx:else class="section card state-card compact">
+      <text class="state-title">报告尚未发布</text>
+      <text class="body">完成 AI 平台检测、人工审核并正式发布后，这里会展示完整评分、平台证据、关键发现和优化建议。</text>
     </view>
   </block>
 </view>

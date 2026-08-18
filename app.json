@@ -9,8 +9,7 @@
     "pages/report-detail/report-detail",
     "pages/research/research",
     "pages/research-detail/research-detail",
-    "pages/privacy/privacy",
-    "pages/contact/contact"
+    "pages/privacy/privacy"
   ],
   "window": {
     "navigationBarTitleText": "GeoGi 几何智引",
@@ -39,7 +38,7 @@
       },
       {
         "pagePath": "pages/research/research",
-        "text": "研究",
+        "text": "知识库",
         "iconPath": "assets/tabbar/research.png",
         "selectedIconPath": "assets/tabbar/research_selected.png"
       },

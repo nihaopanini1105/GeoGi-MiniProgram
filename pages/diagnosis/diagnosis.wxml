@@ -19,7 +19,11 @@
 
       <button class="primary-button auth-button" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{phoneAuthLoading}}">授权手机号并开始</button>
       <text wx:if="{{phoneAuthError}}" class="submit-error">{{phoneAuthError}}</text>
-      <button class="privacy-link" bindtap="goPrivacy">查看隐私说明</button>
+
+      <view class="privacy-link-wrap">
+        <button class="privacy-link" bindtap="goPrivacy">查看隐私说明</button>
+      </view>
+
     </view>
   </block>
 
@@ -73,7 +77,6 @@
         <text class="note-title">填写约 2–3 分钟</text>
         <text class="note-copy">没有官网、竞品或附件也可以提交。官网是选填项，不影响申请。</text>
       </view>
-      <navigator class="consult-link" url="/pages/contact/contact">有疑问？联系顾问</navigator>
     </view>
   </block>
 
@@ -267,8 +270,6 @@
       <button class="privacy-link" bindtap="goPrivacy">查看隐私说明</button>
       <text wx:if="{{fieldErrors.submit}}" class="submit-error">{{fieldErrors.submit}}</text>
     </view>
-
-    <navigator class="form-consult" url="/pages/contact/contact">填写有疑问？联系 GeoGi 顾问</navigator>
 
     <view class="bottom-actions">
       <button wx:if="{{step > 1}}" class="secondary-button half-button" bindtap="prevStep" disabled="{{submitting}}">上一步</button>

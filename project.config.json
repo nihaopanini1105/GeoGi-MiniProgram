@@ -1,7 +1,304 @@
 {
   "description": "GeoGi WeChat Mini Program",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "server"
+      },
+      {
+        "type": "folder",
+        "value": "docs"
+      },
+      {
+        "type": "folder",
+        "value": "assets/platforms/custom"
+      },
+      {
+        "type": "folder",
+        "value": "assets/platforms/256"
+      },
+      {
+        "type": "folder",
+        "value": "assets/platforms/192"
+      },
+      {
+        "type": "folder",
+        "value": "assets/platforms/96"
+      },
+      {
+        "type": "folder",
+        "value": "assets/platforms/72"
+      },
+      {
+        "type": "folder",
+        "value": "assets/platforms/48"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/README.md"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_app_icon_1024.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_app_icon_128.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_app_icon_144.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_app_icon_256.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_app_icon_512.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_app_icon_64.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_core_1024.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_core_128.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_core_256.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_core_512.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_dark_1024.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_dark_128.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_dark_144.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_dark_256.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_dark_512.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_dark_64.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_mark_dark_1024.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_mark_dark_128.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_mark_dark_144.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_mark_dark_256.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_mark_dark_512.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_logo_mark_dark_64.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_mark_transparent_1024.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_mark_transparent_128.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_mark_transparent_256.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/geogi_mark_transparent_512.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/README.md"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/docs/migration-map.md"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/manifest.json"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-app-icon-1024.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-app-icon-128.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-app-icon-144.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-app-icon-2048.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-app-icon-256.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-app-icon-64.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-logo-horizontal-navy-2048.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-logo-horizontal-white-2048.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-logo-vertical-navy-1600.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-logo-vertical-navy-800.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-logo-vertical-white-1600.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-logo-vertical-white-800.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-mark-1024.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-mark-128.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-mark-2048.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-mark-256.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-mark-64.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-wordmark-navy-1600.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-wordmark-navy-800.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-wordmark-white-1600.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/png/geogi-wordmark-white-800.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/svg/geogi-app-icon.svg"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/svg/geogi-logo-horizontal-navy.svg"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/svg/geogi-logo-horizontal-white.svg"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/svg/geogi-logo-vertical-navy.svg"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/svg/geogi-logo-vertical-white.svg"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/svg/geogi-mark.svg"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/svg/geogi-wordmark-navy.svg"
+      },
+      {
+        "type": "file",
+        "value": "assets/brand/logo-system/v1.0/svg/geogi-wordmark-white.svg"
+      },
+      {
+        "type": "file",
+        "value": "assets/hero/geogi_hero_mark_1024.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/hero/geogi_hero_mark_256.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/hero/geogi_hero_mark_512.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/hero/geogi_orbit_transparent_1024.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/hero/geogi_orbit_transparent_256.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/hero/geogi_orbit_transparent_512.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/hero/home_hero_orbit_bg_1024.png"
+      }
+    ],
     "include": []
   },
   "setting": {

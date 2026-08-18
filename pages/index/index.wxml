@@ -16,7 +16,6 @@
       <view class="hero-actions">
         <button class="primary-button hero-primary" bindtap="goDiagnosis">
           <text>开始品牌初步诊断</text>
-          <image src="{{assets.icons.arrowRight}}" mode="aspectFit"></image>
         </button>
       </view>
     </view>
@@ -45,6 +44,40 @@
   <view class="section services-section">
     <text class="section-eyebrow">WHAT GEOGI DOES</text>
     <text class="section-title">从发现问题，到完成优化</text>
+    <text class="section-copy">先确认品牌在 AI 中的真实表现，再确定优化优先级并推进执行。</text>
+
+    <view class="service-list">
+      <view
+        class="service-card card"
+        wx:for="{{services}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        bindtap="openService"
+      >
+        <view class="service-icon-wrap">
+          <image src="{{item.icon}}" mode="aspectFit"></image>
+        </view>
+
+        <view class="service-copy">
+          <text class="service-title">{{item.title}}</text>
+          <text class="service-desc">{{item.desc}}</text>
+        </view>
+
+        <text class="service-arrow">›</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section contact-panel card">
+    <text class="contact-eyebrow">NEED HELP?</text>
+    <text class="contact-title">不确定从哪里开始？</text>
+    <text class="contact-copy">先提交品牌初步诊断，诊断进度与结果会持续同步到小程序「报告」页面。</text>
+
+    <view class="contact-actions">
+      <button class="primary-button contact-button" bindtap="goDiagnosis">
+        开始品牌初步诊断
+      </button>
+    </view>
   </view>
 
   <view class="safe-bottom"></view>

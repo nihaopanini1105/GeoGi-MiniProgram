@@ -54,6 +54,24 @@ Page({
     }
   },
 
+  async onPullDownRefresh() {
+    try {
+      await this.loadReport();
+    } finally {
+      wx.stopPullDownRefresh();
+    }
+  },
+
+  normalizeOrder(order) {
+    if (!order) return null;
+    return {
+      ...order,
+      submittedAt: this.formatDisplayTime(order.submittedAt),
+      completedAt: this.formatDisplayTime(order.completedAt),
+      updatedAt: this.formatDisplayTime(order.updatedAt)
+    };
+  },
+
   normalizeReport(report) {
     const data = report || {};
     return {
@@ -64,6 +82,31 @@ Page({
       recommendations: data.recommendations || [],
       scope: data.scope || []
     };
+  },
+
+  formatDisplayTime(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) {
+      return raw
+        .replace('T', ' ')
+        .replace(/\.\d{3}Z?$/, '')
+        .replace(/Z$/, '')
+        .slice(0, 16);
+    }
+
+    const pad = (number) => String(number).padStart(2, '0');
+
+    return [
+      date.getFullYear(),
+      pad(date.getMonth() + 1),
+      pad(date.getDate())
+    ].join('-') + ' ' + [
+      pad(date.getHours()),
+      pad(date.getMinutes())
+    ].join(':');
   },
 
   refresh() {

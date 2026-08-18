@@ -34,6 +34,7 @@
     </view>
   </view>
 
+
   <view class="section process-card card">
     <text class="section-kicker">WHAT HAPPENS NEXT</text>
     <text class="section-title">接下来 GeoGi 会完成</text>
@@ -55,6 +56,4 @@
     <button class="primary-button full-button" bindtap="goReport">查看诊断状态</button>
     <button class="secondary-button full-button secondary-action" bindtap="goHome">返回首页</button>
   </view>
-
-  <navigator class="consult-entry" url="/pages/contact/contact">有重要资料需要补充？联系 GeoGi 顾问</navigator>
 </view>

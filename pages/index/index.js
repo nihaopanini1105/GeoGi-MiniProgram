@@ -54,6 +54,28 @@ Page({
     }
   },
 
+  onShareAppMessage() {
+    this.safeTrack('share_app_message', {
+      page: 'home'
+    });
+
+    return {
+      title: 'GeoGi｜品牌 AI 可见度诊断与 GEO 优化',
+      path: '/pages/index/index'
+    };
+  },
+
+  onShareTimeline() {
+    this.safeTrack('share_timeline', {
+      page: 'home'
+    });
+
+    return {
+      title: 'GeoGi｜让品牌在 AI 时代被看见、被理解、被选择',
+      query: ''
+    };
+  },
+
   goDiagnosis() {
     this.safeTrack('diagnosis_cta_click', { position: 'home' });
     wx.setStorageSync('geogi_start_new_diagnosis', true);
