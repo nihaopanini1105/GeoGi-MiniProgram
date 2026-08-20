@@ -24,7 +24,7 @@
   </view>
 
   <view class="article-list">
-    <view class="article-card card" wx:for="{{articles}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
+    <view class="article-card card" wx:for="{{articles}}" wx:key="id" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle">
       <image wx:if="{{item.cover}}" class="article-cover" src="{{item.cover}}" mode="aspectFill"></image>
       <view class="article-meta">
         <text class="article-category">{{item.category || 'GEO研究'}}</text>

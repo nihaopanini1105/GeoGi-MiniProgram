@@ -103,14 +103,28 @@ Page({
   },
 
   openArticle(event) {
-    const id = event.currentTarget.dataset.id;
+    const id =
+      event.currentTarget.dataset.id;
+
+    const title =
+      event.currentTarget.dataset.title ||
+      '';
+
     if (!id) return;
+
     track('research_card_click', {
       article_id: id,
-      category: this.data.activeCategory
+      category:
+        this.data.activeCategory
     });
+
     wx.navigateTo({
-      url: `/pages/research-detail/research-detail?id=${encodeURIComponent(id)}`
+      url:
+        '/pages/research-detail/research-detail' +
+        '?id=' +
+        encodeURIComponent(id) +
+        '&title=' +
+        encodeURIComponent(title)
     });
   },
 

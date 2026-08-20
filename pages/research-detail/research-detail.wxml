@@ -1,34 +1,5 @@
-<view class="page">
-  <view class="article-hero card">
-    <text class="eyebrow">{{article.category}}</text>
-    <text class="h1">{{article.title}}</text>
-    <text class="lead">{{article.desc}}</text>
-    <text class="article-meta">GeoGi Research · {{article.date}}</text>
-  </view>
-
-  <view class="article-body card">
-    <view class="article-section" wx:for="{{article.sections}}" wx:key="body">
-      <text wx:if="{{item.title}}" class="section-title">{{item.title}}</text>
-      <text class="body">{{item.body}}</text>
-    </view>
-    <view class="source-box">
-      <text class="source-title">来源</text>
-      <text class="body">研究中心内容以 GeoGi 官网为唯一内容源；小程序通过服务器同步标题、摘要、日期和原文链接。</text>
-      <text wx:if="{{article.canonicalUrl}}" class="source-link">{{article.canonicalUrl}}</text>
-    </view>
-  </view>
-
-  <view class="section related-card card">
-    <text class="related-title">相关文章</text>
-    <view class="related-row" wx:for="{{related}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
-      <text>{{item.title}}</text>
-      <text class="arrow">›</text>
-    </view>
-  </view>
-
-  <view class="section cta-panel">
-    <text class="cta-title">想知道你的品牌是否进入 AI 答案？</text>
-    <button class="secondary-button full-button" open-type="share">分享这篇研究</button>
-    <button class="primary-button full-button" bindtap="goDiagnosis">申请品牌诊断</button>
-  </view>
-</view>
+<web-view
+  src="{{webUrl}}"
+  bindload="handleWebViewLoad"
+  binderror="handleWebViewError"
+></web-view>
