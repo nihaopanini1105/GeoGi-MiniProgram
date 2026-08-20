@@ -1,1 +1,46 @@
-<web-view src="{{researchUrl}}"></web-view>
+<view class="page research-page">
+  <view class="research-hero card">
+    <text class="page-kicker">GEOGI RESEARCH</text>
+    <text class="research-title">GeoGi 研究中心</text>
+    <text class="research-copy">持续研究 AI 平台如何理解品牌，以及企业如何提升 AI 时代的品牌可见度。</text>
+  </view>
+
+  <view class="category-scroll">
+    <scroll-view scroll-x="true" class="category-list">
+      <view
+        wx:for="{{categories}}"
+        wx:key="item"
+        class="category-chip {{activeCategory === item ? 'active' : ''}}"
+        data-category="{{item}}"
+        bindtap="switchCategory"
+      >
+        {{item}}
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="search-box card">
+    <input value="{{keyword}}" bindinput="inputKeyword" placeholder="搜索 GEO、行业研究、品牌诊断" placeholder-class="placeholder" />
+  </view>
+
+  <view class="article-list">
+    <view class="article-card card" wx:for="{{articles}}" wx:key="id" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="openArticle">
+      <image wx:if="{{item.cover}}" class="article-cover" src="{{item.cover}}" mode="aspectFill"></image>
+      <view class="article-meta">
+        <text class="article-category">{{item.category || 'GEO研究'}}</text>
+        <text class="article-date">{{item.date}}</text>
+      </view>
+      <text class="article-title">{{item.title}}</text>
+      <text class="article-desc">{{item.desc}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{!loading && !articles.length}}" class="empty-card card">
+    <text>暂无研究内容</text>
+    <text>内容会同步 GeoGi 官网研究中心。</text>
+  </view>
+
+  <view class="research-footer">
+    <text>内容来源：GeoGi 官方研究中心</text>
+  </view>
+</view>

@@ -35,7 +35,18 @@ Page({
     process: ['诊断现状', '定位缺口', '建设内容', '补强信源', '持续复盘']
   },
 
-  goContact() {
-    wx.navigateTo({ url: '/pages/contact/contact' });
+  onShareAppMessage() {
+    return {
+      title: 'GeoGi GEO 服务｜品牌诊断、优化方案与执行',
+      path: '/pages/services/services?from=share'
+    };
+  },
+
+  onShareTimeline() {
+    return {
+      title: 'GeoGi GEO 服务｜品牌诊断、优化方案与执行',
+      query: 'from=timeline'
+    };
   }
+
 });

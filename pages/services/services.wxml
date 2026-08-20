@@ -31,6 +31,5 @@
   <view class="section action-panel">
     <text class="action-title">不确定适合哪项服务？</text>
     <text class="action-copy">先从 AI 可见度诊断开始，确认品牌当前最关键的问题。</text>
-    <button class="primary-button" bindtap="goContact">预约一次诊断</button>
   </view>
 </view>

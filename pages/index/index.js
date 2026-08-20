@@ -1,73 +1,111 @@
 const { platforms } = require('../../config/platforms');
 const { assets } = require('../../config/assets');
-const { track } = require('../../utils/analytics');
 
 Page({
   data: {
     assets,
     platforms: platforms.filter((item) => item.enabled),
-    values: [
-      { icon: assets.icons.eye, text: 'AI 会不会推荐你' },
-      { icon: assets.icons.competitors, text: '竞品表现怎么样' },
-      { icon: assets.icons.accuracy, text: '品牌信息准不准' },
-      { icon: assets.icons.optimization, text: '优先优化哪些内容' }
+    services: [
+      {
+        key: 'diagnosis',
+        icon: assets.icons.quickCheck,
+        title: 'GEO 诊断',
+        desc: '检测品牌在 AI 平台中的可见度、理解度与推荐表现。'
+      },
+      {
+        key: 'optimization',
+        icon: assets.icons.optimization,
+        title: 'GEO 优化方案',
+        desc: '分析品牌问题根因，制定行业和场景化优化方向。'
+      },
+      {
+        key: 'execution',
+        icon: assets.icons.research,
+        title: 'GEO 优化执行',
+        desc: '通过内容、信源和品牌信息治理持续提升 AI 表现。'
+      }
     ],
-    flow: ['提交信息', '品牌研究', 'AI 平台检测', '获得报告'],
     latestArticles: [
       {
         id: 'what-is-geo',
         category: 'GEO 基础',
-        title: '什么是 GEO：AI 搜索时代的品牌增长方法',
+        title: '什么是 GEO：AI 搜索时代品牌如何被看见',
         date: '2026-07-21'
       },
       {
         id: 'brand-entity',
         category: '品牌诊断',
-        title: '品牌实体画像：让 AI 知道你是谁',
+        title: '品牌实体画像：让 AI 正确认识你的品牌',
         date: '2026-07-21'
       }
     ]
   },
 
   onShow() {
-    track('home_view');
+    this.safeTrack('home_view');
   },
 
-  onReady() {
-    track('platform_section_view', {
-      visible_platforms: this.data.platforms.map((item) => item.name).join(',')
+  safeTrack(eventName, params) {
+    try {
+      const { track } = require('../../utils/analytics');
+      track(eventName, params || {});
+    } catch (error) {
+      console.warn('analytics unavailable', error);
+    }
+  },
+
+  onShareAppMessage() {
+    this.safeTrack('share_app_message', {
+      page: 'home'
     });
+
+    return {
+      title: 'GeoGi｜品牌 AI 可见度诊断与 GEO 优化',
+      path: '/pages/index/index'
+    };
+  },
+
+  onShareTimeline() {
+    this.safeTrack('share_timeline', {
+      page: 'home'
+    });
+
+    return {
+      title: 'GeoGi｜让品牌在 AI 时代被看见、被理解、被选择',
+      query: ''
+    };
   },
 
   goDiagnosis() {
-    track('diagnosis_cta_click', { position: 'home' });
+    this.safeTrack('diagnosis_cta_click', { position: 'home' });
     wx.setStorageSync('geogi_start_new_diagnosis', true);
-    wx.navigateTo({ url: '/pages/diagnosis/diagnosis?start=1' });
+    wx.switchTab({ url: '/pages/diagnosis/diagnosis' });
   },
 
-  goServices() {
-    wx.navigateTo({ url: '/pages/services/services' });
-  },
-
-  goContact() {
-    wx.navigateTo({ url: '/pages/contact/contact' });
+  goReport() {
+    this.safeTrack('report_cta_click', { position: 'home' });
+    wx.switchTab({ url: '/pages/mine/mine' });
   },
 
   goResearch() {
     wx.switchTab({ url: '/pages/research/research' });
   },
 
-  goReport() {
-    wx.navigateTo({ url: '/pages/sample-report/sample-report' });
+  goContact() {
+    wx.navigateTo({ url: '/pages/contact/contact' });
+  },
+
+  openService(event) {
+    const key = event.currentTarget.dataset.key;
+    this.safeTrack('service_card_click', { key });
+    if (key === 'diagnosis') {
+      this.goDiagnosis();
+    }
   },
 
   openArticle(event) {
     const id = event.currentTarget.dataset.id;
-    const article = this.data.latestArticles.find((item) => item.id === id);
-    track('research_card_click', {
-      article_id: id,
-      category: article ? article.category : ''
-    });
+    this.safeTrack('research_card_click', { article_id: id });
     wx.switchTab({ url: '/pages/research/research' });
   }
 });

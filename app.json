@@ -9,27 +9,32 @@
     "pages/report-detail/report-detail",
     "pages/research/research",
     "pages/research-detail/research-detail",
-    "pages/privacy/privacy",
-    "pages/contact/contact"
+    "pages/privacy/privacy"
   ],
   "window": {
     "navigationBarTitleText": "GeoGi 几何智引",
-    "navigationBarBackgroundColor": "#F3F7FF",
+    "navigationBarBackgroundColor": "#FFFFFF",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#F3F7FF",
-    "backgroundTextStyle": "dark"
+    "backgroundColor": "#F7F9FC",
+    "backgroundTextStyle": "light"
   },
   "tabBar": {
-    "color": "#66789A",
-    "selectedColor": "#2F6DFF",
-    "backgroundColor": "#ffffff",
+    "color": "#7B879B",
+    "selectedColor": "#176BFF",
+    "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "GeoGi",
+        "text": "首页",
         "iconPath": "assets/tabbar/home.png",
         "selectedIconPath": "assets/tabbar/home_selected.png"
+      },
+      {
+        "pagePath": "pages/diagnosis/diagnosis",
+        "text": "诊断",
+        "iconPath": "assets/tabbar/diagnosis.png",
+        "selectedIconPath": "assets/tabbar/diagnosis_selected.png"
       },
       {
         "pagePath": "pages/research/research",
@@ -39,7 +44,7 @@
       },
       {
         "pagePath": "pages/mine/mine",
-        "text": "我的",
+        "text": "报告",
         "iconPath": "assets/tabbar/mine.png",
         "selectedIconPath": "assets/tabbar/mine_selected.png"
       }

@@ -1,40 +1,59 @@
-<view class="page">
-  <view class="success-card card">
-    <view class="success-icon">✓</view>
-    <text class="h1">品牌信息已提交</text>
-    <text class="lead">GeoGi 已收到资料，项目会自动进入品牌建档、问题生成和诊断准备流程。</text>
-    <text wx:if="{{submission.clientId}}" class="success-id">客户编号：{{submission.clientId}}</text>
-    <text wx:if="{{submission.projectId}}" class="success-id">项目编号：{{submission.projectId}}</text>
-    <text wx:if="{{submission.notificationStatus}}" class="success-id muted-id">通知状态：{{submission.notificationStatus}}</text>
-  </view>
+<view class="page success-page">
+  <view class="success-hero card">
+    <view class="success-mark">✓</view>
+    <text class="success-kicker">DIAGNOSIS SUBMITTED</text>
+    <text class="success-title">品牌诊断申请已提交</text>
+    <text class="success-copy">GeoGi 已收到你的品牌资料。团队会基于行业、客户场景和中国主流 AI 平台开展初步诊断。</text>
 
-  <view class="section card next-card">
-    <text class="block-title">预计完成时间</text>
-    <text class="body estimate-copy">品牌档案和检测问题会先自动生成；完成 AI 平台问答后，报告初稿通常可在当天整理。</text>
-  </view>
-
-  <view class="section card next-card">
-    <text class="block-title">接下来会发生什么</text>
-    <view class="next-row" wx:for="{{nextSteps}}" wx:key="*this">
-      <text class="next-num">0{{index + 1}}</text>
-      <text>{{item}}</text>
+    <view class="status-row">
+      <view>
+        <text class="status-label">当前状态</text>
+        <text class="status-value">{{submission.status || '已提交'}}</text>
+      </view>
+      <view class="status-dot"></view>
     </view>
   </view>
 
-  <view class="section card contact-card">
-    <text class="block-title">加速诊断</text>
-    <text class="body">添加诊断顾问企业微信，可以更快确认品牌主体、服务范围和报告交付周期。</text>
-    <button class="primary-button full-button" bindtap="goContact">添加诊断顾问企业微信</button>
-    <button class="secondary-button full-button mine-button" bindtap="goMine">查看我的诊断</button>
-  </view>
+  <view class="section identity-card card">
+    <text class="section-kicker">YOUR DIAGNOSIS</text>
+    <text class="section-title">诊断信息</text>
 
-  <view class="section card article-card">
-    <text class="block-title">等待期间可以先读</text>
-    <view class="article-row" wx:for="{{articles}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
-      <text>{{item.title}}</text>
-      <text class="arrow">›</text>
+    <view class="identity-list">
+      <view class="identity-row" wx:if="{{submission.clientId}}">
+        <text class="identity-label">客户编号</text>
+        <text class="identity-value">{{submission.clientId}}</text>
+      </view>
+      <view class="identity-row" wx:if="{{submission.projectId}}">
+        <text class="identity-label">诊断编号</text>
+        <text class="identity-value project-id">{{submission.projectId}}</text>
+      </view>
+      <view class="identity-row" wx:if="{{submittedAtText}}">
+        <text class="identity-label">提交时间</text>
+        <text class="identity-value">{{submittedAtText}}</text>
+      </view>
     </view>
   </view>
 
-  <button class="secondary-button full-button home-button" bindtap="goHome">返回首页</button>
+
+  <view class="section process-card card">
+    <text class="section-kicker">WHAT HAPPENS NEXT</text>
+    <text class="section-title">接下来 GeoGi 会完成</text>
+
+    <view class="process-list">
+      <view class="process-row" wx:for="{{nextSteps}}" wx:key="title">
+        <view class="process-index">0{{index + 1}}</view>
+        <view class="process-copy">
+          <text class="process-title">{{item.title}}</text>
+          <text class="process-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section report-card card">
+    <text class="report-title">报告完成后会出现在「报告」中</text>
+    <text class="report-copy">只有经过 GeoGi 人工审核并正式发布的诊断报告才会展示给你。</text>
+    <button class="primary-button full-button" bindtap="goReport">查看诊断状态</button>
+    <button class="secondary-button full-button secondary-action" bindtap="goHome">返回首页</button>
+  </view>
 </view>

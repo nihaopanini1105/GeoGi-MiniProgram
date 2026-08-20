@@ -1,4 +1,10 @@
-const { get, isApiConfigured } = require('../../utils/request');
+const {
+  get,
+  getCustomerToken,
+  isApiConfigured
+} = require('../../utils/request');
+
+const PUBLIC_STATUSES = ['已提交', '资料待补充', '诊断处理中', '报告审核中', '报告已完成'];
 
 Page({
   data: {
@@ -16,76 +22,105 @@ Page({
     const localOrders = wx.getStorageSync('geogi_my_orders') || [];
     const lastSubmission = wx.getStorageSync('geogi_last_submission') || {};
     const clientId = wx.getStorageSync('geogi_client_id') || lastSubmission.clientId || (localOrders[0] && localOrders[0].clientId) || '';
+    const normalizedLocal = localOrders.map((item) => this.normalizeOrder(item));
 
     this.setData({
       clientId,
-      orders: localOrders,
+      orders: normalizedLocal,
       error: ''
     });
 
-    if (!clientId || !isApiConfigured()) return;
+    if (!isApiConfigured() || !getCustomerToken()) return;
 
     this.setData({ loading: true });
     try {
-      const result = await get('/api/customer/projects', { clientId });
-      if (!result || !result.ok) throw new Error(result && result.userMessage ? result.userMessage : '订单读取失败');
-      const orders = result.orders || [];
-      this.setData({ orders, error: '' });
-      wx.setStorageSync('geogi_my_orders', orders);
-      wx.setStorageSync('geogi_client_id', clientId);
+      const result = await get(
+        '/api/customer/projects',
+        {}
+      );
+
+      if (!result || !result.ok) {
+        throw new Error(
+          result && result.userMessage
+            ? result.userMessage
+            : '报告状态读取失败'
+        );
+      }
+
+      const orders = (result.orders || []).map(
+        (item) => this.normalizeOrder(item)
+      );
+
+      const recoveredClientId =
+        result.clientId
+        || (orders[0] && orders[0].clientId)
+        || clientId
+        || '';
+
+      this.setData({
+        clientId: recoveredClientId,
+        orders,
+        error: ''
+      });
+
+      wx.setStorageSync(
+        'geogi_my_orders',
+        orders
+      );
+
+      if (recoveredClientId) {
+        wx.setStorageSync(
+          'geogi_client_id',
+          recoveredClientId
+        );
+      }
     } catch (error) {
       this.setData({
-        error: '暂时无法同步最新状态，已显示本机保存的订单。'
+        error: '暂时无法同步最新状态，已显示本机保存的诊断记录。'
       });
     } finally {
       this.setData({ loading: false });
     }
   },
 
+  async onPullDownRefresh() {
+    try {
+      await this.loadOrders();
+    } finally {
+      wx.stopPullDownRefresh();
+    }
+  },
+
+  normalizeOrder(order) {
+    const item = order || {};
+    const status = PUBLIC_STATUSES.includes(item.status) ? item.status : this.mapLegacyStatus(item.status, item.reportReady);
+    return {
+      ...item,
+      status,
+      reportReady: status === '报告已完成' && Boolean(item.reportReady)
+    };
+  },
+
+  mapLegacyStatus(status, reportReady) {
+    if (reportReady) return '报告已完成';
+    const value = String(status || '');
+    if (/待补充|补充材料|资料不全/.test(value)) return '资料待补充';
+    if (/审核|复核|初稿|质检/.test(value)) return '报告审核中';
+    if (/处理中|检测|测试|分析|生成|品牌资料/.test(value)) return '诊断处理中';
+    return '已提交';
+  },
+
   goDiagnosis() {
     wx.setStorageSync('geogi_start_new_diagnosis', true);
-    wx.navigateTo({ url: '/pages/diagnosis/diagnosis?start=1' });
+    wx.switchTab({ url: '/pages/diagnosis/diagnosis' });
   },
 
   openReport(event) {
     const projectId = event.currentTarget.dataset.projectId;
     const clientId = event.currentTarget.dataset.clientId || this.data.clientId;
     if (!projectId || !clientId) return;
-    const order = this.data.orders.find((item) => item.projectId === projectId);
-    if (order && order.reportReady && order.reportLink) {
-      this.openPdf(order.reportLink);
-      return;
-    }
     wx.navigateTo({
       url: `/pages/report-detail/report-detail?projectId=${encodeURIComponent(projectId)}&clientId=${encodeURIComponent(clientId)}`
     });
   },
-
-  openPdf(url) {
-    wx.showLoading({ title: '打开报告中' });
-    wx.downloadFile({
-      url,
-      success: (res) => {
-        wx.hideLoading();
-        if (res.statusCode !== 200) {
-          wx.showToast({ title: '报告读取失败', icon: 'none' });
-          return;
-        }
-        wx.openDocument({
-          filePath: res.tempFilePath,
-          fileType: 'pdf',
-          showMenu: true,
-          fail: () => wx.showToast({ title: '无法打开PDF', icon: 'none' })
-        });
-      },
-      fail: () => {
-        wx.hideLoading();
-        wx.showToast({ title: '报告下载失败', icon: 'none' });
-      }
-    });
-  },
-
-  refresh() {
-    this.loadOrders();
-  }
 });

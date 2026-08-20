@@ -169,3 +169,98 @@
   width: 100%;
   margin-top: 30rpx;
 }
+
+/* EXPERIENCE_V1_REPORT_START */
+
+.mine-page {
+  padding-top: 30rpx;
+}
+
+.mine-head {
+  display: block;
+  padding: 36rpx 32rpx;
+}
+
+.mine-head .h1 {
+  margin-top: 18rpx;
+  font-size: 52rpx;
+  line-height: 1.25;
+}
+
+.mine-head .lead {
+  max-width: none;
+  margin-top: 16rpx;
+  line-height: 1.65;
+}
+
+.refresh-button {
+  display: none;
+}
+
+.pull-refresh-hint {
+  display: block;
+  margin-top: 18rpx;
+  color: #96A3B6;
+  font-size: 21rpx;
+  line-height: 1.45;
+}
+
+.order-list {
+  gap: 18rpx;
+  margin-top: 28rpx;
+}
+
+.order-card {
+  padding: 30rpx;
+  border-color: #E5ECF5;
+  box-shadow: 0 10rpx 30rpx rgba(32, 70, 130, 0.055);
+}
+
+.order-card:active {
+  background: #FAFCFF;
+}
+
+.order-brand {
+  line-height: 1.35;
+}
+
+.order-meta {
+  color: #7A899F;
+  font-size: 23rpx;
+}
+
+.status-pill {
+  padding: 10rpx 16rpx;
+  font-size: 21rpx;
+}
+
+.order-action {
+  margin-top: 24rpx;
+  padding-top: 20rpx;
+}
+
+.empty-card {
+  margin-top: 28rpx;
+  padding: 54rpx 34rpx 46rpx;
+}
+
+.empty-icon {
+  width: 92rpx;
+  height: 92rpx;
+  margin-bottom: 22rpx;
+}
+
+.empty-card .body {
+  margin: 16rpx auto 0;
+  max-width: 560rpx;
+}
+
+.empty-card .full-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 430rpx;
+  margin: 30rpx auto 0;
+  text-align: center;
+}
+/* EXPERIENCE_V1_REPORT_END */

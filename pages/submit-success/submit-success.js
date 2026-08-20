@@ -1,38 +1,47 @@
 Page({
   data: {
-    submission: null,
+    submission: {},
+    submittedAtText: '',
     nextSteps: [
-      '资料已同步进入 GeoGi 诊断工作台',
-      '系统自动建立品牌档案并生成检测问题',
-      '完成 AI 平台问答后生成报告初稿'
-    ],
-    articles: [
-      { id: 'what-is-geo', title: '什么是 GEO：AI 搜索时代的品牌增长方法' },
-      { id: 'brand-entity', title: '品牌实体画像：让 AI 知道你是谁' }
+      {
+        title: '建立品牌画像',
+        desc: '整理品牌基础信息、业务定位和客户场景。'
+      },
+      {
+        title: '设计行业 AI 问题集',
+        desc: '结合行业和细分领域构建诊断问题。'
+      },
+      {
+        title: '检测中国主流 AI 平台表现',
+        desc: '分析品牌识别、推荐和信息准确情况。'
+      },
+      {
+        title: '生成 GEO 诊断报告',
+        desc: '完成审核后进入报告中心查看。'
+      }
     ]
   },
 
-  onLoad() {
-    this.setData({ submission: wx.getStorageSync('geogi_last_submission') || null });
+  onShow() {
+    const submission = wx.getStorageSync('geogi_last_submission') || {};
+    this.setData({
+      submission,
+      submittedAtText: this.formatDate(submission.submittedAt)
+    });
+  },
+
+  formatDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  },
+
+  goReport() {
+    wx.switchTab({ url: '/pages/mine/mine' });
   },
 
   goHome() {
     wx.switchTab({ url: '/pages/index/index' });
-  },
-
-  goResearch() {
-    wx.switchTab({ url: '/pages/research/research' });
-  },
-
-  goContact() {
-    wx.navigateTo({ url: '/pages/contact/contact' });
-  },
-
-  goMine() {
-    wx.switchTab({ url: '/pages/mine/mine' });
-  },
-
-  openArticle(event) {
-    wx.switchTab({ url: '/pages/research/research' });
   }
 });
