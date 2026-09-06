@@ -9,7 +9,8 @@
     "setup:feishu-fields": "node src/scripts/setup-feishu-fields.js",
     "setup:diagnosis-workbench": "node src/scripts/setup-diagnosis-workbench.js",
     "clear:workbench": "node src/scripts/clear-workbench-data.js --confirm",
-    "workflow:command": "node src/scripts/run-workflow-command.js"
+    "workflow:command": "node src/scripts/run-workflow-command.js",
+    "os:export-intake": "node src/scripts/export-os-intake.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
