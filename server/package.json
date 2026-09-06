@@ -11,7 +11,9 @@
     "clear:workbench": "node src/scripts/clear-workbench-data.js --confirm",
     "workflow:command": "node src/scripts/run-workflow-command.js",
     "os:export-intake": "node src/scripts/export-os-intake.js",
-    "os:import-result": "node src/scripts/import-os-result.js"
+    "os:import-result": "node src/scripts/import-os-result.js",
+    "report:qa": "node src/scripts/report-release.js",
+    "report:publish": "node src/scripts/report-release.js --publish"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
