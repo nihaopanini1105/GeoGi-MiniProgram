@@ -120,11 +120,21 @@ async function buildOsIntakeHandoff({ projectId, allowUnreviewed = false } = {})
 
   const allQuestions = [...grouped.values()]
     .filter((item) => item.included)
-    .map((item) => ({
-      ...item,
-      platforms: CANONICAL_PLATFORMS.filter((platform) => item.platforms.includes(platform)),
-      reviewStatus: isApproved(item.sourceReviewStatus) ? 'approved' : 'needs_review'
-    }))
+    .map((item) => {
+      const sourcePlatforms = CANONICAL_PLATFORMS.filter((platform) => item.platforms.includes(platform));
+      const missingSourcePlatforms = CANONICAL_PLATFORMS.filter((platform) => !sourcePlatforms.includes(platform));
+      return {
+        ...item,
+        // The reviewed logical query is the source of execution semantics. Historical
+        // workbench rows may be missing one duplicated platform row; V1 still expands
+        // every selected query to the canonical five-platform scope while retaining
+        // the source-row gap as audit metadata instead of fabricating a source record.
+        sourcePlatforms,
+        missingSourcePlatforms,
+        platforms: [...CANONICAL_PLATFORMS],
+        reviewStatus: isApproved(item.sourceReviewStatus) ? 'approved' : 'needs_review'
+      };
+    })
     .sort((a, b) => questionOrder(a.sourceQuestionId) - questionOrder(b.sourceQuestionId));
 
   const approvedQuestions = allQuestions.filter((item) => item.reviewStatus === 'approved');
@@ -139,7 +149,7 @@ async function buildOsIntakeHandoff({ projectId, allowUnreviewed = false } = {})
   }
 
   const missingPlatformRows = selectedQuestions.filter(
-    (item) => item.platforms.length !== CANONICAL_PLATFORMS.length
+    (item) => item.missingSourcePlatforms.length > 0
   );
 
   return {
@@ -181,7 +191,11 @@ async function buildOsIntakeHandoff({ projectId, allowUnreviewed = false } = {})
       totalQuestionCount: allQuestions.length,
       approvedQuestionCount: approvedQuestions.length,
       exportedQuestionCount: selectedQuestions.length,
-      missingPlatformQuestionIds: missingPlatformRows.map((item) => item.sourceQuestionId)
+      missingPlatformQuestionIds: missingPlatformRows.map((item) => item.sourceQuestionId),
+      missingPlatformDetails: missingPlatformRows.map((item) => ({
+        sourceQuestionId: item.sourceQuestionId,
+        missingSourcePlatforms: item.missingSourcePlatforms
+      }))
     }
   };
 }
