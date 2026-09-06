@@ -10,7 +10,8 @@
     "setup:diagnosis-workbench": "node src/scripts/setup-diagnosis-workbench.js",
     "clear:workbench": "node src/scripts/clear-workbench-data.js --confirm",
     "workflow:command": "node src/scripts/run-workflow-command.js",
-    "os:export-intake": "node src/scripts/export-os-intake.js"
+    "os:export-intake": "node src/scripts/export-os-intake.js",
+    "os:import-result": "node src/scripts/import-os-result.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
