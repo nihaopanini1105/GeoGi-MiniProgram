@@ -31,7 +31,9 @@ async function runWorkflowCommand(input = {}) {
     return generateReport({
       projectId,
       commandText,
-      aiConversations: input.aiConversations || []
+      aiConversations: input.aiConversations || [],
+      skipShareLinkReread: input.skipShareLinkReread === true,
+      requireQualityOk: input.requireQualityOk === true
     });
   }
 
@@ -124,7 +126,7 @@ async function generateBrandAssets(projectId) {
   };
 }
 
-async function generateReport({ projectId, commandText, aiConversations }) {
+async function generateReport({ projectId, commandText, aiConversations, skipShareLinkReread = false, requireQualityOk = false }) {
   const tenantToken = await getTenantAccessToken();
   const context = await loadProjectContext({ tenantToken, projectId });
   if (!context.ok) return context;
@@ -134,7 +136,14 @@ async function generateReport({ projectId, commandText, aiConversations }) {
   if (!parsedConversations.length) {
     return fail('没有识别到AI平台问答。请附上平台名称和会话链接，最好同时粘贴回答原文。');
   }
-  const linkedConversations = await enrichConversationsWithSharedLinks(parsedConversations);
+  const linkedConversations = skipShareLinkReread
+    ? parsedConversations.map((item) => ({
+      ...item,
+      link: '',
+      extractionStatus: 'OS正式采集',
+      extractionNote: '使用GeoGi OS已治理RawAnswer，禁止重新读取AI平台分享链接'
+    }))
+    : await enrichConversationsWithSharedLinks(parsedConversations);
   const expandedConversations = expandConversationTurns(linkedConversations).map(canonicalizeConversation);
   const expectedQuestions = await loadExpectedAiQuestions({ tenantToken, projectId });
   const reconciliation = reconcileReportConversations({
@@ -144,6 +153,12 @@ async function generateReport({ projectId, commandText, aiConversations }) {
   });
   const conversations = reconciliation.conversations;
   const quality = reconciliation.quality;
+
+  if (requireQualityOk && !quality.ok) {
+    return fail(
+      `报告数据校验未通过，已停止写入。${buildQualityMessage(quality)}`
+    );
+  }
 
   const testedAt = new Date().toISOString();
   const testRecords = conversations.map((item, index) => buildTestRecord({
@@ -650,24 +665,98 @@ function expandConversationTurns(conversations) {
 
 async function loadExpectedAiQuestions({ tenantToken, projectId }) {
   if (!process.env.FEISHU_AI_QUESTION_TABLE_ID) return [];
-  const records = await listByProject({
-    tenantToken,
-    tableId: process.env.FEISHU_AI_QUESTION_TABLE_ID,
-    projectId
+
+  const expectedTotal =
+    REPORT_PLATFORMS.length * EXPECTED_TURNS_PER_PLATFORM;
+
+  const maxAttempts = 4;
+  let best = [];
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const records = await listByProject({
+      tenantToken,
+      tableId: process.env.FEISHU_AI_QUESTION_TABLE_ID,
+      projectId
+    });
+
+    const usable = records
+      .map((record) => {
+        const fields = record.fields || {};
+        return {
+          platform: canonicalPlatform(text(fields.目标平台)),
+          questionId: text(fields.问题编号),
+          question: text(fields.检测问题),
+          questionType: text(fields.问题类型),
+          expectedSignal: text(fields.预期识别点)
+        };
+      })
+      .filter((item) => item.platform && item.question)
+      .sort((a, b) =>
+        String(a.questionId).localeCompare(
+          String(b.questionId),
+          'zh-CN'
+        )
+      );
+
+    if (usable.length > best.length) {
+      best = usable;
+    }
+
+    const platformCounts = new Map(
+      REPORT_PLATFORMS.map((platform) => [platform, 0])
+    );
+
+    usable.forEach((item) => {
+      if (platformCounts.has(item.platform)) {
+        platformCounts.set(
+          item.platform,
+          platformCounts.get(item.platform) + 1
+        );
+      }
+    });
+
+    const completeCoverage =
+      usable.length >= expectedTotal &&
+      REPORT_PLATFORMS.every(
+        (platform) =>
+          platformCounts.get(platform) >=
+          EXPECTED_TURNS_PER_PLATFORM
+      );
+
+    if (completeCoverage) {
+      return usable;
+    }
+
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, attempt * 350)
+      );
+    }
+  }
+
+  const bestCounts = new Map(
+    REPORT_PLATFORMS.map((platform) => [platform, 0])
+  );
+
+  best.forEach((item) => {
+    if (bestCounts.has(item.platform)) {
+      bestCounts.set(
+        item.platform,
+        bestCounts.get(item.platform) + 1
+      );
+    }
   });
-  return records
-    .map((record) => {
-      const fields = record.fields || {};
-      return {
-        platform: canonicalPlatform(text(fields.目标平台)),
-        questionId: text(fields.问题编号),
-        question: text(fields.检测问题),
-        questionType: text(fields.问题类型),
-        expectedSignal: text(fields.预期识别点)
-      };
-    })
-    .filter((item) => item.platform && item.question)
-    .sort((a, b) => String(a.questionId).localeCompare(String(b.questionId), 'zh-CN'));
+
+  const coverage = REPORT_PLATFORMS
+    .map(
+      (platform) =>
+        `${platform}:${bestCounts.get(platform) || 0}/${EXPECTED_TURNS_PER_PLATFORM}`
+    )
+    .join(',');
+
+  throw new Error(
+    `AI_EXPECTED_QUESTIONS_INCOMPLETE:${best.length}/${expectedTotal};${coverage}`
+  );
 }
 
 function reconcileReportConversations({ conversations, expectedQuestions, linkedConversations }) {
@@ -805,6 +894,39 @@ function chooseBestTurnIndex(expected, raw, used, fallbackIndex) {
   if (bestScore > 0) return bestIndex;
   if (raw[fallbackIndex] && !used.has(fallbackIndex)) return fallbackIndex;
   return bestIndex;
+}
+
+function questionTokens(value) {
+  const normalized = clean(value)
+    .toLowerCase()
+    .replace(/[^\p{Script=Han}a-z0-9]+/gu, '');
+
+  if (!normalized) return [];
+
+  const tokens = new Set();
+
+  // Exact normalized text is retained so identical questions always
+  // receive the strongest possible similarity signal.
+  tokens.add(normalized);
+
+  // Character n-grams make Chinese question matching tolerant of small
+  // wording and punctuation differences without depending on an
+  // external tokenizer.
+  for (const size of [2, 3, 4]) {
+    if (normalized.length < size) continue;
+
+    for (
+      let index = 0;
+      index <= normalized.length - size;
+      index += 1
+    ) {
+      tokens.add(
+        normalized.slice(index, index + size)
+      );
+    }
+  }
+
+  return Array.from(tokens);
 }
 
 function questionSimilarity(a, b) {
