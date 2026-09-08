@@ -1,4 +1,5 @@
 const https = require('https');
+const { createCustomerSession } = require('./customer-auth');
 
 async function getPhoneNumber({ code }) {
   const cleanCode = String(code || '').trim();
@@ -29,11 +30,18 @@ async function getPhoneNumber({ code }) {
     }
 
     const info = phoneResult.phone_info || {};
+    const phoneNumber = info.phoneNumber || '';
+    if (!phoneNumber) return fail('微信未返回有效手机号');
+    const session = createCustomerSession({ phoneNumber });
+    if (!session.ok || !session.token) return fail('客户会话创建失败，请稍后重试');
+
     return {
       ok: true,
-      phoneNumber: info.phoneNumber || '',
-      purePhoneNumber: info.purePhoneNumber || info.phoneNumber || '',
-      countryCode: info.countryCode || ''
+      phoneNumber,
+      purePhoneNumber: info.purePhoneNumber || phoneNumber,
+      countryCode: info.countryCode || '',
+      customerToken: session.token,
+      customerTokenExpiresAt: session.expiresAt
     };
   } catch (error) {
     console.error('getPhoneNumber failed', error);
