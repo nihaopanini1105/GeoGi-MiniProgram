@@ -45,7 +45,9 @@ function readDeliveryPackage(projectId) {
 function validateDeliveryPackage(payload, projectId) {
   if (!payload || payload.object_type !== 'delivery_package') throw new Error('DELIVERY_PACKAGE_INVALID');
   if (payload.release_status !== 'released') throw new Error('DELIVERY_PACKAGE_NOT_RELEASED');
-  if (String(payload.project_id || '') !== String(projectId || '')) throw new Error('DELIVERY_PACKAGE_PROJECT_MISMATCH');
+  const boundProjectId = String(payload.external_project_id || payload.project_id || '');
+  if (boundProjectId !== String(projectId || '')) throw new Error('DELIVERY_PACKAGE_PROJECT_MISMATCH');
+  if (!payload.external_client_id && !payload.client_id) throw new Error('DELIVERY_PACKAGE_CLIENT_MISSING');
   if (!payload.report_reference || !payload.report_reference.content_hash) throw new Error('DELIVERY_PACKAGE_REPORT_REFERENCE_MISSING');
   if (!Array.isArray(payload.artifacts) || !payload.artifacts.length) throw new Error('DELIVERY_PACKAGE_ARTIFACTS_MISSING');
   for (const artifact of payload.artifacts) {
