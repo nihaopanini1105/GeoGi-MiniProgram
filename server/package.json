@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
+    "check:authority": "node src/scripts/check-authority-boundary.js",
     "setup:feishu-fields": "node src/scripts/setup-feishu-fields.js",
     "clear:workbench": "node src/scripts/clear-workbench-data.js --confirm",
     "os:export-intake": "node src/scripts/export-os-intake.js",
