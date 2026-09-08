@@ -16,24 +16,26 @@ jobs:
         working-directory: server
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: npm
-          cache-dependency-path: server/package-lock.json
-      - run: npm ci
-      - run: npm run check:authority
+      - name: Verify Node runtime
+        run: node --version
+      - name: Run authority boundary guard
+        run: node src/scripts/check-authority-boundary.js
       - name: Ensure removed intelligence/report code stays absent
         run: |
+          test ! -f src/services/diagnosis.js
           test ! -f src/services/diagnosis-engine.js
           test ! -f src/services/workflow-command.js
           test ! -f src/services/report-pdf.js
           test ! -f src/services/report-release-gate.js
           test ! -f src/services/ai-share-extractor.js
+          test ! -f src/scripts/import-os-result.js
           test ! -f src/scripts/render-report-pdf.py
           test ! -f src/scripts/report-release.js
+          test ! -f src/scripts/run-workflow-command.js
+          test ! -f src/scripts/setup-diagnosis-workbench.js
       - name: Verify customer delivery contract
         run: |
+          test -f src/services/customer-intake.js
           test -f src/services/delivery-package-store.js
           test -f src/scripts/import-os-delivery-package.js
           grep -q 'delivery_package' src/services/delivery-package-store.js
