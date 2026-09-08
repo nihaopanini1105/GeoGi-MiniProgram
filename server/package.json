@@ -1,19 +1,16 @@
 {
   "name": "geogi-mini-program-server",
-  "version": "1.0.0",
+  "version": "1.0.0-rc.2",
   "private": true,
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
+    "check:authority": "node src/scripts/check-authority-boundary.js",
     "setup:feishu-fields": "node src/scripts/setup-feishu-fields.js",
-    "setup:diagnosis-workbench": "node src/scripts/setup-diagnosis-workbench.js",
     "clear:workbench": "node src/scripts/clear-workbench-data.js --confirm",
-    "workflow:command": "node src/scripts/run-workflow-command.js",
     "os:export-intake": "node src/scripts/export-os-intake.js",
-    "os:import-result": "node src/scripts/import-os-result.js",
-    "report:qa": "node src/scripts/report-release.js",
-    "report:publish": "node src/scripts/report-release.js --publish"
+    "os:import-delivery": "node src/scripts/import-os-delivery-package.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

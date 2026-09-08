@@ -2,14 +2,14 @@ require('dotenv').config();
 
 const express = require('express');
 const helmet = require('helmet');
-const { submitDiagnosis } = require('./services/diagnosis');
-const { runWorkflowCommand } = require('./services/workflow-command');
+const { submitCustomerIntake } = require('./services/customer-intake');
 const { getResearchArticles, getResearchArticle } = require('./services/research');
 const { getConfig } = require('./services/config');
 const { getSampleReport } = require('./services/sample-report');
 const { listCustomerProjects, getCustomerReport } = require('./services/customer-portal');
 const { getPhoneNumber } = require('./services/wechat-auth');
-const { getReportRoot } = require('./services/report-pdf');
+const { authenticateCustomer } = require('./services/customer-auth');
+const { getArtifactRoot } = require('./services/delivery-package-store');
 const { trackEvent } = require('./services/events');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
 
@@ -20,12 +20,18 @@ const host = process.env.HOST || '127.0.0.1';
 app.use(helmet());
 app.use(express.json({ limit: '512kb' }));
 app.use('/uploads', express.static(getUploadRoot()));
-app.use('/reports', express.static(getReportRoot()));
+app.use('/delivery', express.static(getArtifactRoot(), {
+  fallthrough: false,
+  immutable: true,
+  maxAge: '1h'
+}));
 
 app.get('/health', (_req, res) => {
   res.json({
     ok: true,
-    service: 'geogi-mini-program-server'
+    service: 'geogi-mini-program-server',
+    role: 'customer-intake-and-display',
+    intelligenceAuthority: 'GeoGi-OS'
   });
 });
 
@@ -47,49 +53,34 @@ app.get('/api/sample-report', (_req, res) => {
   res.json(getSampleReport());
 });
 
-app.get('/api/customer/projects', async (req, res) => {
-  const result = await listCustomerProjects(req.query || {});
-  res.status(result.ok ? 200 : 400).json(result);
-});
-
-app.get('/api/customer/reports/:projectId', async (req, res) => {
-  const result = await getCustomerReport({
-    clientId: req.query && req.query.clientId,
-    projectId: req.params.projectId
-  });
-  res.status(result.ok ? 200 : 404).json(result);
-});
-
-app.post(['/api/leads', '/api/diagnosis/submit'], async (req, res) => {
-  const result = await submitDiagnosis(req.body || {});
-  res.status(result.ok ? 200 : 400).json(result);
-});
-
 app.post('/api/wechat/phone', async (req, res) => {
   const result = await getPhoneNumber(req.body || {});
   res.status(result.ok ? 200 : 400).json(result);
 });
 
-app.post('/api/feishu/command', async (req, res) => {
-  const result = await runWorkflowCommand(req.body || {});
+app.get('/api/customer/projects', authenticateCustomer, async (req, res) => {
+  const result = await listCustomerProjects({
+    ...(req.query || {}),
+    customer: req.customer
+  });
   res.status(result.ok ? 200 : 400).json(result);
 });
 
-app.post('/api/feishu/events', async (req, res) => {
-  if (req.body && req.body.type === 'url_verification') {
-    res.json({ challenge: req.body.challenge });
-    return;
-  }
+app.get('/api/customer/reports/:projectId', authenticateCustomer, async (req, res) => {
+  const result = await getCustomerReport({
+    clientId: req.query && req.query.clientId,
+    projectId: req.params.projectId,
+    customer: req.customer
+  });
+  res.status(result.ok ? 200 : 404).json(result);
+});
 
-  const event = req.body && (req.body.event || req.body);
-  const text = event && event.message && event.message.content
-    ? parseFeishuMessageText(event.message.content)
-    : '';
-  const result = await runWorkflowCommand({ text });
+app.post(['/api/leads', '/api/diagnosis/submit'], authenticateCustomer, async (req, res) => {
+  const result = await submitCustomerIntake(req.body || {}, req.customer);
   res.status(result.ok ? 200 : 400).json(result);
 });
 
-app.post('/api/uploads', (req, res) => {
+app.post('/api/uploads', authenticateCustomer, (req, res) => {
   uploadMiddleware(req, res, (error) => {
     if (error) {
       res.status(400).json({
@@ -122,15 +113,6 @@ app.use((error, _req, res, _next) => {
     userMessage: '服务暂时不可用'
   });
 });
-
-function parseFeishuMessageText(content) {
-  try {
-    const parsed = JSON.parse(content);
-    return parsed.text || content;
-  } catch (error) {
-    return content || '';
-  }
-}
 
 app.listen(port, host, () => {
   console.log(`GeoGi mini program server listening on http://${host}:${port}`);
