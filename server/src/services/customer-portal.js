@@ -11,24 +11,53 @@ async function listCustomerProjects({ clientId, customer } = {}) {
   try {
     const cleanClientId = clean(clientId);
     const phone = normalizePhone(customer && customer.phoneNumber);
-    if (!cleanClientId) return fail('缺少客户编号');
     if (!phone) return fail('客户身份无效');
 
     const tenantToken = await getTenantAccessToken();
-    const leads = await listByClient({
+    const leads = await listBitableRecords({
       tenantToken,
+      appToken: process.env.FEISHU_BASE_APP_TOKEN,
       tableId: process.env.FEISHU_LEADS_TABLE_ID,
-      clientId: cleanClientId
+      pageSize: 100
     });
-    const ownedLeads = leads.filter((record) => normalizePhone(record.fields && record.fields.联系方式) === phone);
+    const ownedLeads = leads.filter((record) => {
+      const fields = record.fields || {};
+      const ownedByPhone = normalizePhone(fields.联系方式) === phone;
+      const matchesRequestedClient = !cleanClientId || text(fields.客户编号) === cleanClientId;
+      return ownedByPhone && matchesRequestedClient;
+    });
     if (!ownedLeads.length) return fail('没有找到当前手机号对应的诊断记录');
 
-    const projects = await listByClient({
-      tenantToken,
-      tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
-      clientId: cleanClientId
-    });
-    const projectById = new Map(projects.map((record) => [text(record.fields && record.fields.项目编号), record]));
+    const ownedClientIds = Array.from(new Set(
+      ownedLeads
+        .map((record) => text(record.fields && record.fields.客户编号))
+        .filter(Boolean)
+    ));
+    const ownedProjectIds = new Set(
+      ownedLeads
+        .map((record) => text(record.fields && record.fields.项目编号))
+        .filter(Boolean)
+    );
+
+    const projects = process.env.FEISHU_PROJECTS_TABLE_ID
+      ? await listBitableRecords({
+        tenantToken,
+        appToken: process.env.FEISHU_BASE_APP_TOKEN,
+        tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
+        pageSize: 100
+      })
+      : [];
+    const projectById = new Map(
+      projects
+        .filter((record) => {
+          const fields = record.fields || {};
+          const projectId = text(fields.项目编号);
+          const projectClientId = text(fields.客户编号);
+          return ownedProjectIds.has(projectId)
+            && (!projectClientId || ownedClientIds.includes(projectClientId));
+        })
+        .map((record) => [text(record.fields && record.fields.项目编号), record])
+    );
 
     const orders = ownedLeads.map((lead) => {
       const projectId = text(lead.fields && lead.fields.项目编号);
@@ -37,7 +66,12 @@ async function listCustomerProjects({ clientId, customer } = {}) {
     }).filter((item) => item.projectId);
 
     orders.sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
-    return { ok: true, clientId: cleanClientId, orders };
+    return {
+      ok: true,
+      clientId: cleanClientId || ownedClientIds[0] || '',
+      clientIds: ownedClientIds,
+      orders
+    };
   } catch (error) {
     console.error('listCustomerProjects failed', error);
     return fail('报告状态读取失败，请稍后重试');
