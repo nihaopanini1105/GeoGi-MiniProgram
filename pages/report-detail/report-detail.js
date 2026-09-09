@@ -1,4 +1,4 @@
-const { get, isApiConfigured } = require('../../utils/request');
+const { get, post, uploadFile, isApiConfigured } = require('../../utils/request');
 
 Page({
   data: {
@@ -7,7 +7,12 @@ Page({
     clientId: '',
     projectId: '',
     order: null,
-    report: null
+    report: null,
+    supplementCompanyName: '',
+    supplementNote: '',
+    supplementFile: null,
+    supplementSubmitting: false,
+    supplementMessage: ''
   },
 
   onLoad(options) {
@@ -40,9 +45,11 @@ Page({
     try {
       const result = await get(`/api/customer/reports/${encodeURIComponent(projectId)}`, { clientId });
       if (!result || !result.ok) throw new Error(result && result.userMessage ? result.userMessage : '报告读取失败');
+      const order = this.normalizeOrder(result.order);
       this.setData({
-        order: result.order,
+        order,
         report: this.normalizeReport(result.report),
+        supplementCompanyName: this.data.supplementCompanyName || (order && order.companyName) || '',
         error: ''
       });
     } catch (error) {
@@ -107,6 +114,95 @@ Page({
       pad(date.getHours()),
       pad(date.getMinutes())
     ].join(':');
+  },
+
+  updateSupplementCompanyName(event) {
+    this.setData({ supplementCompanyName: event.detail.value, supplementMessage: '' });
+  },
+
+  updateSupplementNote(event) {
+    this.setData({ supplementNote: event.detail.value, supplementMessage: '' });
+  },
+
+  chooseSupplementFile() {
+    wx.chooseMessageFile({
+      count: 1,
+      type: 'file',
+      success: ({ tempFiles }) => {
+        const file = tempFiles && tempFiles[0];
+        if (!file) return;
+        const ext = String(file.name || '').split('.').pop().toLowerCase();
+        const allowed = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png'];
+        if (!allowed.includes(ext)) {
+          wx.showToast({ title: '文件类型不支持', icon: 'none' });
+          return;
+        }
+        if (Number(file.size || 0) > 20 * 1024 * 1024) {
+          wx.showToast({ title: '文件不能超过20MB', icon: 'none' });
+          return;
+        }
+        this.setData({
+          supplementFile: { name: file.name, size: file.size, path: file.path },
+          supplementMessage: ''
+        });
+      }
+    });
+  },
+
+  removeSupplementFile() {
+    this.setData({ supplementFile: null, supplementMessage: '' });
+  },
+
+  async submitSupplement() {
+    if (this.data.supplementSubmitting) return;
+    const companyName = String(this.data.supplementCompanyName || '').trim();
+    const note = String(this.data.supplementNote || '').trim();
+    const file = this.data.supplementFile;
+    if (!companyName && !note && !file) {
+      this.setData({ supplementMessage: '请填写企业主体或上传证明材料。' });
+      return;
+    }
+
+    this.setData({ supplementSubmitting: true, supplementMessage: '' });
+    try {
+      const files = [];
+      if (file) {
+        const uploaded = await uploadFile('/api/uploads', file.path, 'file', {
+          submissionId: `supplement-${this.data.projectId}`,
+          fileName: file.name
+        });
+        files.push({
+          name: uploaded.name || file.name,
+          size: uploaded.size || file.size,
+          fileId: uploaded.fileId,
+          url: uploaded.url
+        });
+      }
+
+      const result = await post(`/api/customer/projects/${encodeURIComponent(this.data.projectId)}/supplement`, {
+        clientId: this.data.clientId,
+        companyName,
+        note,
+        files
+      });
+      if (!result || !result.ok) {
+        throw new Error(result && result.userMessage ? result.userMessage : '补充资料提交失败');
+      }
+
+      this.setData({
+        supplementFile: null,
+        supplementNote: '',
+        supplementMessage: '补充资料已提交，等待 GeoGi OS 核验。'
+      });
+      wx.showToast({ title: '资料已提交', icon: 'success' });
+      await this.loadReport();
+    } catch (error) {
+      this.setData({
+        supplementMessage: error && error.message ? error.message : '补充资料提交失败'
+      });
+    } finally {
+      this.setData({ supplementSubmitting: false });
+    }
   },
 
   refresh() {
