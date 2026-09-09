@@ -6,10 +6,10 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
+    "test": "node tests/delivery_package_boundary_regression.js",
+    "delivery:import": "node src/scripts/import-os-delivery-package.js",
     "setup:feishu-fields": "node src/scripts/setup-feishu-fields.js",
-    "setup:diagnosis-workbench": "node src/scripts/setup-diagnosis-workbench.js",
-    "clear:workbench": "node src/scripts/clear-workbench-data.js --confirm",
-    "workflow:command": "node src/scripts/run-workflow-command.js"
+    "clear:workbench": "node src/scripts/clear-workbench-data.js --confirm"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
