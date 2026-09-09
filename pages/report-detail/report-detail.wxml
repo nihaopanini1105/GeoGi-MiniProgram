@@ -41,6 +41,38 @@
       </view>
     </view>
 
+    <view wx:if="{{!order.reportReady}}" class="section card supplement-card">
+      <text class="block-title">补充诊断资料</text>
+      <text class="body supplement-help">如果 GeoGi OS 需要核验企业主体、品牌归属或其他信息，可在这里补充。资料会归入当前项目，不会新建诊断。</text>
+
+      <text class="field-label">企业 / 公司全称</text>
+      <input
+        class="supplement-input"
+        value="{{supplementCompanyName}}"
+        placeholder="例如：北京某某科技有限公司"
+        bindinput="updateSupplementCompanyName"
+      />
+
+      <text class="field-label">证明材料</text>
+      <view wx:if="{{supplementFile}}" class="supplement-file-row">
+        <text class="supplement-file-name">{{supplementFile.name}}</text>
+        <text class="supplement-remove" bindtap="removeSupplementFile">移除</text>
+      </view>
+      <button wx:else class="secondary-button full-button supplement-upload" bindtap="chooseSupplementFile">上传营业执照 / PDF / 图片</button>
+      <text class="field-hint">支持 PDF、Word、PPT、JPG、PNG，单个文件不超过 20MB。</text>
+
+      <text class="field-label">补充说明</text>
+      <textarea
+        class="supplement-textarea"
+        value="{{supplementNote}}"
+        placeholder="可填写品牌与企业主体关系、授权关系或其他需要说明的信息"
+        bindinput="updateSupplementNote"
+      ></textarea>
+
+      <text wx:if="{{supplementMessage}}" class="supplement-message">{{supplementMessage}}</text>
+      <button class="primary-button full-button" loading="{{supplementSubmitting}}" disabled="{{supplementSubmitting}}" bindtap="submitSupplement">提交补充资料</button>
+    </view>
+
     <block wx:if="{{order.reportReady}}">
     <view class="section">
       <view class="section-head">
