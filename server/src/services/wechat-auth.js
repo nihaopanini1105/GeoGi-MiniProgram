@@ -1,4 +1,5 @@
 const https = require('https');
+const { createCustomerToken } = require('./customer-session');
 
 async function getPhoneNumber({ code }) {
   const cleanCode = String(code || '').trim();
@@ -29,11 +30,15 @@ async function getPhoneNumber({ code }) {
     }
 
     const info = phoneResult.phone_info || {};
+    const phoneNumber = info.phoneNumber || '';
+    if (!phoneNumber) return fail('微信未返回可用手机号');
+    const session = createCustomerToken(phoneNumber);
     return {
       ok: true,
-      phoneNumber: info.phoneNumber || '',
-      purePhoneNumber: info.purePhoneNumber || info.phoneNumber || '',
-      countryCode: info.countryCode || ''
+      phoneNumber,
+      purePhoneNumber: info.purePhoneNumber || phoneNumber,
+      countryCode: info.countryCode || '',
+      ...session
     };
   } catch (error) {
     console.error('getPhoneNumber failed', error);
@@ -75,12 +80,7 @@ function requestJson({ method, hostname, path, body }) {
 }
 
 function fail(userMessage) {
-  return {
-    ok: false,
-    userMessage
-  };
+  return { ok: false, userMessage };
 }
 
-module.exports = {
-  getPhoneNumber
-};
+module.exports = { getPhoneNumber };
