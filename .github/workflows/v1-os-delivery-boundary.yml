@@ -1,0 +1,34 @@
+name: V1 OS Delivery Boundary
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v1-os-delivery-boundary.yml"
+      - "server/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  miniprogram-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Syntax check production boundary
+        run: |
+          node --check server/src/services/delivery-package-store.js
+          node --check server/src/services/os-intake.js
+          node --check server/src/services/customer-portal.js
+          node --check server/src/server.js
+
+      - name: Validate MiniProgram consumes OS DeliveryPackage only
+        run: cd server && npm test
