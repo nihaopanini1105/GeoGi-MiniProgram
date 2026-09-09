@@ -8,6 +8,7 @@ const { getConfig } = require('./services/config');
 const { getSampleReport } = require('./services/sample-report');
 const { listCustomerProjects, getCustomerReport } = require('./services/customer-portal');
 const { getPhoneNumber } = require('./services/wechat-auth');
+const { requireCustomerSession, resolveOwnedClientId } = require('./services/customer-session');
 const { trackEvent } = require('./services/events');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
 
@@ -24,13 +25,12 @@ app.get('/health', (_req, res) => {
     ok: true,
     service: 'geogi-mini-program-server',
     businessAuthority: 'GeoGi OS',
-    deliveryContract: 'DeliveryPackage/2.0.0'
+    deliveryContract: 'DeliveryPackage/2.0.0',
+    customerSessionBoundary: 'signed-phone-session-v1'
   });
 });
 
-app.get('/api/config', (_req, res) => {
-  res.json(getConfig());
-});
+app.get('/api/config', (_req, res) => res.json(getConfig()));
 
 app.get(['/api/articles', '/api/research/articles'], async (req, res) => {
   const result = await getResearchArticles(req.query || {});
@@ -42,25 +42,32 @@ app.get('/api/articles/:id', async (req, res) => {
   res.status(result.ok ? 200 : 404).json(result);
 });
 
-app.get('/api/sample-report', (_req, res) => {
-  res.json(getSampleReport());
-});
+app.get('/api/sample-report', (_req, res) => res.json(getSampleReport()));
 
-app.get('/api/customer/projects', async (req, res) => {
-  const result = await listCustomerProjects(req.query || {});
-  res.status(result.ok ? 200 : 400).json(result);
-});
-
-app.get('/api/customer/reports/:projectId', async (req, res) => {
-  const result = await getCustomerReport({
-    clientId: req.query && req.query.clientId,
-    projectId: req.params.projectId
+app.get('/api/customer/projects', requireCustomerSession, async (req, res) => {
+  const clientId = await resolveOwnedClientId({
+    phoneNumber: req.customerSession.phoneNumber,
+    requestedClientId: req.query && req.query.clientId
   });
-  res.status(result.ok ? 200 : 404).json(result);
+  if (!clientId) return res.status(404).json({ ok: false, userMessage: '没有找到该手机号名下的诊断记录' });
+  const result = await listCustomerProjects({ clientId });
+  return res.status(result.ok ? 200 : 400).json(result);
 });
 
-app.post(['/api/leads', '/api/diagnosis/submit'], async (req, res) => {
-  const result = await submitIntake(req.body || {});
+app.get('/api/customer/reports/:projectId', requireCustomerSession, async (req, res) => {
+  const clientId = await resolveOwnedClientId({
+    phoneNumber: req.customerSession.phoneNumber,
+    requestedClientId: req.query && req.query.clientId
+  });
+  if (!clientId) return res.status(404).json({ ok: false, userMessage: '没有找到该手机号名下的诊断记录' });
+  const result = await getCustomerReport({ clientId, projectId: req.params.projectId });
+  return res.status(result.ok ? 200 : 404).json(result);
+});
+
+app.post(['/api/leads', '/api/diagnosis/submit'], requireCustomerSession, async (req, res) => {
+  const body = req.body || {};
+  const form = { ...(body.form || {}), contactMethod: req.customerSession.phoneNumber };
+  const result = await submitIntake({ ...body, form });
   res.status(result.ok ? 200 : 400).json(result);
 });
 
@@ -69,7 +76,7 @@ app.post('/api/wechat/phone', async (req, res) => {
   res.status(result.ok ? 200 : 400).json(result);
 });
 
-app.post('/api/uploads', (req, res) => {
+app.post('/api/uploads', requireCustomerSession, (req, res) => {
   uploadMiddleware(req, res, (error) => {
     if (error) {
       res.status(400).json({
@@ -78,29 +85,19 @@ app.post('/api/uploads', (req, res) => {
       });
       return;
     }
-
     if (!req.file) {
-      res.status(400).json({
-        ok: false,
-        userMessage: '请选择要上传的文件'
-      });
+      res.status(400).json({ ok: false, userMessage: '请选择要上传的文件' });
       return;
     }
-
     res.json(normalizeUpload(req.file));
   });
 });
 
-app.post('/api/events', (req, res) => {
-  res.json(trackEvent(req.body || {}));
-});
+app.post('/api/events', (req, res) => res.json(trackEvent(req.body || {})));
 
 app.use((error, _req, res, _next) => {
   console.error('Unhandled server error', error);
-  res.status(500).json({
-    ok: false,
-    userMessage: '服务暂时不可用'
-  });
+  res.status(500).json({ ok: false, userMessage: '服务暂时不可用' });
 });
 
 app.listen(port, host, () => {
