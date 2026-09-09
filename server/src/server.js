@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
 const { submitIntake } = require('./services/os-intake');
+const { submitCustomerSupplement } = require('./services/customer-supplement');
 const { getResearchArticles, getResearchArticle } = require('./services/research');
 const { getConfig } = require('./services/config');
 const { getSampleReport } = require('./services/sample-report');
@@ -26,7 +27,8 @@ app.get('/health', (_req, res) => {
     service: 'geogi-mini-program-server',
     businessAuthority: 'GeoGi OS',
     deliveryContract: 'DeliveryPackage/2.0.0',
-    customerSessionBoundary: 'signed-phone-session-v1'
+    customerSessionBoundary: 'signed-phone-session-v1',
+    postSubmitSupplement: 'customer-supplement-v1'
   });
 });
 
@@ -62,6 +64,22 @@ app.get('/api/customer/reports/:projectId', requireCustomerSession, async (req, 
   if (!clientId) return res.status(404).json({ ok: false, userMessage: '没有找到该手机号名下的诊断记录' });
   const result = await getCustomerReport({ clientId, projectId: req.params.projectId });
   return res.status(result.ok ? 200 : 404).json(result);
+});
+
+app.post('/api/customer/projects/:projectId/supplement', requireCustomerSession, async (req, res) => {
+  const requestedClientId = req.body && req.body.clientId;
+  const clientId = await resolveOwnedClientId({
+    phoneNumber: req.customerSession.phoneNumber,
+    requestedClientId
+  });
+  if (!clientId) return res.status(404).json({ ok: false, userMessage: '没有找到该手机号名下的诊断记录' });
+
+  const result = await submitCustomerSupplement({
+    ...(req.body || {}),
+    clientId,
+    projectId: req.params.projectId
+  });
+  return res.status(result.ok ? 200 : 400).json(result);
 });
 
 app.post(['/api/leads', '/api/diagnosis/submit'], requireCustomerSession, async (req, res) => {
