@@ -10,7 +10,8 @@
 .finding-card,
 .platform-card,
 .advice-card,
-.contact-card {
+.contact-card,
+.supplement-card {
   padding: 32rpx 30rpx;
 }
 
@@ -108,6 +109,84 @@
 
 .scope-row:first-of-type {
   border-top: 0;
+}
+
+.supplement-help {
+  display: block;
+  margin-bottom: 24rpx;
+}
+
+.field-label {
+  display: block;
+  margin: 22rpx 0 12rpx;
+  color: #081B3A;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.supplement-input,
+.supplement-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1rpx solid #dfe7f3;
+  border-radius: 20rpx;
+  background: #f8fbff;
+  color: #081B3A;
+  font-size: 26rpx;
+}
+
+.supplement-input {
+  height: 92rpx;
+  padding: 0 24rpx;
+}
+
+.supplement-textarea {
+  min-height: 180rpx;
+  padding: 22rpx 24rpx;
+}
+
+.supplement-upload {
+  margin-top: 0;
+}
+
+.field-hint,
+.supplement-message {
+  display: block;
+  margin-top: 12rpx;
+  color: #7b8ca8;
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+
+.supplement-message {
+  color: #2F6DFF;
+  font-weight: 600;
+}
+
+.supplement-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 18rpx;
+  background: #f3f7fd;
+}
+
+.supplement-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: #51617f;
+  font-size: 24rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.supplement-remove {
+  color: #2F6DFF;
+  font-size: 24rpx;
+  font-weight: 600;
 }
 
 .dimension-card {
