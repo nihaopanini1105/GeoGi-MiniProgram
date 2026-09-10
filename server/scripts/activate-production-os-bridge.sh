@@ -4,7 +4,12 @@ set -euo pipefail
 SERVER_DIR="${GEOGI_SERVER_DIR:-/opt/geogi-mini-program/server}"
 SERVICE_NAME="${GEOGI_SERVICE_NAME:-geogi-api}"
 PUBLIC_BASE_URL="${GEOGI_PUBLIC_BASE_URL:-https://api.geogi.cn}"
-EXPECTED_MAIN_SHA="${GEOGI_EXPECTED_MINIPROGRAM_MAIN_SHA:-812f4cce32557e380b34c9d152228616b52e264a}"
+EXPECTED_MAIN_SHA="${GEOGI_EXPECTED_MINIPROGRAM_MAIN_SHA:-}"
+
+if [ -z "$EXPECTED_MAIN_SHA" ]; then
+  echo "ERROR: GEOGI_EXPECTED_MINIPROGRAM_MAIN_SHA is required" >&2
+  exit 2
+fi
 
 cd "$SERVER_DIR"
 
@@ -13,6 +18,7 @@ printf '%s\n' " GeoGi MiniProgram · Production OS Bridge Activation"
 printf '%s\n' " Server dir: $SERVER_DIR"
 printf '%s\n' " Service: $SERVICE_NAME"
 printf '%s\n' " Public API: $PUBLIC_BASE_URL"
+printf '%s\n' " Approved main: $EXPECTED_MAIN_SHA"
 printf '%s\n' "============================================================"
 
 if [ ! -d .git ]; then
@@ -44,7 +50,6 @@ if [ "$HEAD_SHA" != "$EXPECTED_MAIN_SHA" ]; then
 fi
 
 node src/scripts/configure-os-bridge-production.js
-
 npm test
 
 sudo systemctl restart "$SERVICE_NAME"
@@ -65,19 +70,19 @@ for (const [name, payload] of [["local", local], ["public", pub]]) {
 console.log(JSON.stringify({ok:true, localBridge:local.osOperationsBridge, publicBridge:pub.osOperationsBridge}, null, 2));
 ' "$LOCAL_HEALTH" "$PUBLIC_HEALTH"
 
-set -a
-# shellcheck disable=SC1091
-source ./.env
-set +a
-
-if [ -z "${GEOGI_OS_BRIDGE_TOKEN:-}" ]; then
-  echo "ERROR: bridge token unavailable after configuration" >&2
-  exit 2
-fi
+BRIDGE_TOKEN="$(node -e '
+const fs = require("fs");
+const dotenv = require("dotenv");
+const parsed = dotenv.parse(fs.readFileSync(".env", "utf8"));
+const token = String(parsed.GEOGI_OS_BRIDGE_TOKEN || "").trim();
+if (!token) process.exit(2);
+process.stdout.write(token);
+')"
 
 INTAKES="$(curl --fail --silent --show-error \
-  -H "Authorization: Bearer ${GEOGI_OS_BRIDGE_TOKEN}" \
+  -H "Authorization: Bearer ${BRIDGE_TOKEN}" \
   "$PUBLIC_BASE_URL/internal/os/intakes")"
+unset BRIDGE_TOKEN
 
 node -e '
 const payload = JSON.parse(process.argv[1]);
