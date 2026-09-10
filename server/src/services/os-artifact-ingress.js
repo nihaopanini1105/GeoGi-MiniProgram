@@ -1,7 +1,8 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { getUploadRoot } = require('./uploads');
+
+const uploadRoot = path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads'));
 
 class OsArtifactIngressError extends Error {
   constructor(code) {
@@ -43,7 +44,7 @@ function admitOsArtifact({ body, fileName, expectedSha256, expectedSize, mimeTyp
     throw new OsArtifactIngressError('OS_ARTIFACT_HASH_MISMATCH');
   }
 
-  const root = getUploadRoot();
+  const root = uploadRoot;
   fs.mkdirSync(root, { recursive: true });
   const target = path.resolve(root, name);
   if (path.dirname(target) !== root) {
