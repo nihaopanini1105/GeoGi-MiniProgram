@@ -12,6 +12,14 @@ const { getPhoneNumber } = require('./services/wechat-auth');
 const { requireCustomerSession, resolveOwnedClientId } = require('./services/customer-session');
 const { trackEvent } = require('./services/events');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
+const {
+  OperationsBridgeError,
+  configured: osBridgeConfigured,
+  requireOsBridge,
+  listOsIntakes,
+  updateOsProjectStage,
+  publishOsDeliveryPackage
+} = require('./services/os-operations-bridge');
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -28,7 +36,8 @@ app.get('/health', (_req, res) => {
     businessAuthority: 'GeoGi OS',
     deliveryContract: 'DeliveryPackage/2.0.0',
     customerSessionBoundary: 'signed-phone-session-v1',
-    postSubmitSupplement: 'customer-supplement-v1'
+    postSubmitSupplement: 'customer-supplement-v1',
+    osOperationsBridge: osBridgeConfigured() ? 'configured' : 'not_configured'
   });
 });
 
@@ -113,9 +122,47 @@ app.post('/api/uploads', requireCustomerSession, (req, res) => {
 
 app.post('/api/events', (req, res) => res.json(trackEvent(req.body || {})));
 
+// Internal OS boundary: never exposed as customer business authority.
+app.get('/internal/os/intakes', requireOsBridge, async (_req, res, next) => {
+  try {
+    const items = await listOsIntakes();
+    res.json({ ok: true, items });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/internal/os/projects/:projectId/stage', requireOsBridge, async (req, res, next) => {
+  try {
+    const result = await updateOsProjectStage({
+      projectId: req.params.projectId,
+      stage: req.body && req.body.stage
+    });
+    res.json({ ok: true, result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, next) => {
+  try {
+    const result = await publishOsDeliveryPackage(req.body || {});
+    res.json({ ok: true, result });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use((error, _req, res, _next) => {
+  if (error instanceof OperationsBridgeError) {
+    const status = error.code === 'OS_BRIDGE_PROJECT_NOT_FOUND' ? 404 : 400;
+    return res.status(status).json({ ok: false, error: error.code });
+  }
+  if (error && typeof error.code === 'string' && error.code.startsWith('DELIVERY_')) {
+    return res.status(400).json({ ok: false, error: error.code });
+  }
   console.error('Unhandled server error', error);
-  res.status(500).json({ ok: false, userMessage: '服务暂时不可用' });
+  return res.status(500).json({ ok: false, userMessage: '服务暂时不可用' });
 });
 
 app.listen(port, host, () => {
