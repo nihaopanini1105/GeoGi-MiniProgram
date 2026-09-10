@@ -87,6 +87,18 @@ SERVICE_NAME="$4"
 PUBLIC_BASE_URL="$5"
 BACKUP_ROOT="$6"
 
+# Non-interactive SSH sessions do not load nvm. Reuse the exact Node runtime
+# already configured for the production systemd service instead of hardcoding
+# an nvm version or sourcing a shell profile.
+SERVICE_EXEC_START="$(systemctl show "$SERVICE_NAME" -p ExecStart --value 2>/dev/null || true)"
+SERVICE_NODE="$(printf '%s\n' "$SERVICE_EXEC_START" | sed -n 's/.*path=\([^ ;}]*\/node\).*/\1/p' | head -n 1)"
+if [ -n "$SERVICE_NODE" ] && [ -x "$SERVICE_NODE" ]; then
+  export PATH="$(dirname "$SERVICE_NODE"):$PATH"
+  echo "production_node_runtime=systemd"
+else
+  echo "production_node_runtime=PATH"
+fi
+
 for command_name in tar node npm systemctl curl; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "ERROR: required production command missing: $command_name" >&2
