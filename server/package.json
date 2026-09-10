@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
-    "test": "node tests/delivery_package_boundary_regression.js && node tests/customer_session_regression.js && node tests/customer_supplement_regression.js && node tests/os_operations_bridge_regression.js",
+    "test": "node tests/delivery_package_boundary_regression.js && node tests/customer_session_regression.js && node tests/customer_supplement_regression.js && node tests/os_operations_bridge_regression.js && node tests/configure_os_bridge_production_regression.js",
     "delivery:import": "node src/scripts/import-os-delivery-package.js",
     "setup:feishu-fields": "node src/scripts/setup-feishu-fields.js",
     "clear:workbench": "node src/scripts/clear-workbench-data.js --confirm"
