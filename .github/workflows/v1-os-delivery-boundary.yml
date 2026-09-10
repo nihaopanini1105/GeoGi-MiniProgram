@@ -30,6 +30,9 @@ jobs:
           node --check server/src/services/os-operations-bridge.js
           node --check server/src/services/customer-portal.js
           node --check server/src/server.js
+          bash -n server/scripts/deploy-production-from-mac.sh
+          bash -n server/scripts/deploy-production-release.sh
+          bash -n server/scripts/activate-production-os-bridge.sh
 
       - name: Validate MiniProgram consumes OS DeliveryPackage only
         run: cd server && npm test
