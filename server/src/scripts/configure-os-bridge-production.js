@@ -1,7 +1,6 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const dotenv = require('dotenv');
 
 const REQUIRED_BRIDGE_ENV = Object.freeze([
   'FEISHU_APP_ID',
@@ -11,12 +10,30 @@ const REQUIRED_BRIDGE_ENV = Object.freeze([
   'FEISHU_PROJECTS_TABLE_ID'
 ]);
 
+function parseEnv(raw) {
+  const result = {};
+  for (const line of String(raw || '').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const normalized = trimmed.startsWith('export ') ? trimmed.slice(7).trim() : trimmed;
+    const index = normalized.indexOf('=');
+    if (index <= 0) continue;
+    const key = normalized.slice(0, index).trim();
+    let value = normalized.slice(index + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    result[key] = value;
+  }
+  return result;
+}
+
 function upsertEnvLine(raw, key, value) {
   const lines = String(raw || '').split(/\r?\n/);
-  const prefix = `${key}=`;
-  const index = lines.findIndex((line) => line.startsWith(prefix));
-  if (index >= 0) lines[index] = `${prefix}${value}`;
-  else lines.push(`${prefix}${value}`);
+  const matcher = new RegExp(`^\\s*(?:export\\s+)?${key}=`);
+  const index = lines.findIndex((line) => matcher.test(line));
+  if (index >= 0) lines[index] = `${key}=${value}`;
+  else lines.push(`${key}=${value}`);
   return `${lines.join('\n').replace(/\n+$/, '')}\n`;
 }
 
@@ -28,7 +45,7 @@ function ensureBridgeToken({ envPath }) {
   }
 
   const raw = fs.readFileSync(envPath, 'utf8');
-  const parsed = dotenv.parse(raw);
+  const parsed = parseEnv(raw);
   const missing = REQUIRED_BRIDGE_ENV.filter((key) => !String(parsed[key] || '').trim());
   if (missing.length) {
     const error = new Error(`BRIDGE_DEPENDENCY_ENV_MISSING:${missing.join(',')}`);
@@ -76,6 +93,7 @@ if (require.main === module) main();
 
 module.exports = {
   REQUIRED_BRIDGE_ENV,
+  parseEnv,
   upsertEnvLine,
   ensureBridgeToken
 };
