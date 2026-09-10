@@ -12,6 +12,7 @@ if [ -z "$EXPECTED_MAIN_SHA" ]; then
 fi
 
 cd "$SERVER_DIR"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 
 printf '%s\n' "============================================================"
 printf '%s\n' " GeoGi MiniProgram · Production OS Bridge Activation"
@@ -21,8 +22,8 @@ printf '%s\n' " Public API: $PUBLIC_BASE_URL"
 printf '%s\n' " Approved main: $EXPECTED_MAIN_SHA"
 printf '%s\n' "============================================================"
 
-if [ ! -d .git ]; then
-  echo "ERROR: production server directory is not a git checkout" >&2
+if [ -z "$REPO_ROOT" ] || [ ! -d "$REPO_ROOT/.git" ]; then
+  echo "ERROR: production server directory is not inside a git checkout" >&2
   exit 2
 fi
 
@@ -31,17 +32,17 @@ if [ ! -f .env ]; then
   exit 2
 fi
 
-if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+if [ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=no)" ]; then
   echo "ERROR: production checkout has tracked local changes; refusing deployment" >&2
-  git status --short
+  git -C "$REPO_ROOT" status --short
   exit 2
 fi
 
-git fetch origin main
-git switch main
-git pull --ff-only origin main
+git -C "$REPO_ROOT" fetch origin main
+git -C "$REPO_ROOT" switch main
+git -C "$REPO_ROOT" pull --ff-only origin main
 
-HEAD_SHA="$(git rev-parse HEAD)"
+HEAD_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 if [ "$HEAD_SHA" != "$EXPECTED_MAIN_SHA" ]; then
   echo "ERROR: production main SHA is not the approved expected SHA" >&2
   echo "actual_sha=$HEAD_SHA" >&2
