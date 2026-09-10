@@ -63,10 +63,10 @@ printf '%s\n' "============================================================"
   npm test
 )
 
-TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/geogi-miniprogram-push.XXXXXX")"
-cleanup() { rm -rf "$TMP_ROOT"; }
-trap cleanup EXIT
-ARCHIVE="$TMP_ROOT/geogi-miniprogram-server-${EXPECTED_SHA}.tar.gz"
+LOCAL_TMP="$(mktemp -d "${TMPDIR:-/tmp}/geogi-miniprogram-push.XXXXXX")"
+cleanup_local() { rm -rf "$LOCAL_TMP"; }
+trap cleanup_local EXIT
+ARCHIVE="$LOCAL_TMP/geogi-miniprogram-server-${EXPECTED_SHA}.tar.gz"
 
 FILES=(package.json src tests scripts)
 if [ -f "$REPO_ROOT/server/package-lock.json" ]; then
@@ -79,7 +79,7 @@ scp "$ARCHIVE" "$SSH_TARGET:$REMOTE_ARCHIVE"
 
 ssh "$SSH_TARGET" bash -s -- \
   "$EXPECTED_SHA" "$REMOTE_ARCHIVE" "$SERVER_DIR" "$SERVICE_NAME" "$PUBLIC_BASE_URL" "$BACKUP_ROOT" <<'REMOTE'
-set -eEuo pipefail
+set -euo pipefail
 EXPECTED_SHA="$1"
 ARCHIVE="$2"
 SERVER_DIR="$3"
@@ -87,9 +87,9 @@ SERVICE_NAME="$4"
 PUBLIC_BASE_URL="$5"
 BACKUP_ROOT="$6"
 
-# Non-interactive SSH sessions do not load nvm. Reuse the exact Node runtime
-# already configured for the production systemd service instead of hardcoding
-# an nvm version or sourcing a shell profile.
+# Non-interactive SSH does not load nvm. Reuse the exact Node runtime already
+# configured for the production systemd service rather than sourcing profiles
+# or hardcoding an nvm version.
 SERVICE_EXEC_START="$(systemctl show "$SERVICE_NAME" -p ExecStart --value 2>/dev/null || true)"
 SERVICE_NODE="$(printf '%s\n' "$SERVICE_EXEC_START" | sed -n 's/.*path=\([^ ;}]*\/node\).*/\1/p' | head -n 1)"
 if [ -n "$SERVICE_NODE" ] && [ -x "$SERVICE_NODE" ]; then
@@ -107,21 +107,30 @@ for command_name in tar node npm systemctl curl; do
 done
 
 for required in "$SERVER_DIR/.env" "$SERVER_DIR/package.json" "$SERVER_DIR/src/server.js" "$ARCHIVE"; do
-  [ -f "$required" ] || { echo "ERROR: production marker missing: $required" >&2; exit 2; }
+  [ -f "$required" ] || {
+    echo "ERROR: production marker missing: $required" >&2
+    exit 2
+  }
 done
 systemctl is-active --quiet "$SERVICE_NAME" || {
   echo "ERROR: $SERVICE_NAME is not active before deployment" >&2
   exit 2
 }
 
-TMP_ROOT="$(mktemp -d /tmp/geogi-miniprogram-stage.XXXXXX)"
+REMOTE_TMP="$(mktemp -d /tmp/geogi-miniprogram-stage.XXXXXX)"
 BACKUP_DIR=""
 DEPLOY_STARTED=0
-cleanup() { rm -rf "$TMP_ROOT" "$ARCHIVE"; }
+ROLLBACK_RUNNING=0
+cleanup_remote() { rm -rf "$REMOTE_TMP" "$ARCHIVE"; }
 rollback() {
   status=$?
   trap - ERR
+  if [ "$ROLLBACK_RUNNING" -eq 1 ]; then
+    exit "$status"
+  fi
+  ROLLBACK_RUNNING=1
   if [ "$DEPLOY_STARTED" -eq 1 ] && [ -n "$BACKUP_DIR" ] && [ -d "$BACKUP_DIR" ]; then
+    DEPLOY_STARTED=0
     echo "Deployment failed after production swap; restoring previous program files." >&2
     systemctl stop "$SERVICE_NAME" || true
     rm -rf "$SERVER_DIR/src" "$SERVER_DIR/tests" "$SERVER_DIR/scripts"
@@ -133,26 +142,29 @@ rollback() {
     systemctl start "$SERVICE_NAME" || true
     echo "rollback_attempted=true" >&2
   fi
-  cleanup
+  cleanup_remote
   exit "$status"
 }
 trap rollback ERR
-trap cleanup EXIT
+trap cleanup_remote EXIT
 
-tar -xzf "$ARCHIVE" -C "$TMP_ROOT"
+tar -xzf "$ARCHIVE" -C "$REMOTE_TMP"
 for required in \
-  "$TMP_ROOT/package.json" \
-  "$TMP_ROOT/src/server.js" \
-  "$TMP_ROOT/src/services/os-operations-bridge.js" \
-  "$TMP_ROOT/src/services/os-artifact-ingress.js"; do
-  [ -f "$required" ] || { echo "ERROR: release package missing $required" >&2; exit 2; }
+  "$REMOTE_TMP/package.json" \
+  "$REMOTE_TMP/src/server.js" \
+  "$REMOTE_TMP/src/services/os-operations-bridge.js" \
+  "$REMOTE_TMP/src/services/os-artifact-ingress.js"; do
+  [ -f "$required" ] || {
+    echo "ERROR: release package missing $required" >&2
+    exit 2
+  }
 done
 
-node --check "$TMP_ROOT/src/server.js"
-node --check "$TMP_ROOT/src/services/os-operations-bridge.js"
-node --check "$TMP_ROOT/src/services/os-artifact-ingress.js"
+node --check "$REMOTE_TMP/src/server.js"
+node --check "$REMOTE_TMP/src/services/os-operations-bridge.js"
+node --check "$REMOTE_TMP/src/services/os-artifact-ingress.js"
 (
-  cd "$TMP_ROOT"
+  cd "$REMOTE_TMP"
   npm test
 )
 
@@ -169,11 +181,11 @@ cp -a "$SERVER_DIR/package.json" "$BACKUP_DIR/package.json"
 NEXT="$SERVER_DIR/.release-next-${EXPECTED_SHA:0:12}"
 rm -rf "$NEXT"
 mkdir -p "$NEXT"
-cp -a "$TMP_ROOT/src" "$NEXT/src"
-[ ! -d "$TMP_ROOT/tests" ] || cp -a "$TMP_ROOT/tests" "$NEXT/tests"
-[ ! -d "$TMP_ROOT/scripts" ] || cp -a "$TMP_ROOT/scripts" "$NEXT/scripts"
-cp -a "$TMP_ROOT/package.json" "$NEXT/package.json"
-[ ! -f "$TMP_ROOT/package-lock.json" ] || cp -a "$TMP_ROOT/package-lock.json" "$NEXT/package-lock.json"
+cp -a "$REMOTE_TMP/src" "$NEXT/src"
+[ ! -d "$REMOTE_TMP/tests" ] || cp -a "$REMOTE_TMP/tests" "$NEXT/tests"
+[ ! -d "$REMOTE_TMP/scripts" ] || cp -a "$REMOTE_TMP/scripts" "$NEXT/scripts"
+cp -a "$REMOTE_TMP/package.json" "$NEXT/package.json"
+[ ! -f "$REMOTE_TMP/package-lock.json" ] || cp -a "$REMOTE_TMP/package-lock.json" "$NEXT/package-lock.json"
 
 systemctl stop "$SERVICE_NAME"
 DEPLOY_STARTED=1
@@ -188,22 +200,43 @@ rmdir "$NEXT" 2>/dev/null || true
 systemctl start "$SERVICE_NAME"
 systemctl is-active --quiet "$SERVICE_NAME"
 
-LOCAL_HEALTH="$(curl --fail --silent --show-error --connect-timeout 5 --max-time 15 http://127.0.0.1:3107/health)"
-PUBLIC_HEALTH="$(curl --fail --silent --show-error --connect-timeout 5 --max-time 15 "$PUBLIC_BASE_URL/health")"
+wait_for_health() {
+  endpoint="$1"
+  label="$2"
+  attempt=1
+  while [ "$attempt" -le 30 ]; do
+    if HEALTH_PAYLOAD="$(curl --fail --silent --connect-timeout 2 --max-time 5 "$endpoint" 2>/dev/null)"; then
+      echo "${label}_ready_after_attempt=$attempt"
+      return 0
+    fi
+    sleep 1
+    attempt=$((attempt + 1))
+  done
+  echo "ERROR: $label health did not become ready within bounded wait" >&2
+  systemctl status "$SERVICE_NAME" --no-pager -l >&2 || true
+  return 1
+}
+
+wait_for_health "http://127.0.0.1:3107/health" "local"
+LOCAL_HEALTH="$HEALTH_PAYLOAD"
+wait_for_health "$PUBLIC_BASE_URL/health" "public"
+PUBLIC_HEALTH="$HEALTH_PAYLOAD"
+
 node -e '
 const local=JSON.parse(process.argv[1]); const pub=JSON.parse(process.argv[2]);
 for (const [name,p] of [["local",local],["public",pub]]) {
- if (!p || p.ok!==true || p.businessAuthority!=="GeoGi OS" || p.deliveryContract!=="DeliveryPackage/2.0.0" || p.osOperationsBridge!=="configured") {
-   console.error(`ERROR: ${name} health is not V1 bridge-ready`); process.exit(2);
- }
+  if (!p || p.ok!==true || p.businessAuthority!=="GeoGi OS" || p.deliveryContract!=="DeliveryPackage/2.0.0" || p.osOperationsBridge!=="configured") {
+    console.error(`ERROR: ${name} health is not V1 bridge-ready`);
+    process.exit(2);
+  }
 }
 ' "$LOCAL_HEALTH" "$PUBLIC_HEALTH"
 
 for endpoint in "http://127.0.0.1:3107/internal/os/artifacts" "$PUBLIC_BASE_URL/internal/os/artifacts"; do
-  STATUS="$(curl -sS --connect-timeout 5 --max-time 15 -o "$TMP_ROOT/probe.json" -w '%{http_code}' -X POST -H 'Content-Type: application/octet-stream' "$endpoint")"
-  if [ "$STATUS" != "401" ] || ! grep -q 'OS_BRIDGE_UNAUTHORIZED' "$TMP_ROOT/probe.json"; then
+  STATUS="$(curl -sS --connect-timeout 5 --max-time 15 -o "$REMOTE_TMP/probe.json" -w '%{http_code}' -X POST -H 'Content-Type: application/octet-stream' "$endpoint")"
+  if [ "$STATUS" != "401" ] || ! grep -q 'OS_BRIDGE_UNAUTHORIZED' "$REMOTE_TMP/probe.json"; then
     echo "ERROR: protected artifact ingress not live at $endpoint (status=$STATUS)" >&2
-    cat "$TMP_ROOT/probe.json" >&2 || true
+    cat "$REMOTE_TMP/probe.json" >&2 || true
     exit 2
   fi
 done
