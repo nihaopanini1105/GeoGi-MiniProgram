@@ -12,6 +12,7 @@ const { getPhoneNumber } = require('./services/wechat-auth');
 const { requireCustomerSession, resolveOwnedClientId } = require('./services/customer-session');
 const { trackEvent } = require('./services/events');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
+const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
 const {
   OperationsBridgeError,
   configured: osBridgeConfigured,
@@ -144,6 +145,26 @@ app.post('/internal/os/projects/:projectId/stage', requireOsBridge, async (req, 
   }
 });
 
+app.post(
+  '/internal/os/artifacts',
+  requireOsBridge,
+  express.raw({ type: 'application/octet-stream', limit: '25mb' }),
+  (req, res, next) => {
+    try {
+      const result = admitOsArtifact({
+        body: req.body,
+        fileName: req.headers['x-geogi-artifact-filename'],
+        expectedSha256: req.headers['x-geogi-artifact-sha256'],
+        expectedSize: req.headers['x-geogi-artifact-size'],
+        mimeType: req.headers['x-geogi-artifact-mime-type']
+      });
+      res.json({ ok: true, result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, next) => {
   try {
     const result = await publishOsDeliveryPackage(req.body || {});
@@ -157,6 +178,12 @@ app.use((error, _req, res, _next) => {
   if (error instanceof OperationsBridgeError) {
     const status = error.code === 'OS_BRIDGE_PROJECT_NOT_FOUND' ? 404 : 400;
     return res.status(status).json({ ok: false, error: error.code });
+  }
+  if (error instanceof OsArtifactIngressError) {
+    return res.status(400).json({ ok: false, error: error.code });
+  }
+  if (error && error.type === 'entity.too.large') {
+    return res.status(413).json({ ok: false, error: 'OS_ARTIFACT_TOO_LARGE' });
   }
   if (error && typeof error.code === 'string' && error.code.startsWith('DELIVERY_')) {
     return res.status(400).json({ ok: false, error: error.code });
