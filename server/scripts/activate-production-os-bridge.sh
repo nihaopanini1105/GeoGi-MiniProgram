@@ -72,9 +72,19 @@ console.log(JSON.stringify({ok:true, localBridge:local.osOperationsBridge, publi
 
 BRIDGE_TOKEN="$(node -e '
 const fs = require("fs");
-const dotenv = require("dotenv");
-const parsed = dotenv.parse(fs.readFileSync(".env", "utf8"));
-const token = String(parsed.GEOGI_OS_BRIDGE_TOKEN || "").trim();
+const raw = fs.readFileSync(".env", "utf8");
+let token = "";
+for (const line of raw.split(/\r?\n/)) {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith("#")) continue;
+  const normalized = trimmed.startsWith("export ") ? trimmed.slice(7).trim() : trimmed;
+  const i = normalized.indexOf("=");
+  if (i <= 0) continue;
+  if (normalized.slice(0, i).trim() !== "GEOGI_OS_BRIDGE_TOKEN") continue;
+  token = normalized.slice(i + 1).trim();
+  if ((token.startsWith("\"") && token.endsWith("\"")) || (token.startsWith("'") && token.endsWith("'"))) token = token.slice(1, -1);
+  break;
+}
 if (!token) process.exit(2);
 process.stdout.write(token);
 ')"
