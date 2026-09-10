@@ -27,6 +27,7 @@ jobs:
         run: |
           node --check server/src/services/delivery-package-store.js
           node --check server/src/services/os-intake.js
+          node --check server/src/services/os-operations-bridge.js
           node --check server/src/services/customer-portal.js
           node --check server/src/server.js
 
