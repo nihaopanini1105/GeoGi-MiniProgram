@@ -26,18 +26,11 @@ Page({
   async loadReport() {
     const { clientId, projectId } = this.data;
     if (!clientId || !projectId) {
-      this.setData({
-        loading: false,
-        error: '缺少订单信息，请回到“我的”重新打开。'
-      });
+      this.setData({ loading: false, error: '缺少订单信息，请回到“我的”重新打开。' });
       return;
     }
-
     if (!isApiConfigured()) {
-      this.setData({
-        loading: false,
-        error: '服务地址还未配置，暂时无法查看报告。'
-      });
+      this.setData({ loading: false, error: '服务地址还未配置，暂时无法查看报告。' });
       return;
     }
 
@@ -53,20 +46,14 @@ Page({
         error: ''
       });
     } catch (error) {
-      this.setData({
-        error: error && error.message ? error.message : '报告读取失败'
-      });
+      this.setData({ error: error && error.message ? error.message : '报告读取失败' });
     } finally {
       this.setData({ loading: false });
     }
   },
 
   async onPullDownRefresh() {
-    try {
-      await this.loadReport();
-    } finally {
-      wx.stopPullDownRefresh();
-    }
+    try { await this.loadReport(); } finally { wx.stopPullDownRefresh(); }
   },
 
   normalizeOrder(order) {
@@ -81,38 +68,40 @@ Page({
 
   normalizeReport(report) {
     const data = report || {};
+    const dimensions = (Array.isArray(data.dimensions) ? data.dimensions : []).map((item) => {
+      const numeric = Number(item && item.score);
+      const hasScore = item && item.score !== null && item.score !== undefined && item.score !== '' && Number.isFinite(numeric);
+      return { ...item, hasScore, score: hasScore ? numeric : null };
+    });
+    const overallNumeric = Number(data.overallScore);
+    const hasOverallScore = data.overallScore !== null
+      && data.overallScore !== undefined
+      && data.overallScore !== ''
+      && Number.isFinite(overallNumeric);
     return {
       ...data,
-      dimensions: data.dimensions || [],
-      platforms: data.platforms || [],
-      keyFindings: data.keyFindings || [],
-      recommendations: data.recommendations || [],
-      scope: data.scope || []
+      hasOverallScore,
+      overallScore: hasOverallScore ? overallNumeric : null,
+      dimensions,
+      platforms: Array.isArray(data.platforms) ? data.platforms : [],
+      keyFindings: Array.isArray(data.keyFindings) ? data.keyFindings : [],
+      recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
+      scope: Array.isArray(data.scope) ? data.scope : [],
+      governance: data.governance || {},
+      platformPolicy: data.platformPolicy || {}
     };
   },
 
   formatDisplayTime(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
-
     const date = new Date(raw);
     if (Number.isNaN(date.getTime())) {
-      return raw
-        .replace('T', ' ')
-        .replace(/\.\d{3}Z?$/, '')
-        .replace(/Z$/, '')
-        .slice(0, 16);
+      return raw.replace('T', ' ').replace(/\.\d{3}Z?$/, '').replace(/Z$/, '').slice(0, 16);
     }
-
     const pad = (number) => String(number).padStart(2, '0');
-
-    return [
-      date.getFullYear(),
-      pad(date.getMonth() + 1),
-      pad(date.getDate())
-    ].join('-') + ' ' + [
-      pad(date.getHours()),
-      pad(date.getMinutes())
+    return [date.getFullYear(), pad(date.getMonth() + 1), pad(date.getDate())].join('-') + ' ' + [
+      pad(date.getHours()), pad(date.getMinutes())
     ].join(':');
   },
 
@@ -141,10 +130,7 @@ Page({
           wx.showToast({ title: '文件不能超过20MB', icon: 'none' });
           return;
         }
-        this.setData({
-          supplementFile: { name: file.name, size: file.size, path: file.path },
-          supplementMessage: ''
-        });
+        this.setData({ supplementFile: { name: file.name, size: file.size, path: file.path }, supplementMessage: '' });
       }
     });
   },
@@ -171,47 +157,32 @@ Page({
           submissionId: `supplement-${this.data.projectId}`,
           fileName: file.name
         });
-        files.push({
-          name: uploaded.name || file.name,
-          size: uploaded.size || file.size,
-          fileId: uploaded.fileId,
-          url: uploaded.url
-        });
+        files.push({ name: uploaded.name || file.name, size: uploaded.size || file.size, fileId: uploaded.fileId, url: uploaded.url });
       }
-
       const result = await post(`/api/customer/projects/${encodeURIComponent(this.data.projectId)}/supplement`, {
         clientId: this.data.clientId,
         companyName,
         note,
         files
       });
-      if (!result || !result.ok) {
-        throw new Error(result && result.userMessage ? result.userMessage : '补充资料提交失败');
-      }
+      if (!result || !result.ok) throw new Error(result && result.userMessage ? result.userMessage : '补充资料提交失败');
 
       this.setData({
         supplementFile: null,
         supplementNote: '',
-        supplementMessage: '补充资料已提交，等待 GeoGi OS 核验。'
+        supplementMessage: '补充资料已提交。GeoGi OS 会重新读取并核验，当前项目阶段不会由客户侧修改。'
       });
       wx.showToast({ title: '资料已提交', icon: 'success' });
       await this.loadReport();
     } catch (error) {
-      this.setData({
-        supplementMessage: error && error.message ? error.message : '补充资料提交失败'
-      });
+      this.setData({ supplementMessage: error && error.message ? error.message : '补充资料提交失败' });
     } finally {
       this.setData({ supplementSubmitting: false });
     }
   },
 
-  refresh() {
-    this.loadReport();
-  },
-
-  goContact() {
-    wx.navigateTo({ url: '/pages/contact/contact' });
-  },
+  refresh() { this.loadReport(); },
+  goContact() { wx.navigateTo({ url: '/pages/contact/contact' }); },
 
   openPdf() {
     const url = this.data.report && this.data.report.reportLink;
@@ -242,7 +213,5 @@ Page({
     });
   },
 
-  goMine() {
-    wx.switchTab({ url: '/pages/mine/mine' });
-  }
+  goMine() { wx.switchTab({ url: '/pages/mine/mine' }); }
 });
