@@ -175,7 +175,9 @@ function assertScope(packageDocument, { clientId, projectId }) {
 function projectDeliveryForCustomer(packageDocument, scope) {
   assertScope(packageDocument, scope);
   const summary = packageDocument.display_summary || {};
-  const pdf = packageDocument.artifacts.find((item) => item.mime_type === 'application/pdf' || item.artifact_type === 'pdf') || packageDocument.artifacts[0];
+  // Structured diagnostic delivery can be the formal customer report without a PDF.
+  // Never expose JSON/HTML/other artifacts through the MiniProgram's PDF action.
+  const pdf = packageDocument.artifacts.find((item) => item.mime_type === 'application/pdf' || item.artifact_type === 'pdf') || null;
   return {
     ...summary,
     deliveryPackageId: packageDocument.delivery_package_id,
