@@ -74,7 +74,7 @@
             <text class="platform-status">{{item.status}}</text>
           </view>
           <text class="body">{{item.role}}</text>
-          <text wx:if="{{item.formalDenominatorIncluded === false}}" class="platform-issue">补充观察，不计入正式诊断分母。</text>
+          <text wx:if="{{item.isSupplemental}}" class="platform-issue">补充观察，不计入正式诊断分母。</text>
         </view>
         <view wx:if="{{!report.platforms.length}}" class="state-card card compact">
           <text class="state-title">平台明细未进入正式报告</text>
