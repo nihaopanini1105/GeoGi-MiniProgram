@@ -2,7 +2,12 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const DELIVERY_CONTRACT_VERSION = '2.0.0';
+const DELIVERY_CONTRACT_VERSION = '2.1.0';
+const LEGACY_DELIVERY_CONTRACT_VERSION = '2.0.0';
+const SUPPORTED_DELIVERY_CONTRACT_VERSIONS = new Set([
+  DELIVERY_CONTRACT_VERSION,
+  LEGACY_DELIVERY_CONTRACT_VERSION
+]);
 const PRESENTATION_AUTHORITY = 'os_m09_governed_report';
 
 class DeliveryPackageError extends Error {
@@ -80,7 +85,8 @@ function validateDeliveryPackage(packageDocument) {
   if (packageDocument.object_type !== 'delivery_package') {
     throw new DeliveryPackageError('DELIVERY_PACKAGE_REQUIRED');
   }
-  if (packageDocument.delivery_contract_version !== DELIVERY_CONTRACT_VERSION) {
+  const contractVersion = String(packageDocument.delivery_contract_version || '');
+  if (!SUPPORTED_DELIVERY_CONTRACT_VERSIONS.has(contractVersion)) {
     throw new DeliveryPackageError('DELIVERY_CONTRACT_VERSION_UNSUPPORTED');
   }
   if (packageDocument.release_status !== 'released') {
@@ -110,14 +116,18 @@ function validateDeliveryPackage(packageDocument) {
   if (!packageDocument.version_pins || typeof packageDocument.version_pins !== 'object' || Array.isArray(packageDocument.version_pins)) {
     throw new DeliveryPackageError('DELIVERY_VERSION_PINS_REQUIRED');
   }
-  validateDisplaySummary(packageDocument.display_summary, report);
-  if (packageDocument.version_pins.presentation_version !== packageDocument.display_summary.presentationVersion) {
-    throw new DeliveryPackageError('DELIVERY_PRESENTATION_VERSION_PIN_MISMATCH');
+  if (contractVersion === DELIVERY_CONTRACT_VERSION) {
+    validateDisplaySummary(packageDocument.display_summary, report);
+    if (packageDocument.version_pins.presentation_version !== packageDocument.display_summary.presentationVersion) {
+      throw new DeliveryPackageError('DELIVERY_PRESENTATION_VERSION_PIN_MISMATCH');
+    }
+  } else if (!packageDocument.display_summary || typeof packageDocument.display_summary !== 'object' || Array.isArray(packageDocument.display_summary)) {
+    throw new DeliveryPackageError('DELIVERY_DISPLAY_SUMMARY_REQUIRED');
   }
+
   if (!Array.isArray(packageDocument.artifacts) || packageDocument.artifacts.length === 0) {
     throw new DeliveryPackageError('DELIVERY_ARTIFACT_REQUIRED');
   }
-
   for (const artifact of packageDocument.artifacts) {
     if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
       throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID');
@@ -155,6 +165,9 @@ function packagePath(packageId) {
 
 async function importDeliveryPackage(packageDocument) {
   validateDeliveryPackage(packageDocument);
+  if (packageDocument.delivery_contract_version !== DELIVERY_CONTRACT_VERSION) {
+    throw new DeliveryPackageError('DELIVERY_LEGACY_PACKAGE_IMPORT_FORBIDDEN');
+  }
   const output = packagePath(packageDocument.delivery_package_id);
   await fs.promises.mkdir(path.dirname(output), { recursive: true });
   const canonical = `${canonicalStringify(packageDocument)}\n`;
@@ -195,7 +208,11 @@ async function findDeliveryPackage({ clientId, projectId }) {
     item.client_id === String(clientId || '').trim() && item.project_id === String(projectId || '').trim()
   ));
   if (!matches.length) return null;
-  matches.sort((a, b) => String(b.released_at).localeCompare(String(a.released_at)));
+  matches.sort((a, b) => {
+    const releaseOrder = String(b.released_at).localeCompare(String(a.released_at));
+    if (releaseOrder) return releaseOrder;
+    return Number(b.delivery_contract_version === DELIVERY_CONTRACT_VERSION) - Number(a.delivery_contract_version === DELIVERY_CONTRACT_VERSION);
+  });
   return matches[0];
 }
 
@@ -209,9 +226,17 @@ function assertScope(packageDocument, { clientId, projectId }) {
 function projectDeliveryForCustomer(packageDocument, scope) {
   assertScope(packageDocument, scope);
   const summary = packageDocument.display_summary || {};
+  const legacy = packageDocument.delivery_contract_version === LEGACY_DELIVERY_CONTRACT_VERSION;
   const pdf = packageDocument.artifacts.find((item) => item.mime_type === 'application/pdf' || item.artifact_type === 'pdf') || packageDocument.artifacts[0];
   return {
     ...summary,
+    presentationAuthority: legacy ? 'legacy_delivery_package_v2_0' : summary.presentationAuthority,
+    presentationVersion: legacy ? String(summary.presentationVersion || 'legacy-2.0') : summary.presentationVersion,
+    reportStatus: summary.reportStatus || 'released',
+    overallScore: null,
+    scoreStatus: legacy ? (summary.scoreStatus || '历史报告格式；综合评分不在当前界面展示') : (summary.scoreStatus || ''),
+    evidenceCount: Number.isInteger(summary.evidenceCount) ? summary.evidenceCount : 0,
+    legacyDelivery: legacy,
     deliveryPackageId: packageDocument.delivery_package_id,
     deliveryContractVersion: packageDocument.delivery_contract_version,
     releaseStatus: packageDocument.release_status,
@@ -235,6 +260,8 @@ function projectDeliveryForCustomer(packageDocument, scope) {
 
 module.exports = {
   DELIVERY_CONTRACT_VERSION,
+  LEGACY_DELIVERY_CONTRACT_VERSION,
+  SUPPORTED_DELIVERY_CONTRACT_VERSIONS,
   PRESENTATION_AUTHORITY,
   DeliveryPackageError,
   canonicalStringify,
@@ -242,6 +269,7 @@ module.exports = {
   validateDeliveryPackage,
   validateDisplaySummary,
   importDeliveryPackage,
+  listDeliveryPackages,
   findDeliveryPackage,
   projectDeliveryForCustomer,
   assertScope
