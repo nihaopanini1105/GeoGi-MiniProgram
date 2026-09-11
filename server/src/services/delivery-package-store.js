@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const DELIVERY_CONTRACT_VERSION = '2.0.0';
+const PRESENTATION_AUTHORITY = 'os_m09_governed_report';
 
 class DeliveryPackageError extends Error {
   constructor(code, detail = '') {
@@ -38,6 +39,38 @@ function requiredString(document, key, code = 'DELIVERY_PACKAGE_FIELD_REQUIRED')
 
 function isSha256Prefixed(value) {
   return typeof value === 'string' && /^sha256:[0-9a-f]{64}$/.test(value);
+}
+
+function validateDisplaySummary(summary, report) {
+  if (!summary || typeof summary !== 'object' || Array.isArray(summary)) {
+    throw new DeliveryPackageError('DELIVERY_DISPLAY_SUMMARY_REQUIRED');
+  }
+  if (summary.presentationAuthority !== PRESENTATION_AUTHORITY) {
+    throw new DeliveryPackageError('DELIVERY_PRESENTATION_AUTHORITY_INVALID');
+  }
+  requiredString(summary, 'presentationVersion', 'DELIVERY_PRESENTATION_VERSION_REQUIRED');
+  if (summary.reportStatus !== 'released') {
+    throw new DeliveryPackageError('DELIVERY_PRESENTATION_NOT_RELEASED');
+  }
+  if (summary.overallScore !== null && summary.overallScore !== undefined) {
+    throw new DeliveryPackageError('DELIVERY_UNAPPROVED_SCORE_FORBIDDEN');
+  }
+  for (const key of ['scope', 'dimensions', 'platforms', 'keyFindings', 'recommendations', 'limitations', 'risks']) {
+    if (!Array.isArray(summary[key])) throw new DeliveryPackageError('DELIVERY_PRESENTATION_LIST_REQUIRED', key);
+  }
+  if (!Number.isInteger(summary.evidenceCount) || summary.evidenceCount < 0) {
+    throw new DeliveryPackageError('DELIVERY_PRESENTATION_EVIDENCE_COUNT_INVALID');
+  }
+  const integrity = summary.integrity;
+  if (!integrity || typeof integrity !== 'object' || Array.isArray(integrity)) {
+    throw new DeliveryPackageError('DELIVERY_PRESENTATION_INTEGRITY_REQUIRED');
+  }
+  if (integrity.contentHash !== report.content_hash || integrity.reportRecordHash !== report.report_record_hash) {
+    throw new DeliveryPackageError('DELIVERY_PRESENTATION_REPORT_HASH_MISMATCH');
+  }
+  if (!isSha256Prefixed(integrity.sourceManifestHash)) {
+    throw new DeliveryPackageError('DELIVERY_PRESENTATION_SOURCE_HASH_INVALID');
+  }
 }
 
 function validateDeliveryPackage(packageDocument) {
@@ -77,8 +110,9 @@ function validateDeliveryPackage(packageDocument) {
   if (!packageDocument.version_pins || typeof packageDocument.version_pins !== 'object' || Array.isArray(packageDocument.version_pins)) {
     throw new DeliveryPackageError('DELIVERY_VERSION_PINS_REQUIRED');
   }
-  if (!packageDocument.display_summary || typeof packageDocument.display_summary !== 'object' || Array.isArray(packageDocument.display_summary)) {
-    throw new DeliveryPackageError('DELIVERY_DISPLAY_SUMMARY_REQUIRED');
+  validateDisplaySummary(packageDocument.display_summary, report);
+  if (packageDocument.version_pins.presentation_version !== packageDocument.display_summary.presentationVersion) {
+    throw new DeliveryPackageError('DELIVERY_PRESENTATION_VERSION_PIN_MISMATCH');
   }
   if (!Array.isArray(packageDocument.artifacts) || packageDocument.artifacts.length === 0) {
     throw new DeliveryPackageError('DELIVERY_ARTIFACT_REQUIRED');
@@ -193,16 +227,20 @@ function projectDeliveryForCustomer(packageDocument, scope) {
     platforms: Array.isArray(summary.platforms) ? summary.platforms : [],
     keyFindings: Array.isArray(summary.keyFindings) ? summary.keyFindings : [],
     recommendations: Array.isArray(summary.recommendations) ? summary.recommendations : [],
+    limitations: Array.isArray(summary.limitations) ? summary.limitations : [],
+    risks: Array.isArray(summary.risks) ? summary.risks : [],
     scope: Array.isArray(summary.scope) ? summary.scope : []
   };
 }
 
 module.exports = {
   DELIVERY_CONTRACT_VERSION,
+  PRESENTATION_AUTHORITY,
   DeliveryPackageError,
   canonicalStringify,
   sha256Canonical,
   validateDeliveryPackage,
+  validateDisplaySummary,
   importDeliveryPackage,
   findDeliveryPackage,
   projectDeliveryForCustomer,
