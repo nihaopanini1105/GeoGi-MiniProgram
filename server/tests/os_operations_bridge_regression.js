@@ -20,9 +20,11 @@ function fakeResponse() {
 async function main() {
   const expectedStages = [
     'INTAKE', 'ONBOARDING', 'DETECTION', 'DIAGNOSIS', 'SOLUTION',
-    'REVIEW', 'RELEASED', 'MONITORING', 'BLOCKED'
+    'IMPLEMENTATION', 'RETEST', 'REVIEW', 'RELEASED', 'MONITORING', 'BLOCKED'
   ];
   assert.deepStrictEqual(Object.keys(PROJECT_STAGES), expectedStages);
+  assert.strictEqual(PROJECT_STAGES.IMPLEMENTATION.currentStatus, '优化实施中');
+  assert.strictEqual(PROJECT_STAGES.RETEST.currentStatus, '效果复测中');
   assert.strictEqual(PROJECT_STAGES.RELEASED.currentStatus, '报告已交付');
   assert.strictEqual(PROJECT_STAGES.BLOCKED.auditStatus, '等待客户补充');
   assert(Object.isFrozen(PROJECT_STAGES));
