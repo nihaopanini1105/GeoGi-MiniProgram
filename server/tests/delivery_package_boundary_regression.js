@@ -14,6 +14,7 @@ const {
 
 function buildValidPackage() {
   const reportContentHash = `sha256:${'a'.repeat(64)}`;
+  const reportRecordHash = `sha256:${'b'.repeat(64)}`;
   const document = {
     object_type: 'delivery_package',
     delivery_contract_version: '2.0.0',
@@ -25,28 +26,42 @@ function buildValidPackage() {
       report_version: 1,
       object_version: '2.0.0',
       content_hash: reportContentHash,
-      report_record_hash: `sha256:${'b'.repeat(64)}`
+      report_record_hash: reportRecordHash
     },
     release_status: 'released',
     released_at: '2026-09-09T12:00:00+00:00',
     version_pins: {
-      product_release: 'v1.0.0',
-      question_bank_version: '1.0.0',
-      scoring_model_version: '2.0.0',
-      strategy_learning_version: '1.1.0',
-      report_template_version: '2.0.0',
-      industry_pack_id: 'industry_pack_100000000001',
-      industry_pack_version: '1.0.0'
+      product_release: 'v1.1.0',
+      presentation_version: '1.0.0',
+      canonical_client_id: 'client_test0001',
+      canonical_project_id: 'project_test0001'
     },
     display_summary: {
+      presentationVersion: '1.0.0',
+      presentationAuthority: 'os_m09_governed_report',
+      reportStatus: 'released',
+      reportType: 'client_geo_diagnostic',
       title: '测试品牌 AI 可见度诊断报告',
-      overallScore: 78,
+      summary: '该摘要由 GeoGi OS 已发布报告提供。',
       conclusion: '该结论由 GeoGi OS 已发布报告提供。',
-      dimensions: [{ name: '覆盖', score: 80 }],
-      platforms: [{ name: '豆包', score: 79 }],
+      overallScore: null,
+      scoreStatus: '未形成正式总分',
+      dimensions: [],
+      platforms: [
+        { platformId: 'doubao', name: '豆包', role: '正式评估平台', status: '已纳入报告范围', formalDenominatorIncluded: null },
+        { platformId: 'kimi', name: 'Kimi', role: '补充观察平台', status: 'validation_pending', formalDenominatorIncluded: false }
+      ],
       keyFindings: ['已发布发现'],
       recommendations: ['已发布建议'],
-      scope: ['中国市场']
+      limitations: ['样本范围限制'],
+      risks: ['本报告不保证长期表现'],
+      scope: ['正式评估平台：豆包、DeepSeek、腾讯元宝、通义千问'],
+      evidenceCount: 4,
+      integrity: {
+        reportRecordHash,
+        sourceManifestHash: `sha256:${'d'.repeat(64)}`,
+        contentHash: reportContentHash
+      }
     },
     artifacts: [{
       artifact_id: 'delivery_artifact_test0001',
@@ -64,24 +79,22 @@ function buildValidPackage() {
   return document;
 }
 
+function rehash(document) {
+  delete document.package_hash;
+  document.package_hash = sha256Canonical(document);
+  return document;
+}
+
 function expectCode(fn, code) {
   let caught = null;
-  try {
-    fn();
-  } catch (error) {
-    caught = error;
-  }
+  try { fn(); } catch (error) { caught = error; }
   assert(caught instanceof DeliveryPackageError, `expected DeliveryPackageError ${code}`);
   assert.strictEqual(caught.code, code);
 }
 
 async function expectCodeAsync(fn, code) {
   let caught = null;
-  try {
-    await fn();
-  } catch (error) {
-    caught = error;
-  }
+  try { await fn(); } catch (error) { caught = error; }
   assert(caught instanceof DeliveryPackageError, `expected DeliveryPackageError ${code}`);
   assert.strictEqual(caught.code, code);
 }
@@ -93,27 +106,35 @@ async function run() {
   const valid = buildValidPackage();
   validateDeliveryPackage(valid);
 
-  expectCode(() => validateDeliveryPackage({
-    report_id: 'raw-report',
-    report_status: 'released'
-  }), 'DELIVERY_PACKAGE_REQUIRED');
+  expectCode(() => validateDeliveryPackage({ report_id: 'raw-report', report_status: 'released' }), 'DELIVERY_PACKAGE_REQUIRED');
 
   const approvedOnly = buildValidPackage();
   approvedOnly.release_status = 'approved';
-  approvedOnly.package_hash = sha256Canonical(Object.fromEntries(
-    Object.entries(approvedOnly).filter(([key]) => key !== 'package_hash')
-  ));
+  rehash(approvedOnly);
   expectCode(() => validateDeliveryPackage(approvedOnly), 'DELIVERY_PACKAGE_NOT_RELEASED');
 
   const tampered = buildValidPackage();
-  tampered.display_summary.overallScore = 99;
+  tampered.display_summary.conclusion = 'tampered without package rehash';
   expectCode(() => validateDeliveryPackage(tampered), 'DELIVERY_PACKAGE_HASH_MISMATCH');
 
+  const scored = buildValidPackage();
+  scored.display_summary.overallScore = 78;
+  rehash(scored);
+  expectCode(() => validateDeliveryPackage(scored), 'DELIVERY_UNAPPROVED_SCORE_FORBIDDEN');
+
+  const wrongAuthority = buildValidPackage();
+  wrongAuthority.display_summary.presentationAuthority = 'miniprogram_local_engine';
+  rehash(wrongAuthority);
+  expectCode(() => validateDeliveryPackage(wrongAuthority), 'DELIVERY_PRESENTATION_AUTHORITY_INVALID');
+
+  const wrongPresentationHash = buildValidPackage();
+  wrongPresentationHash.display_summary.integrity.contentHash = `sha256:${'e'.repeat(64)}`;
+  rehash(wrongPresentationHash);
+  expectCode(() => validateDeliveryPackage(wrongPresentationHash), 'DELIVERY_PRESENTATION_REPORT_HASH_MISMATCH');
+
   const artifactMismatch = buildValidPackage();
-  artifactMismatch.artifacts[0].report_content_hash = `sha256:${'d'.repeat(64)}`;
-  artifactMismatch.package_hash = sha256Canonical(Object.fromEntries(
-    Object.entries(artifactMismatch).filter(([key]) => key !== 'package_hash')
-  ));
+  artifactMismatch.artifacts[0].report_content_hash = `sha256:${'f'.repeat(64)}`;
+  rehash(artifactMismatch);
   expectCode(() => validateDeliveryPackage(artifactMismatch), 'DELIVERY_ARTIFACT_REPORT_HASH_MISMATCH');
 
   const first = await importDeliveryPackage(valid);
@@ -125,28 +146,25 @@ async function run() {
   assert(loaded);
   assert.strictEqual(loaded.package_hash, valid.package_hash);
 
-  const customer = projectDeliveryForCustomer(loaded, {
-    clientId: valid.client_id,
-    projectId: valid.project_id
-  });
+  const customer = projectDeliveryForCustomer(loaded, { clientId: valid.client_id, projectId: valid.project_id });
   assert.strictEqual(customer.releaseStatus, 'released');
   assert.strictEqual(customer.deliveryPackageId, valid.delivery_package_id);
   assert.strictEqual(customer.reportLink, valid.artifacts[0].uri);
-  assert.strictEqual(customer.overallScore, 78);
+  assert.strictEqual(customer.overallScore, null);
+  assert.strictEqual(customer.presentationAuthority, 'os_m09_governed_report');
+  assert.strictEqual(customer.evidenceCount, 4);
+  assert.deepStrictEqual(customer.keyFindings, ['已发布发现']);
 
-  expectCode(() => projectDeliveryForCustomer(loaded, {
-    clientId: 'GG-OTHER',
-    projectId: valid.project_id
-  }), 'DELIVERY_SCOPE_MISMATCH');
+  expectCode(() => projectDeliveryForCustomer(loaded, { clientId: 'GG-OTHER', projectId: valid.project_id }), 'DELIVERY_SCOPE_MISMATCH');
 
   const conflicting = buildValidPackage();
   conflicting.display_summary.conclusion = 'mutated but rehashed content';
-  delete conflicting.package_hash;
-  conflicting.package_hash = sha256Canonical(conflicting);
+  rehash(conflicting);
   await expectCodeAsync(() => importDeliveryPackage(conflicting), 'DELIVERY_PACKAGE_IMMUTABLE_CONFLICT');
 
   const serverSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'server.js'), 'utf8');
   const portalSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'customer-portal.js'), 'utf8');
+  const reportPageSource = fs.readFileSync(path.join(__dirname, '..', '..', 'pages', 'report-detail', 'report-detail.wxml'), 'utf8');
 
   const forbiddenServer = [
     "require('./services/diagnosis')",
@@ -156,9 +174,7 @@ async function run() {
     '/api/feishu/events',
     "app.use('/reports'"
   ];
-  for (const token of forbiddenServer) {
-    assert(!serverSource.includes(token), `production server bypass reintroduced: ${token}`);
-  }
+  for (const token of forbiddenServer) assert(!serverSource.includes(token), `production server bypass reintroduced: ${token}`);
   assert(serverSource.includes("require('./services/os-intake')"));
 
   const forbiddenPortal = [
@@ -169,14 +185,17 @@ async function run() {
     'buildConclusion(',
     'buildPlatforms('
   ];
-  for (const token of forbiddenPortal) {
-    assert(!portalSource.includes(token), `customer portal business authority reintroduced: ${token}`);
-  }
+  for (const token of forbiddenPortal) assert(!portalSource.includes(token), `customer portal business authority reintroduced: ${token}`);
   assert(portalSource.includes('findDeliveryPackage'));
   assert(portalSource.includes('projectDeliveryForCustomer'));
 
+  assert(!reportPageSource.includes('综合可见度'));
+  assert(!reportPageSource.includes('核心评分'));
+  assert(reportPageSource.includes('报告结论与治理状态'));
+  assert(reportPageSource.includes('仅展示已通过 GeoGi OS 报告治理并由 M09 发布的数据'));
+
   await fs.promises.rm(root, { recursive: true, force: true });
-  console.log('GEOGI V1 MINIPROGRAM DELIVERY BOUNDARY: OK');
+  console.log('GEOGI V1.1 MINIPROGRAM GOVERNED DELIVERY BOUNDARY: OK');
 }
 
 run().catch((error) => {
