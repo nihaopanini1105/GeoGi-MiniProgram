@@ -1,4 +1,6 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
 const {
   PROJECT_STAGES,
@@ -58,6 +60,15 @@ async function main() {
   }
   assert(invalidStage instanceof OperationsBridgeError);
   assert.strictEqual(invalidStage.code, 'OS_BRIDGE_STAGE_INVALID');
+
+  // The publish bridge is a two-system boundary. A newly imported package must be removed
+  // when the authoritative RELEASED projection fails; otherwise a customer could observe a
+  // package that OS correctly refused to promote into a success-only delivery fact.
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'os-operations-bridge.js'), 'utf8');
+  assert(source.includes('if (result.imported && result.path)'));
+  assert(source.includes('await fs.promises.unlink(result.path)'));
+  assert(source.includes('OS_BRIDGE_RELEASE_ROLLBACK_FAILED'));
+  assert(source.indexOf('importDeliveryPackage(packageDocument)') < source.indexOf("stage: 'RELEASED'"));
 
   if (prior === undefined) delete process.env.GEOGI_OS_BRIDGE_TOKEN;
   else process.env.GEOGI_OS_BRIDGE_TOKEN = prior;

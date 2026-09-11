@@ -38,13 +38,16 @@ async function submitCustomerSupplement(input = {}) {
           && text(fields.项目编号) === supplement.projectId
       });
       if (project) {
-        await updateBitableRecord({
-          tenantToken,
-          appToken: process.env.FEISHU_BASE_APP_TOKEN,
-          tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
-          recordId: recordId(project),
-          fields: buildProjectUpdates({ fields: project.fields || {}, supplement })
-        });
+        const projectUpdates = buildProjectUpdates({ fields: project.fields || {}, supplement });
+        if (Object.keys(projectUpdates).length) {
+          await updateBitableRecord({
+            tenantToken,
+            appToken: process.env.FEISHU_BASE_APP_TOKEN,
+            tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
+            recordId: recordId(project),
+            fields: projectUpdates
+          });
+        }
         projectUpdated = true;
       }
     }
@@ -56,8 +59,10 @@ async function submitCustomerSupplement(input = {}) {
       companyName: supplement.companyName || text(leadFields.企业名称),
       filesAccepted: supplement.files.length,
       projectUpdated,
-      status: '已补充资料',
-      nextAction: '等待 GeoGi OS 核验补充资料'
+      status: '补充资料已接收',
+      canonicalStageMutated: false,
+      authority: 'GeoGi OS',
+      nextAction: 'GeoGi OS 将重新读取并核验补充资料；项目阶段仅由 OS 更新。'
     };
   } catch (error) {
     console.error('submitCustomerSupplement failed', error);
@@ -106,30 +111,23 @@ function buildLeadUpdates({ fields, supplement }) {
     updates.补充说明 = appendText(text(fields.补充说明), `【客户补充】${supplement.note}`);
   }
 
-  const currentStatus = text(fields.当前状态);
-  if (!/诊断处理中|报告审核中|报告已完成|已完成/.test(currentStatus)) {
-    updates.当前状态 = '已补充资料';
-    updates.下一步动作 = '等待 GeoGi OS 核验补充资料';
-    updates.审核状态 = '待 OS 核验补充资料';
-  }
+  // 当前状态 / 下一步动作 / 审核状态 are OS-owned projection fields.
+  // Customer supplement ingress must never advance, regress, or override them.
   return updates;
 }
 
 function buildProjectUpdates({ fields, supplement }) {
   const updates = {};
-  const stage = text(fields.当前阶段);
-  if (!stage || /^INTAKE(?:_|$)/.test(stage)) {
-    updates.当前阶段 = 'INTAKE_SUPPLEMENTED';
-    updates.审核状态 = '待 OS 核验补充资料';
-  }
   const summary = [
     supplement.companyName ? `企业主体：${supplement.companyName}` : '',
     supplement.files.length ? `补充附件 ${supplement.files.length} 个` : '',
     supplement.note ? `客户说明：${supplement.note}` : ''
   ].filter(Boolean).join('；');
   if (summary) {
-    updates.内部备注 = appendText(text(fields.内部备注), `客户补充资料：${summary}`);
+    updates.内部备注 = appendText(text(fields.内部备注), `客户补充资料（待 GeoGi OS 重新摄取）：${summary}`);
   }
+
+  // 当前阶段 / 审核状态 are projections written only by the authenticated OS bridge.
   return updates;
 }
 

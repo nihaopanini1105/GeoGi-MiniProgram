@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const fs = require('fs');
 const {
   getTenantAccessToken,
   listBitableRecords,
@@ -58,6 +59,11 @@ function splitLines(value) {
   return text(value).split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
 }
 
+function ingressRevisionHash(value) {
+  const canonical = JSON.stringify(value, Object.keys(value).sort());
+  return `sha256:${crypto.createHash('sha256').update(canonical, 'utf8').digest('hex')}`;
+}
+
 function projectView(record) {
   const fields = record.fields || {};
   return {
@@ -69,14 +75,14 @@ function projectView(record) {
     auditStatus: text(fields.审核状态),
     startedAt: text(fields.开始时间),
     customerScope: text(fields.客户确认范围),
-    internalNote: text(fields.内部备注)
+    internalNote: text(fields.内部备注),
+    projectionAuthority: 'GeoGi OS'
   };
 }
 
 function leadView(record) {
   const fields = record.fields || {};
-  return {
-    recordId: record.record_id || record.recordId || '',
+  const ingress = {
     submissionId: text(fields.提交ID),
     projectId: text(fields.项目编号),
     clientId: text(fields.客户编号),
@@ -92,11 +98,18 @@ function leadView(record) {
     competitors: text(fields.竞品或对标品牌),
     goals: text(fields.诊断目标),
     attachments: splitLines(fields.附件资料),
+    supplementalNote: text(fields.补充说明),
     submittedAt: text(fields.提交时间),
+    source: text(fields.来源)
+  };
+  return {
+    recordId: record.record_id || record.recordId || '',
+    ...ingress,
+    ingressRevisionHash: ingressRevisionHash(ingress),
     currentStatus: text(fields.当前状态),
     nextAction: text(fields.下一步动作),
     auditStatus: text(fields.审核状态),
-    source: text(fields.来源)
+    projectionAuthority: 'GeoGi OS'
   };
 }
 
@@ -151,18 +164,36 @@ async function updateOsProjectStage({ projectId, stage }) {
       审核状态: stageConfig.auditStatus
     }
   });
-  return { projectId, stage: String(stage).toUpperCase(), ...stageConfig };
+  return { projectId, stage: String(stage).toUpperCase(), ...stageConfig, projectionAuthority: 'GeoGi OS' };
 }
 
 async function publishOsDeliveryPackage(packageDocument) {
   const result = await importDeliveryPackage(packageDocument);
-  await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
+  try {
+    await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
+  } catch (error) {
+    // Compensate only the package created by this request. Never delete an idempotent package
+    // that may already represent an earlier successful release.
+    if (result.imported && result.path) {
+      try {
+        await fs.promises.unlink(result.path);
+      } catch (rollbackError) {
+        if (!rollbackError || rollbackError.code !== 'ENOENT') {
+          const failure = new OperationsBridgeError('OS_BRIDGE_RELEASE_ROLLBACK_FAILED');
+          failure.cause = rollbackError;
+          throw failure;
+        }
+      }
+    }
+    throw error;
+  }
   return {
     imported: result.imported,
     idempotent: result.idempotent,
     deliveryPackageId: packageDocument.delivery_package_id,
     projectId: packageDocument.project_id,
-    clientId: packageDocument.client_id
+    clientId: packageDocument.client_id,
+    projectionAuthority: 'GeoGi OS'
   };
 }
 
@@ -171,6 +202,7 @@ module.exports = {
   OperationsBridgeError,
   configured,
   requireOsBridge,
+  ingressRevisionHash,
   listOsIntakes,
   updateOsProjectStage,
   publishOsDeliveryPackage
