@@ -68,10 +68,16 @@ Page({
 
   normalizeReport(report) {
     const data = report || {};
+    const platforms = Array.isArray(data.platforms)
+      ? data.platforms.map((item) => ({
+          ...item,
+          isSupplemental: item && item.formalDenominatorIncluded === false
+        }))
+      : [];
     return {
       ...data,
       dimensions: Array.isArray(data.dimensions) ? data.dimensions : [],
-      platforms: Array.isArray(data.platforms) ? data.platforms : [],
+      platforms,
       keyFindings: Array.isArray(data.keyFindings) ? data.keyFindings : [],
       recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
       limitations: Array.isArray(data.limitations) ? data.limitations : [],
