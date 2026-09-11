@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const fs = require('fs');
 const {
   getTenantAccessToken,
   listBitableRecords,
@@ -168,7 +169,24 @@ async function updateOsProjectStage({ projectId, stage }) {
 
 async function publishOsDeliveryPackage(packageDocument) {
   const result = await importDeliveryPackage(packageDocument);
-  await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
+  try {
+    await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
+  } catch (error) {
+    // Compensate only the package created by this request. Never delete an idempotent package
+    // that may already represent an earlier successful release.
+    if (result.imported && result.path) {
+      try {
+        await fs.promises.unlink(result.path);
+      } catch (rollbackError) {
+        if (!rollbackError || rollbackError.code !== 'ENOENT') {
+          const failure = new OperationsBridgeError('OS_BRIDGE_RELEASE_ROLLBACK_FAILED');
+          failure.cause = rollbackError;
+          throw failure;
+        }
+      }
+    }
+    throw error;
+  }
   return {
     imported: result.imported,
     idempotent: result.idempotent,
