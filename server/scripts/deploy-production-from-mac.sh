@@ -87,9 +87,6 @@ SERVICE_NAME="$4"
 PUBLIC_BASE_URL="$5"
 BACKUP_ROOT="$6"
 
-# Non-interactive SSH does not load nvm. Reuse the exact Node runtime already
-# configured for the production systemd service rather than sourcing profiles
-# or hardcoding an nvm version.
 SERVICE_EXEC_START="$(systemctl show "$SERVICE_NAME" -p ExecStart --value 2>/dev/null || true)"
 SERVICE_NODE="$(printf '%s\n' "$SERVICE_EXEC_START" | sed -n 's/.*path=\([^ ;}]*\/node\).*/\1/p' | head -n 1)"
 if [ -n "$SERVICE_NODE" ] && [ -x "$SERVICE_NODE" ]; then
@@ -225,7 +222,7 @@ PUBLIC_HEALTH="$HEALTH_PAYLOAD"
 node -e '
 const local=JSON.parse(process.argv[1]); const pub=JSON.parse(process.argv[2]);
 for (const [name,p] of [["local",local],["public",pub]]) {
-  if (!p || p.ok!==true || p.businessAuthority!=="GeoGi OS" || p.deliveryContract!=="DeliveryPackage/2.0.0" || p.osOperationsBridge!=="configured") {
+  if (!p || p.ok!==true || p.businessAuthority!=="GeoGi OS" || p.deliveryContract!=="DeliveryPackage/2.1.0" || p.osOperationsBridge!=="configured") {
     console.error(`ERROR: ${name} health is not V1 bridge-ready`);
     process.exit(2);
   }
