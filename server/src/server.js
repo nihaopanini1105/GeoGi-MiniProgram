@@ -12,6 +12,7 @@ const { getPhoneNumber } = require('./services/wechat-auth');
 const { requireCustomerSession, resolveOwnedClientId } = require('./services/customer-session');
 const { trackEvent } = require('./services/events');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
+const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
 const {
   OperationsBridgeError,
@@ -35,7 +36,7 @@ app.get('/health', (_req, res) => {
     ok: true,
     service: 'geogi-mini-program-server',
     businessAuthority: 'GeoGi OS',
-    deliveryContract: 'DeliveryPackage/2.0.0',
+    deliveryContract: `DeliveryPackage/${DELIVERY_CONTRACT_VERSION}`,
     customerSessionBoundary: 'signed-phone-session-v1',
     postSubmitSupplement: 'customer-supplement-v1',
     osOperationsBridge: osBridgeConfigured() ? 'configured' : 'not_configured'
