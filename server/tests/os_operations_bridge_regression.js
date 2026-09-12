@@ -1,4 +1,6 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
 const {
   PROJECT_STAGES,
@@ -28,6 +30,22 @@ async function main() {
   assert.strictEqual(PROJECT_STAGES.RELEASED.currentStatus, '报告已交付');
   assert.strictEqual(PROJECT_STAGES.BLOCKED.auditStatus, '等待客户补充');
   assert(Object.isFrozen(PROJECT_STAGES));
+
+  const bridgeSource = fs.readFileSync(
+    path.join(__dirname, '../src/services/os-operations-bridge.js'),
+    'utf8'
+  );
+  const packageImportIndex = bridgeSource.indexOf(
+    'const result = await importDeliveryPackage(packageDocument);'
+  );
+  const releasedProjectionIndex = bridgeSource.indexOf(
+    "await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });"
+  );
+  assert(packageImportIndex >= 0, 'delivery package import must remain explicit');
+  assert(
+    releasedProjectionIndex > packageImportIndex,
+    'MiniProgram project must advance to RELEASED only after DeliveryPackage import succeeds'
+  );
 
   const prior = process.env.GEOGI_OS_BRIDGE_TOKEN;
   delete process.env.GEOGI_OS_BRIDGE_TOKEN;
