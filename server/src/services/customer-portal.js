@@ -124,17 +124,31 @@ function normalizeOrder({ lead, project, deliveryPackage }) {
 }
 
 function mapCustomerStatus({ projectStage, leadStatus }) {
+  const stage = String(projectStage || '').toUpperCase();
   const combined = [projectStage, leadStatus].filter(Boolean).join(' ');
-  if (/待补充|补充材料|资料不全/.test(combined)) return '资料待补充';
-  if (/审核|复核|质检/.test(combined)) return '报告审核中';
+  if (stage === 'BLOCKED' || /待补充|补充材料|资料不全/.test(combined)) return '资料待补充';
+  if (stage === 'REVIEW' || /审核|复核|质检/.test(combined)) return '报告审核中';
+  if (stage === 'RETEST' || /效果复测|复测中/.test(combined)) return '效果复测中';
+  if (stage === 'IMPLEMENTATION' || /优化实施|实施中/.test(combined)) return '优化实施中';
+  if (stage === 'SOLUTION' || /方案生成|优化方案/.test(combined)) return '方案生成中';
+  if (stage === 'DIAGNOSIS' || /诊断分析/.test(combined)) return '诊断分析中';
+  if (stage === 'DETECTION' || /检测进行|平台检测/.test(combined)) return '检测进行中';
+  if (stage === 'ONBOARDING' || /资料建档/.test(combined)) return '资料建档中';
+  if (stage === 'MONITORING' || /持续运营/.test(combined)) return '持续运营中';
   if (/处理中|运行中|CAPTURE|TEST|ANALYSIS|REPORT/.test(combined)) return '诊断处理中';
   return '已提交';
 }
 
 function customerNextAction(status) {
   if (status === '资料待补充') return '请补充诊断所需资料，必要时联系 GeoGi 顾问。';
-  if (status === '诊断处理中') return 'GeoGi OS 正在完成品牌研究与 AI 平台检测。';
-  if (status === '报告审核中') return '诊断已完成，报告正在进行发布审核。';
+  if (status === '资料建档中') return 'GeoGi OS 正在建立品牌与客户正式画像。';
+  if (status === '检测进行中') return 'GeoGi OS 正在执行多平台检测与证据采集。';
+  if (status === '诊断分析中' || status === '诊断处理中') return 'GeoGi OS 正在基于受治理证据形成诊断结论。';
+  if (status === '方案生成中') return 'GeoGi OS 正在把诊断结果转成可实施优化方案。';
+  if (status === '优化实施中') return '已批准的优化方案正在实施，并持续记录实施证据。';
+  if (status === '效果复测中') return 'GeoGi OS 正在按同口径执行效果复测与结果评估。';
+  if (status === '报告审核中') return '诊断与复测已进入报告审核，正式发布前仍会保持未交付状态。';
+  if (status === '持续运营中') return 'GeoGi OS 已进入持续监测与周期复测服务。';
   if (status === '报告已完成') return '报告已由 GeoGi OS 正式发布，可查看或下载交付物。';
   return 'GeoGi 已收到资料，等待 OS 进入正式诊断流程。';
 }
@@ -151,11 +165,14 @@ function buildPendingReport({ lead, project, order }) {
     updatedAt: order.updatedAt,
     summary: order.nextAction,
     conclusion: '',
-    overallScore: 0,
+    overallScore: null,
+    scoreStatus: '正式报告尚未发布，不形成客户侧综合评分。',
     dimensions: [],
     platforms: [],
     keyFindings: [],
     recommendations: [],
+    limitations: [],
+    risks: [],
     scope: [
       `品牌：${brandName || '待确认'}`,
       `行业：${text(leadFields.一级行业) || '待确认'} / ${text(leadFields.细分业务) || '待确认'}`
@@ -208,5 +225,6 @@ module.exports = {
   getCustomerReport,
   normalizeOrder,
   mapCustomerStatus,
+  customerNextAction,
   buildPendingReport
 };

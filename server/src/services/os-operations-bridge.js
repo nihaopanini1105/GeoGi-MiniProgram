@@ -12,6 +12,8 @@ const PROJECT_STAGES = Object.freeze({
   DETECTION: { currentStatus: '检测进行中', auditStatus: 'OS 处理中', nextAction: 'GeoGi OS 正在执行多平台检测与证据采集' },
   DIAGNOSIS: { currentStatus: '诊断分析中', auditStatus: 'OS 处理中', nextAction: 'GeoGi OS 正在生成诊断结论与优化机会' },
   SOLUTION: { currentStatus: '方案生成中', auditStatus: 'OS 处理中', nextAction: 'GeoGi OS 正在生成优化方案与实施计划' },
+  IMPLEMENTATION: { currentStatus: '优化实施中', auditStatus: 'OS 处理中', nextAction: 'GeoGi OS 正在执行已批准优化方案并记录实施证据' },
+  RETEST: { currentStatus: '效果复测中', auditStatus: 'OS 处理中', nextAction: 'GeoGi OS 正在按同口径执行效果复测与结果评估' },
   REVIEW: { currentStatus: '报告审核中', auditStatus: '待内部审核', nextAction: 'GeoGi 团队正在完成 QA 与交付审核' },
   RELEASED: { currentStatus: '报告已交付', auditStatus: '已交付', nextAction: '可在小程序查看正式诊断报告' },
   MONITORING: { currentStatus: '持续运营中', auditStatus: '持续服务', nextAction: 'GeoGi OS 按服务计划持续监测与复测' },
