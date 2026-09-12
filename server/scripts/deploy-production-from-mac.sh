@@ -66,15 +66,19 @@ printf '%s\n' "============================================================"
 LOCAL_TMP="$(mktemp -d "${TMPDIR:-/tmp}/geogi-miniprogram-push.XXXXXX")"
 cleanup_local() { rm -rf "$LOCAL_TMP"; }
 trap cleanup_local EXIT
-ARCHIVE="$LOCAL_TMP/geogi-miniprogram-server-${EXPECTED_SHA}.tar.gz"
+ARCHIVE="$LOCAL_TMP/geogi-miniprogram-${EXPECTED_SHA}.tar.gz"
 
-FILES=(package.json src tests scripts)
+# Preserve repository-relative layout for remote regression tests. Some server tests
+# intentionally inspect MiniProgram page sources under ../../pages to guard against
+# reintroducing customer-side business authority. The production swap still deploys
+# only server files below SERVER_DIR.
+ARCHIVE_PATHS=(server/package.json server/src server/tests server/scripts pages)
 if [ -f "$REPO_ROOT/server/package-lock.json" ]; then
-  FILES+=(package-lock.json)
+  ARCHIVE_PATHS+=(server/package-lock.json)
 fi
-tar -C "$REPO_ROOT/server" -czf "$ARCHIVE" "${FILES[@]}"
+tar -C "$REPO_ROOT" -czf "$ARCHIVE" "${ARCHIVE_PATHS[@]}"
 
-REMOTE_ARCHIVE="/tmp/geogi-miniprogram-server-${EXPECTED_SHA}.tar.gz"
+REMOTE_ARCHIVE="/tmp/geogi-miniprogram-${EXPECTED_SHA}.tar.gz"
 scp "$ARCHIVE" "$SSH_TARGET:$REMOTE_ARCHIVE"
 
 ssh "$SSH_TARGET" bash -s -- \
@@ -115,6 +119,7 @@ systemctl is-active --quiet "$SERVICE_NAME" || {
 }
 
 REMOTE_TMP="$(mktemp -d /tmp/geogi-miniprogram-stage.XXXXXX)"
+STAGE_SERVER="$REMOTE_TMP/server"
 BACKUP_DIR=""
 DEPLOY_STARTED=0
 ROLLBACK_RUNNING=0
@@ -147,23 +152,27 @@ trap cleanup_remote EXIT
 
 tar -xzf "$ARCHIVE" -C "$REMOTE_TMP"
 for required in \
-  "$REMOTE_TMP/package.json" \
-  "$REMOTE_TMP/src/server.js" \
-  "$REMOTE_TMP/src/services/os-operations-bridge.js" \
-  "$REMOTE_TMP/src/services/os-artifact-ingress.js"; do
+  "$STAGE_SERVER/package.json" \
+  "$STAGE_SERVER/src/server.js" \
+  "$STAGE_SERVER/src/services/os-operations-bridge.js" \
+  "$STAGE_SERVER/src/services/os-artifact-ingress.js" \
+  "$REMOTE_TMP/pages/report-detail/report-detail.wxml" \
+  "$REMOTE_TMP/pages/report-detail/report-detail.js"; do
   [ -f "$required" ] || {
     echo "ERROR: release package missing $required" >&2
     exit 2
   }
 done
 
-node --check "$REMOTE_TMP/src/server.js"
-node --check "$REMOTE_TMP/src/services/os-operations-bridge.js"
-node --check "$REMOTE_TMP/src/services/os-artifact-ingress.js"
+node --check "$STAGE_SERVER/src/server.js"
+node --check "$STAGE_SERVER/src/services/os-operations-bridge.js"
+node --check "$STAGE_SERVER/src/services/os-artifact-ingress.js"
 (
-  cd "$REMOTE_TMP"
+  cd "$STAGE_SERVER"
   npm test
 )
+
+echo "remote_stage_repository_layout=PASS"
 
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 BACKUP_DIR="$BACKUP_ROOT/$STAMP-${EXPECTED_SHA:0:12}"
@@ -178,11 +187,11 @@ cp -a "$SERVER_DIR/package.json" "$BACKUP_DIR/package.json"
 NEXT="$SERVER_DIR/.release-next-${EXPECTED_SHA:0:12}"
 rm -rf "$NEXT"
 mkdir -p "$NEXT"
-cp -a "$REMOTE_TMP/src" "$NEXT/src"
-[ ! -d "$REMOTE_TMP/tests" ] || cp -a "$REMOTE_TMP/tests" "$NEXT/tests"
-[ ! -d "$REMOTE_TMP/scripts" ] || cp -a "$REMOTE_TMP/scripts" "$NEXT/scripts"
-cp -a "$REMOTE_TMP/package.json" "$NEXT/package.json"
-[ ! -f "$REMOTE_TMP/package-lock.json" ] || cp -a "$REMOTE_TMP/package-lock.json" "$NEXT/package-lock.json"
+cp -a "$STAGE_SERVER/src" "$NEXT/src"
+[ ! -d "$STAGE_SERVER/tests" ] || cp -a "$STAGE_SERVER/tests" "$NEXT/tests"
+[ ! -d "$STAGE_SERVER/scripts" ] || cp -a "$STAGE_SERVER/scripts" "$NEXT/scripts"
+cp -a "$STAGE_SERVER/package.json" "$NEXT/package.json"
+[ ! -f "$STAGE_SERVER/package-lock.json" ] || cp -a "$STAGE_SERVER/package-lock.json" "$NEXT/package-lock.json"
 
 systemctl stop "$SERVICE_NAME"
 DEPLOY_STARTED=1
