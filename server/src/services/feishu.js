@@ -1,6 +1,9 @@
 const https = require('https');
 const crypto = require('crypto');
 
+const BITABLE_TRANSIENT_CODES = new Set([1254607]);
+const BITABLE_LIST_MAX_ATTEMPTS = 4;
+
 async function getTenantAccessToken() {
   const result = await requestJson({
     method: 'POST',
@@ -116,6 +119,20 @@ async function deleteBitableRecords({ tenantToken, appToken, tableId, recordIds 
   return result.data;
 }
 
+function isRetriableBitableResult(result) {
+  return Boolean(result && BITABLE_TRANSIENT_CODES.has(Number(result.code)));
+}
+
+function bitableRetryDelayMs(attempt) {
+  const configured = Number(process.env.FEISHU_BITABLE_RETRY_BASE_MS || 250);
+  const base = Number.isFinite(configured) && configured >= 0 ? configured : 250;
+  return Math.min(base * (2 ** Math.max(0, attempt - 1)), 2000);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function listBitableRecords({ tenantToken, appToken, tableId, pageSize = 100 }) {
   const items = [];
   let pageToken = '';
@@ -126,17 +143,27 @@ async function listBitableRecords({ tenantToken, appToken, tableId, pageSize = 1
     });
     if (pageToken) query.set('page_token', pageToken);
 
-    const result = await requestJson({
-      method: 'GET',
-      hostname: 'open.feishu.cn',
-      path: `/open-apis/bitable/v1/apps/${appToken}/tables/${tableId}/records?${query.toString()}`,
-      headers: {
-        Authorization: `Bearer ${tenantToken}`
-      }
-    });
+    let result = null;
+    for (let attempt = 1; attempt <= BITABLE_LIST_MAX_ATTEMPTS; attempt += 1) {
+      result = await requestJson({
+        method: 'GET',
+        hostname: 'open.feishu.cn',
+        path: `/open-apis/bitable/v1/apps/${appToken}/tables/${tableId}/records?${query.toString()}`,
+        headers: {
+          Authorization: `Bearer ${tenantToken}`
+        }
+      });
 
-    if (result.code !== 0) {
-      throw new Error(`list records failed: ${JSON.stringify(result)}`);
+      if (result.code === 0) break;
+      if (!isRetriableBitableResult(result) || attempt === BITABLE_LIST_MAX_ATTEMPTS) {
+        throw new Error(`list records failed: ${JSON.stringify(result)}`);
+      }
+
+      const delayMs = bitableRetryDelayMs(attempt);
+      console.warn(
+        `[feishu] transient list records failure code=${result.code} attempt=${attempt}/${BITABLE_LIST_MAX_ATTEMPTS} retry_in_ms=${delayMs}`
+      );
+      await sleep(delayMs);
     }
 
     const data = result.data || {};
@@ -253,5 +280,7 @@ module.exports = {
   listBitableRecords,
   sendWebhookText,
   sendBotText,
-  buildRecordUrl
+  buildRecordUrl,
+  isRetriableBitableResult,
+  bitableRetryDelayMs
 };
