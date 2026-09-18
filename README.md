@@ -45,7 +45,7 @@ GeoGi OS 负责：
 
 规则：
 - `delivery_mode = artifact_only`
-- `production_authority = geogi_os_m09`
+- `production_authority = geogi_os`
 - 小程序只接收 OS M09 已正式发布的 Artifact。
 - Package 不包含 `display_summary`。
 - 小程序不得根据 Report 数据重新生成另一份客户报告。
