@@ -8,21 +8,13 @@ const {
 } = require('../services/feishu');
 
 const tables = [
-  ['客户与品牌', 'FEISHU_LEADS_TABLE_ID'],
-  ['诊断项目', 'FEISHU_PROJECTS_TABLE_ID'],
-  ['品牌基础档案', 'FEISHU_BRAND_PROFILE_TABLE_ID'],
-  ['全网信源', 'FEISHU_SOURCES_TABLE_ID'],
-  ['品牌关键词', 'FEISHU_KEYWORDS_TABLE_ID'],
-  ['行业热门问题', 'FEISHU_QUESTIONS_TABLE_ID'],
-  ['AI 检测问题', 'FEISHU_AI_QUESTION_TABLE_ID'],
-  ['平台测试记录', 'FEISHU_TEST_RECORDS_TABLE_ID'],
-  ['回答分析结果', 'FEISHU_ANALYSIS_TABLE_ID'],
-  ['报告管理', 'FEISHU_REPORTS_TABLE_ID']
+  ['客户提交', 'FEISHU_LEADS_TABLE_ID'],
+  ['客户项目展示状态', 'FEISHU_PROJECTS_TABLE_ID']
 ];
 
 async function main() {
   if (!process.argv.includes('--confirm')) {
-    throw new Error('清空诊断工作台需要加 --confirm');
+    throw new Error('清空小程序客户展示数据需要加 --confirm');
   }
 
   const tenantToken = await getTenantAccessToken();
@@ -78,7 +70,12 @@ async function main() {
     result.push({ table: name, status: '已清空', deleted });
   }
 
-  console.log(JSON.stringify({ ok: true, result }, null, 2));
+  console.log(JSON.stringify({
+    ok: true,
+    authority: 'GeoGi OS',
+    scope: 'miniprogram_display_and_intake_data_only',
+    result
+  }, null, 2));
 }
 
 function chunk(items, size) {
