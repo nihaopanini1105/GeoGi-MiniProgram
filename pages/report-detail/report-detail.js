@@ -77,7 +77,7 @@ Page({
       deliveryPackageId: data.deliveryPackageId || '',
       deliveryContractVersion: data.deliveryContractVersion || '',
       deliveryMode: data.deliveryMode || 'artifact_only',
-      productionAuthority: data.productionAuthority || 'geogi_os_m09',
+      productionAuthority: data.productionAuthority || 'geogi_os',
       reportContentHash: data.reportContentHash || '',
       reportRecordHash: data.reportRecordHash || '',
       artifactSha256: data.artifactSha256 || ''
