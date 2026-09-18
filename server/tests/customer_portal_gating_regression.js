@@ -12,7 +12,7 @@ const required = [
   'projectDeliveryForCustomer',
   "reportReady: false",
   "deliveryMode: 'artifact_only'",
-  "productionAuthority: 'geogi_os_m09'",
+  "productionAuthority: 'geogi_os'",
   "GeoGi OS 正在基于受治理证据形成诊断结论",
   "报告已由 GeoGi OS 正式发布"
 ];
