@@ -164,7 +164,7 @@ function buildPendingReport({ order }) {
     deliveryPackageId: '',
     deliveryContractVersion: '',
     deliveryMode: 'artifact_only',
-    productionAuthority: 'geogi_os_m09'
+    productionAuthority: 'geogi_os'
   };
 }
 
