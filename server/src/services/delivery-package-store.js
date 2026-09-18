@@ -4,7 +4,7 @@ const path = require('path');
 
 const DELIVERY_CONTRACT_VERSION = '3.0.0';
 const DELIVERY_MODE = 'artifact_only';
-const PRODUCTION_AUTHORITY = 'geogi_os_m09';
+const PRODUCTION_AUTHORITY = 'geogi_os';
 const SUPPORTED_DELIVERY_CONTRACT_VERSIONS = new Set([DELIVERY_CONTRACT_VERSION]);
 
 class DeliveryPackageError extends Error {
@@ -219,6 +219,8 @@ function projectDeliveryForCustomer(packageDocument, scope) {
     deliveryContractVersion: packageDocument.delivery_contract_version,
     deliveryMode: packageDocument.delivery_mode,
     productionAuthority: packageDocument.production_authority,
+    deliveryPurpose: packageDocument.delivery_purpose || '',
+    releaseAuthority: packageDocument.release_authority || '',
     releaseStatus: packageDocument.release_status,
     releasedAt: packageDocument.released_at,
     reportId: packageDocument.report_reference.report_id,
