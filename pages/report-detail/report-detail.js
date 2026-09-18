@@ -26,7 +26,7 @@ Page({
   async loadReport() {
     const { clientId, projectId } = this.data;
     if (!clientId || !projectId) {
-      this.setData({ loading: false, error: '缺少订单信息，请回到“我的”重新打开。' });
+      this.setData({ loading: false, error: '缺少项目信息，请回到“我的”重新打开。' });
       return;
     }
     if (!isApiConfigured()) {
@@ -68,24 +68,19 @@ Page({
 
   normalizeReport(report) {
     const data = report || {};
-    const platforms = Array.isArray(data.platforms)
-      ? data.platforms.map((item) => ({
-          ...item,
-          isSupplemental: item && item.formalDenominatorIncluded === false
-        }))
-      : [];
     return {
-      ...data,
-      dimensions: Array.isArray(data.dimensions) ? data.dimensions : [],
-      platforms,
-      keyFindings: Array.isArray(data.keyFindings) ? data.keyFindings : [],
-      recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
-      limitations: Array.isArray(data.limitations) ? data.limitations : [],
-      risks: Array.isArray(data.risks) ? data.risks : [],
-      scope: Array.isArray(data.scope) ? data.scope : [],
-      evidenceCount: Number.isInteger(data.evidenceCount) ? data.evidenceCount : 0,
-      overallScore: data.overallScore === null || data.overallScore === undefined ? null : data.overallScore,
-      scoreStatus: data.scoreStatus || ''
+      status: data.status || '处理中',
+      reportReady: data.reportReady === true,
+      reportLink: data.reportLink || '',
+      reportVersion: data.reportVersion || '',
+      releasedAt: this.formatDisplayTime(data.releasedAt),
+      deliveryPackageId: data.deliveryPackageId || '',
+      deliveryContractVersion: data.deliveryContractVersion || '',
+      deliveryMode: data.deliveryMode || 'artifact_only',
+      productionAuthority: data.productionAuthority || 'geogi_os_m09',
+      reportContentHash: data.reportContentHash || '',
+      reportRecordHash: data.reportRecordHash || '',
+      artifactSha256: data.artifactSha256 || ''
     };
   },
 
@@ -177,7 +172,7 @@ Page({
   openPdf() {
     const url = this.data.report && this.data.report.reportLink;
     if (!url) {
-      wx.showToast({ title: 'PDF报告还未生成', icon: 'none' });
+      wx.showToast({ title: '正式报告尚未发布', icon: 'none' });
       return;
     }
     wx.showLoading({ title: '打开报告中' });
@@ -189,9 +184,17 @@ Page({
           wx.showToast({ title: '报告读取失败', icon: 'none' });
           return;
         }
-        wx.openDocument({ filePath: res.tempFilePath, fileType: 'pdf', showMenu: true, fail: () => wx.showToast({ title: '无法打开PDF', icon: 'none' }) });
+        wx.openDocument({
+          filePath: res.tempFilePath,
+          fileType: 'pdf',
+          showMenu: true,
+          fail: () => wx.showToast({ title: '无法打开报告文件', icon: 'none' })
+        });
       },
-      fail: () => { wx.hideLoading(); wx.showToast({ title: '报告下载失败', icon: 'none' }); }
+      fail: () => {
+        wx.hideLoading();
+        wx.showToast({ title: '报告下载失败', icon: 'none' });
+      }
     });
   },
 
