@@ -22,7 +22,7 @@ function buildValidPackage() {
     object_type: 'delivery_package',
     delivery_contract_version: '3.0.0',
     delivery_mode: 'artifact_only',
-    production_authority: 'geogi_os_m09',
+    production_authority: 'geogi_os',
     delivery_package_id: 'delivery_package_test0001',
     project_id: 'GG-P-202609-000001',
     client_id: 'GG-202609-0001',
@@ -92,7 +92,7 @@ async function expectCodeAsync(fn, code) {
 async function run() {
   assert.strictEqual(DELIVERY_CONTRACT_VERSION, '3.0.0');
   assert.strictEqual(DELIVERY_MODE, 'artifact_only');
-  assert.strictEqual(PRODUCTION_AUTHORITY, 'geogi_os_m09');
+  assert.strictEqual(PRODUCTION_AUTHORITY, 'geogi_os');
 
   const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'geogi-delivery-boundary-'));
   process.env.GEOGI_DELIVERY_PACKAGE_ROOT = root;
@@ -142,7 +142,7 @@ async function run() {
   const customer = projectDeliveryForCustomer(loaded, { clientId: valid.client_id, projectId: valid.project_id });
   assert.strictEqual(customer.releaseStatus, 'released');
   assert.strictEqual(customer.deliveryMode, 'artifact_only');
-  assert.strictEqual(customer.productionAuthority, 'geogi_os_m09');
+  assert.strictEqual(customer.productionAuthority, 'geogi_os');
   assert.strictEqual(customer.reportLink, valid.artifacts[0].uri);
   assert.strictEqual(customer.reportContentHash, valid.report_reference.content_hash);
   assert.strictEqual(customer.reportRecordHash, valid.report_reference.report_record_hash);
