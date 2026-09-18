@@ -34,7 +34,7 @@ function run() {
   assert.strictEqual(pending.reportReady, false);
   assert.strictEqual(pending.reportLink, '');
   assert.strictEqual(pending.deliveryMode, 'artifact_only');
-  assert.strictEqual(pending.productionAuthority, 'geogi_os_m09');
+  assert.strictEqual(pending.productionAuthority, 'geogi_os');
   for (const forbidden of ['overallScore','scoreStatus','summary','conclusion','dimensions','platforms','keyFindings','recommendations','limitations','risks','scope','evidenceCount']) {
     assert(!Object.prototype.hasOwnProperty.call(pending, forbidden), `pending view must not expose local report field: ${forbidden}`);
   }
