@@ -2,13 +2,10 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const DELIVERY_CONTRACT_VERSION = '2.1.0';
-const LEGACY_DELIVERY_CONTRACT_VERSION = '2.0.0';
-const SUPPORTED_DELIVERY_CONTRACT_VERSIONS = new Set([
-  DELIVERY_CONTRACT_VERSION,
-  LEGACY_DELIVERY_CONTRACT_VERSION
-]);
-const PRESENTATION_AUTHORITY = 'os_m09_governed_report';
+const DELIVERY_CONTRACT_VERSION = '3.0.0';
+const DELIVERY_MODE = 'artifact_only';
+const PRODUCTION_AUTHORITY = 'geogi_os_m09';
+const SUPPORTED_DELIVERY_CONTRACT_VERSIONS = new Set([DELIVERY_CONTRACT_VERSION]);
 
 class DeliveryPackageError extends Error {
   constructor(code, detail = '') {
@@ -46,35 +43,29 @@ function isSha256Prefixed(value) {
   return typeof value === 'string' && /^sha256:[0-9a-f]{64}$/.test(value);
 }
 
-function validateDisplaySummary(summary, report) {
-  if (!summary || typeof summary !== 'object' || Array.isArray(summary)) {
-    throw new DeliveryPackageError('DELIVERY_DISPLAY_SUMMARY_REQUIRED');
+function validateDisplayOnlyPolicy(packageDocument) {
+  if (packageDocument.delivery_mode !== DELIVERY_MODE) {
+    throw new DeliveryPackageError('DELIVERY_ARTIFACT_ONLY_REQUIRED');
   }
-  if (summary.presentationAuthority !== PRESENTATION_AUTHORITY) {
-    throw new DeliveryPackageError('DELIVERY_PRESENTATION_AUTHORITY_INVALID');
+  if (packageDocument.production_authority !== PRODUCTION_AUTHORITY) {
+    throw new DeliveryPackageError('DELIVERY_OS_PRODUCTION_AUTHORITY_REQUIRED');
   }
-  requiredString(summary, 'presentationVersion', 'DELIVERY_PRESENTATION_VERSION_REQUIRED');
-  if (summary.reportStatus !== 'released') {
-    throw new DeliveryPackageError('DELIVERY_PRESENTATION_NOT_RELEASED');
+  if (Object.prototype.hasOwnProperty.call(packageDocument, 'display_summary')) {
+    throw new DeliveryPackageError('DELIVERY_CLIENT_REPORT_RECOMPOSITION_FORBIDDEN');
   }
-  if (summary.overallScore !== null && summary.overallScore !== undefined) {
-    throw new DeliveryPackageError('DELIVERY_UNAPPROVED_SCORE_FORBIDDEN');
+  const policy = packageDocument.display_policy;
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy) || policy.artifact_only !== true) {
+    throw new DeliveryPackageError('DELIVERY_DISPLAY_POLICY_INVALID');
   }
-  for (const key of ['scope', 'dimensions', 'platforms', 'keyFindings', 'recommendations', 'limitations', 'risks']) {
-    if (!Array.isArray(summary[key])) throw new DeliveryPackageError('DELIVERY_PRESENTATION_LIST_REQUIRED', key);
-  }
-  if (!Number.isInteger(summary.evidenceCount) || summary.evidenceCount < 0) {
-    throw new DeliveryPackageError('DELIVERY_PRESENTATION_EVIDENCE_COUNT_INVALID');
-  }
-  const integrity = summary.integrity;
-  if (!integrity || typeof integrity !== 'object' || Array.isArray(integrity)) {
-    throw new DeliveryPackageError('DELIVERY_PRESENTATION_INTEGRITY_REQUIRED');
-  }
-  if (integrity.contentHash !== report.content_hash || integrity.reportRecordHash !== report.report_record_hash) {
-    throw new DeliveryPackageError('DELIVERY_PRESENTATION_REPORT_HASH_MISMATCH');
-  }
-  if (!isSha256Prefixed(integrity.sourceManifestHash)) {
-    throw new DeliveryPackageError('DELIVERY_PRESENTATION_SOURCE_HASH_INVALID');
+  for (const key of [
+    'client_recomposition_allowed',
+    'client_scoring_allowed',
+    'client_summary_generation_allowed',
+    'client_diagnosis_generation_allowed'
+  ]) {
+    if (policy[key] !== false) {
+      throw new DeliveryPackageError('DELIVERY_CLIENT_SIDE_PRODUCTION_FORBIDDEN', key);
+    }
   }
 }
 
@@ -89,6 +80,7 @@ function validateDeliveryPackage(packageDocument) {
   if (!SUPPORTED_DELIVERY_CONTRACT_VERSIONS.has(contractVersion)) {
     throw new DeliveryPackageError('DELIVERY_CONTRACT_VERSION_UNSUPPORTED');
   }
+  validateDisplayOnlyPolicy(packageDocument);
   if (packageDocument.release_status !== 'released') {
     throw new DeliveryPackageError('DELIVERY_PACKAGE_NOT_RELEASED');
   }
@@ -113,37 +105,40 @@ function validateDeliveryPackage(packageDocument) {
     throw new DeliveryPackageError('DELIVERY_REPORT_REFERENCE_INVALID', 'hash');
   }
 
-  if (!packageDocument.version_pins || typeof packageDocument.version_pins !== 'object' || Array.isArray(packageDocument.version_pins)) {
+  const pins = packageDocument.version_pins;
+  if (!pins || typeof pins !== 'object' || Array.isArray(pins)) {
     throw new DeliveryPackageError('DELIVERY_VERSION_PINS_REQUIRED');
   }
-  if (contractVersion === DELIVERY_CONTRACT_VERSION) {
-    validateDisplaySummary(packageDocument.display_summary, report);
-    if (packageDocument.version_pins.presentation_version !== packageDocument.display_summary.presentationVersion) {
-      throw new DeliveryPackageError('DELIVERY_PRESENTATION_VERSION_PIN_MISMATCH');
-    }
-  } else if (!packageDocument.display_summary || typeof packageDocument.display_summary !== 'object' || Array.isArray(packageDocument.display_summary)) {
-    throw new DeliveryPackageError('DELIVERY_DISPLAY_SUMMARY_REQUIRED');
+  for (const key of [
+    'report_schema_version',
+    'report_object_version',
+    'report_delivery_record_version',
+    'artifact_render_version',
+    'canonical_client_id',
+    'canonical_project_id'
+  ]) requiredString(pins, key, 'DELIVERY_VERSION_PIN_REQUIRED');
+  if (!Number.isInteger(pins.report_version) || pins.report_version !== report.report_version) {
+    throw new DeliveryPackageError('DELIVERY_REPORT_VERSION_PIN_MISMATCH');
   }
 
-  if (!Array.isArray(packageDocument.artifacts) || packageDocument.artifacts.length === 0) {
-    throw new DeliveryPackageError('DELIVERY_ARTIFACT_REQUIRED');
+  if (!Array.isArray(packageDocument.artifacts) || packageDocument.artifacts.length !== 1) {
+    throw new DeliveryPackageError('DELIVERY_SINGLE_ARTIFACT_REQUIRED');
   }
-  for (const artifact of packageDocument.artifacts) {
-    if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
-      throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID');
-    }
-    for (const key of ['artifact_id', 'artifact_type', 'mime_type', 'file_name', 'render_version', 'uri']) {
-      requiredString(artifact, key, 'DELIVERY_ARTIFACT_INVALID');
-    }
-    if (!/^[0-9a-f]{64}$/.test(String(artifact.sha256 || ''))) {
-      throw new DeliveryPackageError('DELIVERY_ARTIFACT_HASH_INVALID');
-    }
-    if (!Number.isInteger(artifact.size_bytes) || artifact.size_bytes < 0) {
-      throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID', 'size_bytes');
-    }
-    if (artifact.report_content_hash !== report.content_hash) {
-      throw new DeliveryPackageError('DELIVERY_ARTIFACT_REPORT_HASH_MISMATCH');
-    }
+  const artifact = packageDocument.artifacts[0];
+  if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
+    throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID');
+  }
+  for (const key of ['artifact_id', 'artifact_type', 'mime_type', 'file_name', 'render_version', 'uri']) {
+    requiredString(artifact, key, 'DELIVERY_ARTIFACT_INVALID');
+  }
+  if (!/^[0-9a-f]{64}$/.test(String(artifact.sha256 || ''))) {
+    throw new DeliveryPackageError('DELIVERY_ARTIFACT_HASH_INVALID');
+  }
+  if (!Number.isInteger(artifact.size_bytes) || artifact.size_bytes < 0) {
+    throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID', 'size_bytes');
+  }
+  if (artifact.report_content_hash !== report.content_hash || artifact.report_record_hash !== report.report_record_hash) {
+    throw new DeliveryPackageError('DELIVERY_ARTIFACT_REPORT_HASH_MISMATCH');
   }
 
   const hashInput = JSON.parse(JSON.stringify(packageDocument));
@@ -165,9 +160,6 @@ function packagePath(packageId) {
 
 async function importDeliveryPackage(packageDocument) {
   validateDeliveryPackage(packageDocument);
-  if (packageDocument.delivery_contract_version !== DELIVERY_CONTRACT_VERSION) {
-    throw new DeliveryPackageError('DELIVERY_LEGACY_PACKAGE_IMPORT_FORBIDDEN');
-  }
   const output = packagePath(packageDocument.delivery_package_id);
   await fs.promises.mkdir(path.dirname(output), { recursive: true });
   const canonical = `${canonicalStringify(packageDocument)}\n`;
@@ -208,11 +200,7 @@ async function findDeliveryPackage({ clientId, projectId }) {
     item.client_id === String(clientId || '').trim() && item.project_id === String(projectId || '').trim()
   ));
   if (!matches.length) return null;
-  matches.sort((a, b) => {
-    const releaseOrder = String(b.released_at).localeCompare(String(a.released_at));
-    if (releaseOrder) return releaseOrder;
-    return Number(b.delivery_contract_version === DELIVERY_CONTRACT_VERSION) - Number(a.delivery_contract_version === DELIVERY_CONTRACT_VERSION);
-  });
+  matches.sort((a, b) => String(b.released_at).localeCompare(String(a.released_at)));
   return matches[0];
 }
 
@@ -225,49 +213,39 @@ function assertScope(packageDocument, { clientId, projectId }) {
 
 function projectDeliveryForCustomer(packageDocument, scope) {
   assertScope(packageDocument, scope);
-  const summary = packageDocument.display_summary || {};
-  const legacy = packageDocument.delivery_contract_version === LEGACY_DELIVERY_CONTRACT_VERSION;
-  const pdf = packageDocument.artifacts.find((item) => item.mime_type === 'application/pdf' || item.artifact_type === 'pdf') || packageDocument.artifacts[0];
+  const artifact = packageDocument.artifacts[0];
   return {
-    ...summary,
-    presentationAuthority: legacy ? 'legacy_delivery_package_v2_0' : summary.presentationAuthority,
-    presentationVersion: legacy ? String(summary.presentationVersion || 'legacy-2.0') : summary.presentationVersion,
-    reportStatus: summary.reportStatus || 'released',
-    overallScore: null,
-    scoreStatus: legacy ? (summary.scoreStatus || '历史报告格式；综合评分不在当前界面展示') : (summary.scoreStatus || ''),
-    evidenceCount: Number.isInteger(summary.evidenceCount) ? summary.evidenceCount : 0,
-    legacyDelivery: legacy,
     deliveryPackageId: packageDocument.delivery_package_id,
     deliveryContractVersion: packageDocument.delivery_contract_version,
+    deliveryMode: packageDocument.delivery_mode,
+    productionAuthority: packageDocument.production_authority,
     releaseStatus: packageDocument.release_status,
     releasedAt: packageDocument.released_at,
     reportId: packageDocument.report_reference.report_id,
+    reportType: packageDocument.report_reference.report_type || '',
     reportVersion: packageDocument.report_reference.report_version,
     reportContentHash: packageDocument.report_reference.content_hash,
-    versionPins: { ...packageDocument.version_pins },
-    reportLink: pdf ? pdf.uri : '',
-    artifactId: pdf ? pdf.artifact_id : '',
-    artifactSha256: pdf ? pdf.sha256 : '',
-    dimensions: Array.isArray(summary.dimensions) ? summary.dimensions : [],
-    platforms: Array.isArray(summary.platforms) ? summary.platforms : [],
-    keyFindings: Array.isArray(summary.keyFindings) ? summary.keyFindings : [],
-    recommendations: Array.isArray(summary.recommendations) ? summary.recommendations : [],
-    limitations: Array.isArray(summary.limitations) ? summary.limitations : [],
-    risks: Array.isArray(summary.risks) ? summary.risks : [],
-    scope: Array.isArray(summary.scope) ? summary.scope : []
+    reportRecordHash: packageDocument.report_reference.report_record_hash,
+    reportLink: artifact.uri,
+    artifactId: artifact.artifact_id,
+    artifactMimeType: artifact.mime_type,
+    artifactSha256: artifact.sha256,
+    artifactSizeBytes: artifact.size_bytes,
+    artifactRenderVersion: artifact.render_version,
+    versionPins: { ...packageDocument.version_pins }
   };
 }
 
 module.exports = {
   DELIVERY_CONTRACT_VERSION,
-  LEGACY_DELIVERY_CONTRACT_VERSION,
+  DELIVERY_MODE,
+  PRODUCTION_AUTHORITY,
   SUPPORTED_DELIVERY_CONTRACT_VERSIONS,
-  PRESENTATION_AUTHORITY,
   DeliveryPackageError,
   canonicalStringify,
   sha256Canonical,
+  validateDisplayOnlyPolicy,
   validateDeliveryPackage,
-  validateDisplaySummary,
   importDeliveryPackage,
   listDeliveryPackages,
   findDeliveryPackage,
