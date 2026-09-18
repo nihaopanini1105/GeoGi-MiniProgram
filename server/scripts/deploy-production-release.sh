@@ -150,7 +150,7 @@ node -e '
 const local = JSON.parse(process.argv[1]);
 const pub = JSON.parse(process.argv[2]);
 for (const [name, payload] of [["local", local], ["public", pub]]) {
-  if (!payload || payload.ok !== true || payload.businessAuthority !== "GeoGi OS" || payload.deliveryContract !== "DeliveryPackage/2.0.0" || payload.osOperationsBridge !== "configured") {
+  if (!payload || payload.ok !== true || payload.businessAuthority !== "GeoGi OS" || payload.deliveryContract !== "DeliveryPackage/3.0.0" || payload.osOperationsBridge !== "configured") {
     console.error(`ERROR: ${name} health is not bridge-ready`);
     process.exit(2);
   }
