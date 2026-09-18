@@ -23,6 +23,8 @@ function buildValidPackage() {
     delivery_contract_version: '3.0.0',
     delivery_mode: 'artifact_only',
     production_authority: 'geogi_os',
+    delivery_purpose: 'baseline_diagnostic_report',
+    release_authority: 'baseline_diagnostic_release_v1',
     delivery_package_id: 'delivery_package_test0001',
     project_id: 'GG-P-202609-000001',
     client_id: 'GG-202609-0001',
@@ -120,6 +122,11 @@ async function run() {
   rehash(wrongAuthority);
   expectCode(() => validateDeliveryPackage(wrongAuthority), 'DELIVERY_OS_PRODUCTION_AUTHORITY_REQUIRED');
 
+  const wrongReleaseAuthority = buildValidPackage();
+  wrongReleaseAuthority.release_authority = 'm09_e2c_final_release';
+  rehash(wrongReleaseAuthority);
+  expectCode(() => validateDeliveryPackage(wrongReleaseAuthority), 'DELIVERY_PURPOSE_OR_RELEASE_AUTHORITY_INVALID');
+
   const oldContract = buildValidPackage();
   oldContract.delivery_contract_version = '2.1.0';
   rehash(oldContract);
@@ -143,6 +150,8 @@ async function run() {
   assert.strictEqual(customer.releaseStatus, 'released');
   assert.strictEqual(customer.deliveryMode, 'artifact_only');
   assert.strictEqual(customer.productionAuthority, 'geogi_os');
+  assert.strictEqual(customer.deliveryPurpose, 'baseline_diagnostic_report');
+  assert.strictEqual(customer.releaseAuthority, 'baseline_diagnostic_release_v1');
   assert.strictEqual(customer.reportLink, valid.artifacts[0].uri);
   assert.strictEqual(customer.reportContentHash, valid.report_reference.content_hash);
   assert.strictEqual(customer.reportRecordHash, valid.report_reference.report_record_hash);
