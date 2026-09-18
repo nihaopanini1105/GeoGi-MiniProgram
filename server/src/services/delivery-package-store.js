@@ -5,6 +5,10 @@ const path = require('path');
 const DELIVERY_CONTRACT_VERSION = '3.0.0';
 const DELIVERY_MODE = 'artifact_only';
 const PRODUCTION_AUTHORITY = 'geogi_os';
+const DELIVERY_AUTHORITIES = Object.freeze({
+  baseline_diagnostic_report: 'baseline_diagnostic_release_v1',
+  final_outcome_report: 'm09_e2c_final_release'
+});
 const SUPPORTED_DELIVERY_CONTRACT_VERSIONS = new Set([DELIVERY_CONTRACT_VERSION]);
 
 class DeliveryPackageError extends Error {
@@ -49,6 +53,11 @@ function validateDisplayOnlyPolicy(packageDocument) {
   }
   if (packageDocument.production_authority !== PRODUCTION_AUTHORITY) {
     throw new DeliveryPackageError('DELIVERY_OS_PRODUCTION_AUTHORITY_REQUIRED');
+  }
+  const purpose = String(packageDocument.delivery_purpose || '');
+  const releaseAuthority = String(packageDocument.release_authority || '');
+  if (!DELIVERY_AUTHORITIES[purpose] || DELIVERY_AUTHORITIES[purpose] !== releaseAuthority) {
+    throw new DeliveryPackageError('DELIVERY_PURPOSE_OR_RELEASE_AUTHORITY_INVALID');
   }
   if (Object.prototype.hasOwnProperty.call(packageDocument, 'display_summary')) {
     throw new DeliveryPackageError('DELIVERY_CLIENT_REPORT_RECOMPOSITION_FORBIDDEN');
@@ -242,6 +251,7 @@ module.exports = {
   DELIVERY_CONTRACT_VERSION,
   DELIVERY_MODE,
   PRODUCTION_AUTHORITY,
+  DELIVERY_AUTHORITIES,
   SUPPORTED_DELIVERY_CONTRACT_VERSIONS,
   DeliveryPackageError,
   canonicalStringify,
