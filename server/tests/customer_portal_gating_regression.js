@@ -1,3 +1,4 @@
+const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
@@ -7,19 +8,27 @@ const source = fs.readFileSync(
 );
 
 const required = [
-  "const PUBLISHED_REPORT_STATUS = '已发布';",
-  "const CONFIRMED_REVIEW_STATUS = '已确认';",
-  'function isPublishedReport({ reportStatus, reviewStatus, reportLink })',
-  'reportStatus === PUBLISHED_REPORT_STATUS',
-  'reviewStatus === CONFIRMED_REVIEW_STATUS',
-  '&& Boolean(reportLink)',
-  'if (!order.reportReady)',
-  'report: buildPendingReport({ lead, project, report, order })',
-  "reportLink: reportReady ? rawReportLink : ''"
+  'findDeliveryPackage',
+  'projectDeliveryForCustomer',
+  "reportReady: false",
+  "deliveryMode: 'artifact_only'",
+  "productionAuthority: 'geogi_os'",
+  "GeoGi OS 正在基于受治理证据形成诊断结论",
+  "报告已由 GeoGi OS 正式发布"
 ];
 
 const forbidden = [
-  "reportReady: Boolean(reportStatus && !reportStatus.includes('待补充'))"
+  'buildDimensions(',
+  'buildConclusion(',
+  'buildPlatforms(',
+  'keyFindings',
+  'recommendations',
+  'overallScore',
+  'scoreStatus',
+  'evidenceCount',
+  'FEISHU_ANALYSIS_TABLE_ID',
+  'FEISHU_TEST_RECORDS_TABLE_ID',
+  'FEISHU_REPORTS_TABLE_ID'
 ];
 
 let failed = false;
@@ -28,12 +37,12 @@ for (const item of required) {
   console.log(`REQUIRED ${item}: ${ok ? 'PASS' : 'FAIL'}`);
   if (!ok) failed = true;
 }
-
 for (const item of forbidden) {
   const ok = !source.includes(item);
   console.log(`FORBIDDEN ${item}: ${ok ? 'PASS' : 'FAIL'}`);
   if (!ok) failed = true;
 }
 
+assert(!source.includes('display_summary'));
 if (failed) process.exit(1);
-console.log('CUSTOMER REPORT GATING: OK');
+console.log('CUSTOMER PORTAL DISPLAY-ONLY GATING: OK');

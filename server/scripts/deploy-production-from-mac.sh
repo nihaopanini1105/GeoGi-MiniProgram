@@ -231,7 +231,7 @@ PUBLIC_HEALTH="$HEALTH_PAYLOAD"
 node -e '
 const local=JSON.parse(process.argv[1]); const pub=JSON.parse(process.argv[2]);
 for (const [name,p] of [["local",local],["public",pub]]) {
-  if (!p || p.ok!==true || p.businessAuthority!=="GeoGi OS" || p.deliveryContract!=="DeliveryPackage/2.1.0" || p.osOperationsBridge!=="configured") {
+  if (!p || p.ok!==true || p.businessAuthority!=="GeoGi OS" || p.deliveryContract!=="DeliveryPackage/3.0.0" || p.osOperationsBridge!=="configured") {
     console.error(`ERROR: ${name} health is not V1 bridge-ready`);
     process.exit(2);
   }
@@ -252,5 +252,5 @@ printf '%s\n' "deployed_main_sha=$EXPECTED_SHA"
 printf '%s\n' "backup_dir=$BACKUP_DIR"
 printf '%s\n' "artifact_ingress_local=protected"
 printf '%s\n' "artifact_ingress_public=protected"
-printf '%s\n' "production_miniprogram_v1_1=SUCCESS"
+printf '%s\n' "production_miniprogram_display_only_v3=SUCCESS"
 REMOTE

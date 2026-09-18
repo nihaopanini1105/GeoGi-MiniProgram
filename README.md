@@ -1,73 +1,59 @@
 # GeoGi 微信小程序
 
-GeoGi 几何智引微信小程序，用于客户了解 AI 可见度诊断、提交品牌资料、阅读研究内容并联系顾问。视觉与交互以 `GeoGi_微信小程序UIUX与Codex开发需求文档_v1.1` 和正式视觉资产包为准。
+GeoGi 微信小程序是 **GeoGi OS 的客户输入与展示端**。它不承担 GEO 生产计算。
 
-## 当前版本
+## 权威边界
 
-- 首页：简洁首屏、一个主 CTA、正式 GeoGi Hero 图、五个平台真实 Logo。
-- 品牌诊断：入口说明 + 三步资料表单，支持草稿恢复、字段内错误、附件、隐私授权和防重复提交。
-- 研究中心：直接打开 GeoGi 官网 `https://www.geogi.cn`，内容以官网为唯一来源。
-- 联系顾问：复制企业微信/邮箱；正式留资统一进入品牌诊断表单。
-- 后端：自有 Node.js 服务器，提供飞书多维表格写入、飞书通知、附件上传、研究内容和埋点接口。
+唯一生产权威：**GeoGi OS**。
 
-## 正式视觉资产
+GeoGi OS 负责：
+- 客户与品牌事实治理；
+- BrandGraph、Persona、Journey、Query；
+- 全网证据检索与核验；
+- AI 平台检测；
+- GEO 诊断；
+- 竞品、引用、事实准确性分析；
+- 优化方案、实施、验收；
+- 同口径复测；
+- 报告生成、版本、哈希、QA 与正式发布。
 
-正式 PNG 已接入 `assets/`：
+微信小程序只负责：
+- 品牌/企业资料提交；
+- 客户补充资料；
+- 手机号身份与项目归属；
+- 项目状态展示；
+- 研究内容展示；
+- 接收并展示 GeoGi OS 已发布的 Report Artifact；
+- 联系 GeoGi。
 
-- GeoGi Hero：`assets/hero/geogi_hero_mark_512.png`
-- 平台 Logo：`assets/platforms/144/doubao.png`、`yuanbao.png`、`qianwen.png`、`deepseek.png`、`kimi.png`
-- TabBar：`assets/tabbar/home.png`、`diagnosis.png`、`research.png` 及 selected 版本
-- 设计 Token：`config/design-tokens.json`
-- 平台配置：`config/platforms.js`
-- 资产审计：`assets-audit.json`
+禁止在小程序侧重新生成、计算或拼接：
+- 报告摘要；
+- 综合评分；
+- 诊断维度；
+- 关键发现；
+- 平台分析；
+- 竞品分析；
+- 优化建议；
+- AI 回答分析；
+- PDF 报告。
 
-平台显示顺序固定为：豆包、元宝、千问、DeepSeek、Kimi。
+## 报告交付
 
-## 预览方式
+当前正式契约：
 
-1. 打开微信开发者工具。
-2. 选择“导入项目”。
-3. 项目目录选择：`/Users/dashaoye/Documents/MiniProgram_Wechat`
-4. 打开右上角 `详情` → `本地设置`。
-5. 勾选 `不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书`。
-6. 先启动本地服务器，再点击“编译”预览首页和表单。
+`DeliveryPackage/3.0.0`
 
-## 本地跑通业务流程
+规则：
+- `delivery_mode = artifact_only`
+- `production_authority = geogi_os`
+- 小程序只接收 OS M09 已正式发布的 Artifact。
+- Package 不包含 `display_summary`。
+- 小程序不得根据 Report 数据重新生成另一份客户报告。
+- 报告页只显示交付状态、版本、发布时间、完整性元数据和 OS 报告文件入口。
 
-备案通过前，小程序开发环境会自动请求：
+## 正式接口
 
-```text
-http://127.0.0.1:3107
-```
-
-正式版和体验版仍会请求：
-
-```text
-https://api.geogi.cn
-```
-
-本地测试顺序：
-
-1. 确认 `server/.env` 已配置飞书 App、多维表格和机器人。
-2. 在项目根目录进入 `server/`。
-3. 启动服务器：
-
-```bash
-PORT=3107 pnpm dev
-```
-
-4. 打开微信开发者工具，勾选“不校验合法域名”。
-5. 编译小程序。
-6. 进入 `品牌诊断`，填写表单并提交。
-7. 检查飞书多维表格是否新增记录。
-8. 检查飞书群是否收到通知。
-
-## 服务器接口
-
-小程序正式版不使用微信云开发。开发环境走本地服务器，正式环境走 `https://api.geogi.cn`。
-
-服务器目录在 `server/`，正式接口包括：
-
+客户侧：
 - `GET /api/config`
 - `GET /api/articles`
 - `GET /api/articles/:id`
@@ -75,42 +61,54 @@ PORT=3107 pnpm dev
 - `GET /api/customer/projects`
 - `GET /api/customer/reports/:projectId`
 - `POST /api/leads`
+- `POST /api/diagnosis/submit`（提交入口兼容路径，仍只创建 intake）
+- `POST /api/customer/projects/:projectId/supplement`
 - `POST /api/wechat/phone`
-- `POST /api/feishu/command`
-- `POST /api/feishu/events`
 - `POST /api/uploads`
 - `POST /api/events`
 
-兼容旧路径：
+OS 内部桥接：
+- `GET /internal/os/intakes`
+- `POST /internal/os/projects/:projectId/stage`
+- `POST /internal/os/artifacts`
+- `POST /internal/os/delivery-packages`
 
-- `POST /api/diagnosis/submit`
-- `GET /api/research/articles`
+## 服务端配置
 
-## 飞书配置
+小程序服务端只需要：
+- 微信授权；
+- 客户提交/项目状态所需飞书配置；
+- 研究内容配置；
+- 上传配置；
+- GeoGi OS Bridge Token。
 
-服务器环境变量参考 `server/.env.example`。至少需要配置：
+不再需要本地 Diagnosis Engine、AI Share Extractor、报告分析表、评分表、PDF Renderer 或 Python/ReportLab 依赖。
 
-- `FEISHU_APP_ID`
-- `FEISHU_APP_SECRET`
-- `FEISHU_BASE_APP_TOKEN`
-- `FEISHU_LEADS_TABLE_ID`
-- `FEISHU_NOTIFY_WEBHOOK` 或 `FEISHU_NOTIFY_RECEIVE_ID`
-- `PUBLIC_BASE_URL`：正式环境填写 `https://api.geogi.cn`，用于生成客户 PDF 报告链接
-- `WECHAT_APP_ID` / `WECHAT_APP_SECRET`：用于手机号授权
-- `REPORT_FONT_PATH`：阿里云服务器可填写中文字体文件路径，保证 PDF 中文清晰显示
+## 本地开发
 
-PDF 报告需要服务器安装 Python 依赖：`pip install -r server/requirements.txt`。
+```bash
+cd server
+pnpm install
+PORT=3107 pnpm dev
+```
 
-详细字段和配置步骤见：
+正式环境默认 API：
+`https://api.geogi.cn`
 
-- [docs/Feishu_Production_Setup.md](docs/Feishu_Production_Setup.md)
-- [docs/Feishu_Bitable_Field_Dictionary.md](docs/Feishu_Bitable_Field_Dictionary.md)
+## 正式视觉资产
 
-## 微信后台
+所有 GeoGi Logo 必须使用 `assets/brand/logo-system/v1.0/` 内冻结资产，不得重绘或近似替代。
 
-正式发客户体验前，需要在微信公众平台配置：
+平台显示顺序：豆包、腾讯元宝、通义千问、DeepSeek、Kimi。
 
-- request 合法域名：你的 API 域名
-- uploadFile 合法域名：你的 API 域名
-- downloadFile 合法域名：你的 API 域名，用于打开 PDF 报告
-- web-view 业务域名：`www.geogi.cn`
+## 发布验收
+
+发布前必须确认：
+1. 小程序不存在本地 GEO 诊断/评分/报告生成模块；
+2. 小程序不存在客户报告正文拼接逻辑；
+3. DeliveryPackage 只接受 3.0.0 artifact-only；
+4. 旧 2.x DeliveryPackage 不再进入正式存储；
+5. 报告页只能打开 OS 已正式发布 Artifact；
+6. 客户提交/补充资料仍可进入 OS；
+7. 项目状态仍由 OS 推送；
+8. `server && npm test` 全通过。

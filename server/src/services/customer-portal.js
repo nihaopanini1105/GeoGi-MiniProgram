@@ -83,7 +83,8 @@ async function getCustomerReport({ clientId, projectId }) {
           clientId: cleanClientId,
           projectId: cleanProjectId
         }),
-        status: '报告已完成'
+        status: '报告已完成',
+        reportReady: true
       }
     };
   } catch (error) {
@@ -99,7 +100,7 @@ function normalizeOrder({ lead, project, deliveryPackage }) {
   const leadStatus = text(leadFields.当前状态);
   const projectStage = text(projectFields.当前阶段);
   const status = reportReady ? '报告已完成' : mapCustomerStatus({ projectStage, leadStatus });
-  const summary = deliveryPackage ? projectDeliveryForCustomer(deliveryPackage, {
+  const deliveryView = deliveryPackage ? projectDeliveryForCustomer(deliveryPackage, {
     clientId: text(leadFields.客户编号),
     projectId: text(leadFields.项目编号) || text(projectFields.项目编号)
   }) : null;
@@ -115,7 +116,7 @@ function normalizeOrder({ lead, project, deliveryPackage }) {
     completedAt: reportReady ? deliveryPackage.released_at : '',
     status,
     reportReady,
-    reportLink: summary ? summary.reportLink : '',
+    reportLink: deliveryView ? deliveryView.reportLink : '',
     version: reportReady ? String(deliveryPackage.report_reference.report_version) : '',
     deliveryPackageId: reportReady ? deliveryPackage.delivery_package_id : '',
     nextAction: customerNextAction(status),
@@ -153,34 +154,17 @@ function customerNextAction(status) {
   return 'GeoGi 已收到资料，等待 OS 进入正式诊断流程。';
 }
 
-function buildPendingReport({ lead, project, order }) {
-  const leadFields = (lead && lead.fields) || {};
-  const projectFields = (project && project.fields) || {};
-  const brandName = text(leadFields.品牌名称) || text(projectFields.品牌名称);
+function buildPendingReport({ order }) {
   return {
-    title: `${brandName || '品牌'} AI 可见度诊断`,
     status: order.status,
-    version: '',
-    createdAt: '',
-    updatedAt: order.updatedAt,
-    summary: order.nextAction,
-    conclusion: '',
-    overallScore: null,
-    scoreStatus: '正式报告尚未发布，不形成客户侧综合评分。',
-    dimensions: [],
-    platforms: [],
-    keyFindings: [],
-    recommendations: [],
-    limitations: [],
-    risks: [],
-    scope: [
-      `品牌：${brandName || '待确认'}`,
-      `行业：${text(leadFields.一级行业) || '待确认'} / ${text(leadFields.细分业务) || '待确认'}`
-    ],
-    evidenceCount: 0,
+    reportReady: false,
     reportLink: '',
+    reportVersion: '',
+    releasedAt: '',
     deliveryPackageId: '',
-    releaseStatus: ''
+    deliveryContractVersion: '',
+    deliveryMode: 'artifact_only',
+    productionAuthority: 'geogi_os'
   };
 }
 
