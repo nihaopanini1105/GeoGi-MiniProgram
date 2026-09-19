@@ -42,7 +42,7 @@ function buildValidPackage() {
       report_schema_version: '1.0.0',
       report_object_version: '1.0.0',
       report_version: 1,
-      report_delivery_record_version: '1.0.0',
+      release_record_version: '1.0.0',
       artifact_render_version: '1.0.0',
       canonical_client_id: 'client_test0001',
       canonical_project_id: 'project_test0001'
@@ -101,6 +101,15 @@ async function run() {
 
   const valid = buildValidPackage();
   validateDeliveryPackage(valid);
+  assert.strictEqual(valid.version_pins.release_record_version, '1.0.0');
+  assert(!Object.prototype.hasOwnProperty.call(valid.version_pins, 'report_delivery_record_version'));
+
+  const finalOutcome = buildValidPackage();
+  finalOutcome.delivery_purpose = 'final_outcome_report';
+  finalOutcome.release_authority = 'm09_e2c_final_release';
+  finalOutcome.report_reference.report_type = 'client_geo_outcome';
+  rehash(finalOutcome);
+  validateDeliveryPackage(finalOutcome);
 
   const recomposed = buildValidPackage();
   recomposed.display_summary = { keyFindings: ['客户端重新拼装'] };
