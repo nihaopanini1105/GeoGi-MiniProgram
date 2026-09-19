@@ -121,7 +121,7 @@ function validateDeliveryPackage(packageDocument) {
   for (const key of [
     'report_schema_version',
     'report_object_version',
-    'report_delivery_record_version',
+    'release_record_version',
     'artifact_render_version',
     'canonical_client_id',
     'canonical_project_id'
