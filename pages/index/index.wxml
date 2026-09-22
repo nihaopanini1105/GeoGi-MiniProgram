@@ -15,7 +15,7 @@
 
       <view class="hero-actions">
         <button class="primary-button hero-primary" bindtap="goDiagnosis">
-          <text>¥199 获取诊断报告</text>
+          <text>获取诊断报告</text>
         </button>
       </view>
     </view>
@@ -75,7 +75,7 @@
 
     <view class="contact-actions">
       <button class="primary-button contact-button" bindtap="goDiagnosis">
-        ¥199 获取诊断报告
+        获取诊断报告
       </button>
     </view>
   </view>
