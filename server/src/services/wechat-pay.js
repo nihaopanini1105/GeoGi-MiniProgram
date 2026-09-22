@@ -249,8 +249,8 @@ async function closePaymentOrder(order, reason = 'customer_cancelled') {
   }
   if (order.status === 'closed') return order;
 
-  const config = requireConfig();
   if (order.prepayId || order.status === 'paying') {
+    const config = requireConfig();
     await wechatPayRequest(
       'POST',
       '/v3/pay/transactions/out-trade-no/' + encodeURIComponent(order.outTradeNo) + '/close',
