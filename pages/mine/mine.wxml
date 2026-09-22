@@ -3,7 +3,7 @@
     <view class="mine-copy">
       <text class="eyebrow">GEOGI REPORTS</text>
       <text class="h1">诊断报告</text>
-      <text class="lead">查看品牌诊断进度，以及已通过人工审核并正式发布的报告。</text>
+      <text class="lead">查看 199 元品牌 GEO 诊断订单、付款状态、处理进度和正式报告。</text>
     </view>
 </view>
 
@@ -26,9 +26,11 @@
       <view class="order-info">
         <text>诊断编号：{{item.projectId}}</text>
         <text wx:if="{{item.submittedAt}}">提交时间：{{item.submittedAt}}</text>
+        <text>订单金额：¥{{item.amountYuan || 199}}</text>
+        <text>付款状态：{{item.paymentStatus === 'paid' || item.paymentStatus === 'partially_refunded' ? '已付款' : item.paymentStatus === 'refunded' ? '已退款' : item.paymentStatus === 'refund_processing' ? '退款处理中' : '待付款'}}</text>
       </view>
       <view class="order-action">
-        <text>{{item.reportReady ? '查看完整诊断报告' : '查看诊断进度'}}</text>
+        <text>{{item.reportReady ? '查看完整诊断报告' : (item.paymentStatus === 'paid' || item.paymentStatus === 'partially_refunded' ? '查看诊断进度' : '去付款 / 查看订单')}}</text>
         <text class="arrow">›</text>
       </view>
     </view>
@@ -37,7 +39,7 @@
   <view wx:if="{{!orders.length}}" class="empty-card card">
     <image class="empty-icon" src="/assets/icons/png/96/report.png" mode="aspectFit"></image>
     <text class="empty-title">还没有诊断记录</text>
-    <text class="body">提交品牌初步诊断后，处理进度和正式报告会出现在这里。</text>
-    <button class="primary-button full-button" bindtap="goDiagnosis">开始品牌初步诊断</button>
+    <text class="body">提交品牌资料后，199 元付款状态、诊断进度和正式报告都会出现在这里。</text>
+    <button class="primary-button full-button" bindtap="goDiagnosis">¥199 获取诊断报告</button>
   </view>
 </view>
