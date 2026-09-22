@@ -6,6 +6,10 @@ const {
   findDeliveryPackage,
   projectDeliveryForCustomer
 } = require('./delivery-package-store');
+const {
+  findPaymentByProject,
+  publicPaymentView
+} = require('./payment-store');
 
 async function listCustomerProjects({ clientId }) {
   try {
@@ -29,11 +33,15 @@ async function listCustomerProjects({ clientId }) {
       const fields = lead.fields || {};
       const projectId = text(fields.项目编号);
       if (!projectId) return null;
-      const deliveryPackage = await findDeliveryPackage({ clientId: cleanClientId, projectId });
+      const [deliveryPackage, payment] = await Promise.all([
+        findDeliveryPackage({ clientId: cleanClientId, projectId }),
+        findPaymentByProject(projectId)
+      ]);
       return normalizeOrder({
         lead,
         project: projectById.get(projectId),
-        deliveryPackage
+        deliveryPackage,
+        payment
       });
     }))).filter(Boolean);
 
@@ -64,10 +72,13 @@ async function getCustomerReport({ clientId, projectId }) {
       tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
       predicate: (fields) => text(fields.项目编号) === cleanProjectId && text(fields.客户编号) === cleanClientId
     });
-    const deliveryPackage = await findDeliveryPackage({ clientId: cleanClientId, projectId: cleanProjectId });
-    const order = normalizeOrder({ lead, project, deliveryPackage });
+    const [deliveryPackage, payment] = await Promise.all([
+      findDeliveryPackage({ clientId: cleanClientId, projectId: cleanProjectId }),
+      findPaymentByProject(cleanProjectId)
+    ]);
+    const order = normalizeOrder({ lead, project, deliveryPackage, payment });
 
-    if (!deliveryPackage) {
+    if (!deliveryPackage || !isPaidForReport(payment)) {
       return {
         ok: true,
         order,
@@ -93,13 +104,16 @@ async function getCustomerReport({ clientId, projectId }) {
   }
 }
 
-function normalizeOrder({ lead, project, deliveryPackage }) {
+function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const leadFields = (lead && lead.fields) || {};
   const projectFields = (project && project.fields) || {};
-  const reportReady = Boolean(deliveryPackage);
+  const paidForReport = isPaidForReport(payment);
+  const reportReady = Boolean(deliveryPackage && paidForReport);
   const leadStatus = text(leadFields.当前状态);
   const projectStage = text(projectFields.当前阶段);
-  const status = reportReady ? '报告已完成' : mapCustomerStatus({ projectStage, leadStatus });
+  const status = reportReady
+    ? '报告已完成'
+    : paymentStatusLabel(payment) || mapCustomerStatus({ projectStage, leadStatus });
   const deliveryView = deliveryPackage ? projectDeliveryForCustomer(deliveryPackage, {
     clientId: text(leadFields.客户编号),
     projectId: text(leadFields.项目编号) || text(projectFields.项目编号)
@@ -116,12 +130,29 @@ function normalizeOrder({ lead, project, deliveryPackage }) {
     completedAt: reportReady ? deliveryPackage.released_at : '',
     status,
     reportReady,
-    reportLink: deliveryView ? deliveryView.reportLink : '',
+    paymentRequired: true,
+    payment: publicPaymentView(payment),
+    paymentStatus: payment ? payment.status : 'unpaid',
+    amountYuan: payment ? payment.amountYuan : 199,
+    reportLink: reportReady && deliveryView ? deliveryView.reportLink : '',
     version: reportReady ? String(deliveryPackage.report_reference.report_version) : '',
     deliveryPackageId: reportReady ? deliveryPackage.delivery_package_id : '',
     nextAction: customerNextAction(status),
     updatedAt: reportReady ? deliveryPackage.released_at : (text(projectFields.开始时间) || text(leadFields.提交时间))
   };
+}
+
+function isPaidForReport(payment) {
+  return Boolean(payment && ['paid', 'partially_refunded'].includes(String(payment.status || '')));
+}
+
+function paymentStatusLabel(payment) {
+  if (!payment) return '待付款';
+  const status = String(payment.status || '');
+  if (status === 'unpaid' || status === 'paying' || status === 'payment_failed') return '待付款';
+  if (status === 'refund_processing') return '退款处理中';
+  if (status === 'refunded') return '已退款';
+  return '';
 }
 
 function mapCustomerStatus({ projectStage, leadStatus }) {
@@ -158,6 +189,8 @@ function buildPendingReport({ order }) {
   return {
     status: order.status,
     reportReady: false,
+    paymentRequired: true,
+    payment: order.payment || null,
     reportLink: '',
     reportVersion: '',
     releasedAt: '',
@@ -210,5 +243,7 @@ module.exports = {
   normalizeOrder,
   mapCustomerStatus,
   customerNextAction,
-  buildPendingReport
+  buildPendingReport,
+  isPaidForReport,
+  paymentStatusLabel
 };
