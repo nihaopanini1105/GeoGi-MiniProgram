@@ -32,7 +32,7 @@ Page({
       return;
     }
     if (!isApiConfigured()) {
-      this.setData({ loading: false, error: '服务地址还未配置，暂时无法查看报告。' });
+      this.setData({ loading: false, error: '服务暂时不可用，请稍后再试。' });
       return;
     }
 
