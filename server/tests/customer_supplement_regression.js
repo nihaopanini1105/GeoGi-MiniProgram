@@ -38,6 +38,20 @@ function run() {
   assert(leadUpdates.附件资料.includes('营业执照.pdf'));
   assert(leadUpdates.补充说明.includes('原始说明'));
 
+  const unpaidLeadUpdates = buildLeadUpdates({
+    fields: { 当前状态: '待支付' },
+    supplement
+  });
+  assert.strictEqual(unpaidLeadUpdates.当前状态, undefined);
+  assert.strictEqual(unpaidLeadUpdates.审核状态, '等待支付');
+
+  const unpaidProjectUpdates = buildProjectUpdates({
+    fields: { 当前阶段: 'PAYMENT_PENDING', 内部备注: '等待付款' },
+    supplement
+  });
+  assert.strictEqual(unpaidProjectUpdates.当前阶段, undefined);
+  assert.strictEqual(unpaidProjectUpdates.审核状态, '等待支付');
+
   const protectedLeadUpdates = buildLeadUpdates({
     fields: { 当前状态: '诊断处理中' },
     supplement
