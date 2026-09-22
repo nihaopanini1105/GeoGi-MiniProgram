@@ -18,6 +18,10 @@ const {
   projectPaymentProjection
 } = require('./services/payment-service');
 const {
+  createOrGetPaymentOrder,
+  publicPaymentView
+} = require('./services/payment-store');
+const {
   WechatPayError,
   configStatus: wechatPayConfigStatus,
   handlePaymentNotification,
@@ -114,11 +118,30 @@ app.post('/api/customer/projects/:projectId/supplement', requireCustomerSession,
   return res.status(result.ok ? 200 : 400).json(result);
 });
 
-app.post(['/api/leads', '/api/diagnosis/submit'], requireCustomerSession, async (req, res) => {
-  const body = req.body || {};
-  const form = { ...(body.form || {}), contactMethod: req.customerSession.phoneNumber };
-  const result = await submitIntake({ ...body, form });
-  res.status(result.ok ? 200 : 400).json(result);
+app.post(['/api/leads', '/api/diagnosis/submit'], requireCustomerSession, async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const form = { ...(body.form || {}), contactMethod: req.customerSession.phoneNumber };
+    const result = await submitIntake({ ...body, form });
+    if (!result.ok) return res.status(400).json(result);
+    const paymentResult = await createOrGetPaymentOrder({
+      clientId: result.clientId,
+      projectId: result.projectId,
+      submissionId: result.submissionId || body.submissionId || '',
+      brandName: form.brandName || '',
+      phoneNumber: req.customerSession.phoneNumber
+    });
+    return res.status(200).json({
+      ...result,
+      paymentRequired: true,
+      productName: 'GeoGi 品牌 GEO 诊断报告',
+      amountYuan: 199,
+      currency: 'CNY',
+      payment: publicPaymentView(paymentResult.order)
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 
