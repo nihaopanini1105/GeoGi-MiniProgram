@@ -2,13 +2,13 @@
   <view class="success-hero card">
     <view class="success-mark">{{paid ? '✓' : '¥'}}</view>
     <text class="success-kicker">{{paid ? 'PAYMENT CONFIRMED' : 'PAYMENT REQUIRED'}}</text>
-    <text class="success-title">{{paid ? '付款成功，诊断已进入处理' : (closed ? (closedReason === 'expired' ? '支付订单已失效' : '订单已取消') : '资料已提交，请完成付款')}}</text>
+    <text class="success-title">{{paid ? '付款成功，诊断已进入处理' : (closed ? (closedReason === 'expired' ? '支付订单已失效' : (closedReason === 'customer_cancelled' ? '订单已取消' : '支付订单已关闭')) : '资料已提交，请完成付款')}}</text>
     <text class="success-copy">{{paid ? 'GeoGi 已确认本次 199 元品牌 GEO 诊断报告订单，将开始品牌研究、AI 平台检测与诊断。' : (closed ? '本次支付订单已经关闭。诊断资料仍会保留，如仍需诊断可重新发起支付。' : '本次品牌 GEO 诊断报告价格为 199 元。支付订单创建后 30 分钟内有效，完成付款后 GeoGi 才会开始诊断并交付正式报告。')}}</text>
 
     <view class="status-row">
       <view>
         <text class="status-label">当前状态</text>
-        <text class="status-value">{{paid ? '已付款' : (closed ? (closedReason === 'expired' ? '已失效' : '已取消') : '待付款')}}</text>
+        <text class="status-value">{{paid ? '已付款' : (closed ? (closedReason === 'expired' ? '已失效' : (closedReason === 'customer_cancelled' ? '已取消' : '已关闭')) : '待付款')}}</text>
       </view>
       <view class="status-dot {{paid ? 'paid' : 'pending'}}"></view>
     </view>
