@@ -11,7 +11,8 @@
 .platform-card,
 .advice-card,
 .contact-card,
-.supplement-card {
+.supplement-card,
+.payment-card {
   padding: 32rpx 30rpx;
 }
 
@@ -334,3 +335,10 @@
     flex-direction: column;
   }
 }
+
+.payment-head { display:flex; align-items:flex-start; justify-content:space-between; gap:20rpx; }
+.payment-price { color:#176BFF; font-size:44rpx; font-weight:750; white-space:nowrap; }
+.payment-meta { display:flex; flex-direction:column; gap:8rpx; margin-top:18rpx; color:#66789A; font-size:23rpx; }
+.paid-order-tip,.refund-order-tip { margin-top:22rpx; padding:20rpx 22rpx; border-radius:18rpx; font-size:24rpx; font-weight:650; }
+.paid-order-tip { background:#F0F8F5; color:#157A59; border:1rpx solid #D7EBE2; }
+.refund-order-tip { background:#FFF8ED; color:#8A5A16; border:1rpx solid #F0DFC2; }
