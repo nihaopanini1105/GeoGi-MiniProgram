@@ -149,8 +149,11 @@ function isPaidForReport(payment) {
 function paymentStatusLabel(payment) {
   if (!payment) return '待付款';
   const status = String(payment.status || '');
-  if (status === 'unpaid' || status === 'paying' || status === 'payment_failed') return '待付款';
+  if (status === 'unpaid' || status === 'payment_failed' || status === 'closed') return '待付款';
+  if (status === 'paying') return '付款确认中';
+  if (status === 'paid') return '已付款';
   if (status === 'refund_processing') return '退款处理中';
+  if (status === 'partially_refunded') return '部分退款';
   if (status === 'refunded') return '已退款';
   return '';
 }
@@ -172,6 +175,12 @@ function mapCustomerStatus({ projectStage, leadStatus }) {
 }
 
 function customerNextAction(status) {
+  if (status === '待付款') return '支付 199 元后，GeoGi 才会开始本次品牌 GEO 诊断。';
+  if (status === '付款确认中') return '付款结果正在确认，请稍后刷新。';
+  if (status === '已付款') return '付款已确认，GeoGi 将开始品牌研究和 AI 平台检测。';
+  if (status === '部分退款') return '订单已发生部分退款，剩余服务状态以当前项目进度为准。';
+  if (status === '退款处理中') return '退款请求已提交，正在等待微信支付确认。';
+  if (status === '已退款') return '本次订单已退款，如需重新诊断请重新提交资料。';
   if (status === '资料待补充') return '请补充诊断所需资料，必要时联系 GeoGi 顾问。';
   if (status === '资料建档中') return 'GeoGi 正在整理品牌企业资料并建立品牌画像。';
   if (status === '检测进行中') return 'GeoGi 正在执行主流 AI 平台检测。';
