@@ -32,9 +32,14 @@ async function submitIntake(input = {}) {
         duplicated: true,
         clientId: text(fields.客户编号),
         projectId: text(fields.项目编号),
-        status: text(fields.当前状态) || '已提交',
+        status: text(fields.当前状态) || '待支付',
+        paymentStatus: text(fields.支付状态) || '待支付',
+        amountFen: Number(text(fields.应付金额分) || 19900),
+        amountYuan: text(fields.应付金额) || '199.00',
+        productCode: text(fields.诊断产品代码) || 'GEOGI_DIAGNOSTIC_REPORT_199',
+        productName: text(fields.诊断产品) || 'GeoGi 品牌 GEO 诊断报告',
         submittedAt: text(fields.提交时间) || submittedAt,
-        workbenchStatus: '等待 GeoGi OS 处理'
+        workbenchStatus: '等待客户完成 199 元支付'
       };
     }
 
@@ -60,9 +65,14 @@ async function submitIntake(input = {}) {
       ok: true,
       clientId,
       projectId,
-      status: '已提交',
+      status: '待支付',
+      paymentStatus: '待支付',
+      amountFen: 19900,
+      amountYuan: '199.00',
+      productCode: 'GEOGI_DIAGNOSTIC_REPORT_199',
+      productName: 'GeoGi 品牌 GEO 诊断报告',
       submittedAt,
-      workbenchStatus: '等待 GeoGi OS 处理'
+      workbenchStatus: '等待客户完成 199 元支付'
     };
   } catch (error) {
     console.error('submitIntake failed', error);
@@ -143,10 +153,17 @@ function buildLeadFields({ form, clientId, projectId, submittedAt, source }) {
     补充说明: form.message,
     隐私授权: form.privacyAccepted ? 'true' : 'false',
     提交时间: submittedAt,
-    当前状态: '已提交',
-    下一步动作: '等待 GeoGi OS 接收项目并执行诊断',
+    当前状态: '待支付',
+    下一步动作: '完成 199 元支付后开始品牌 GEO 诊断',
     来源: source,
-    审核状态: '待 OS 处理'
+    审核状态: '等待支付',
+    支付要求: 'true',
+    诊断产品代码: 'GEOGI_DIAGNOSTIC_REPORT_199',
+    诊断产品: 'GeoGi 品牌 GEO 诊断报告',
+    应付金额: '199.00',
+    应付金额分: '19900',
+    支付状态: '待支付',
+    支付方式: '微信支付'
   };
 }
 
@@ -155,13 +172,13 @@ function buildProjectFields({ form, clientId, projectId, submittedAt }) {
     项目编号: projectId,
     客户编号: clientId,
     品牌名称: form.brandName,
-    项目类型: 'GEO 诊断',
-    当前阶段: 'INTAKE',
+    项目类型: '199元品牌 GEO 诊断报告',
+    当前阶段: 'PAYMENT_PENDING',
     开始时间: submittedAt,
     客户确认范围: form.goals.join('、'),
-    内部备注: '由微信小程序提交；业务诊断、评分、报告与交付均由 GeoGi OS 负责。',
+    内部备注: '由微信小程序提交；客户完成 199 元微信支付后，GeoGi OS 才接收并开始诊断。诊断、报告与交付均由 GeoGi OS 负责。',
     信息层级: '01 诊断项目',
-    审核状态: '待 OS 处理'
+    审核状态: '等待支付'
   };
 }
 
