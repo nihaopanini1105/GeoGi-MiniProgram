@@ -5,6 +5,7 @@ const {
   updateBitableRecord
 } = require('./feishu');
 const { importDeliveryPackage } = require('./delivery-package-store');
+const { findPaymentByProject, publicPaymentView } = require('./payment-store');
 
 const PROJECT_STAGES = Object.freeze({
   INTAKE: { currentStatus: '已提交', auditStatus: '待 OS 处理', nextAction: '等待 GeoGi OS 接收项目并执行诊断' },
@@ -113,10 +114,18 @@ async function listOsIntakes() {
     const project = projectView(record);
     return [project.projectId, project];
   }));
-  return leadRecords.map((record) => {
+  const items = await Promise.all(leadRecords.map(async (record) => {
     const lead = leadView(record);
-    return { ...lead, project: projects.get(lead.projectId) || null };
-  }).sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
+    const payment = await findPaymentByProject(lead.projectId);
+    return {
+      ...lead,
+      project: projects.get(lead.projectId) || null,
+      payment: publicPaymentView(payment),
+      paymentRequired: true,
+      paymentEligibleForProcessing: Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status))
+    };
+  }));
+  return items.sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
 }
 
 async function updateOsProjectStage({ projectId, stage }) {
