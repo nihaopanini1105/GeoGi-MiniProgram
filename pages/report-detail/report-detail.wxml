@@ -39,7 +39,7 @@
     <view wx:if="{{order.paymentStatus !== 'paid' && order.paymentStatus !== 'partially_refunded' && order.paymentStatus !== 'refunded' && order.paymentStatus !== 'refund_processing'}}" class="section card payment-card">
       <text class="block-title">完成付款后开始诊断</text>
       <text class="body">品牌资料已提交。本次品牌 GEO 诊断报告价格为 199 元，付款成功后 GeoGi 才会开始正式诊断。</text>
-      <button class="primary-button full-button" loading="{{paymentLoading}}" disabled="{{paymentLoading}}" bindtap="payNow">支付 ¥199 获取诊断报告</button>
+      <button class="primary-button full-button" loading="{{paymentLoading}}" disabled="{{paymentLoading}}" bindtap="payNow">立即支付</button>
       <text wx:if="{{paymentError}}" class="supplement-message">{{paymentError}}</text>
     </view>
 
