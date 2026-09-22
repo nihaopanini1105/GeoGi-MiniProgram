@@ -27,7 +27,7 @@
         <text>诊断编号：{{item.projectId}}</text>
         <text wx:if="{{item.submittedAt}}">提交时间：{{item.submittedAt}}</text>
         <text>订单金额：¥{{item.amountYuan || 199}}</text>
-        <text>付款状态：{{item.paymentStatus === 'paid' || item.paymentStatus === 'partially_refunded' ? '已付款' : item.paymentStatus === 'refunded' ? '已退款' : item.paymentStatus === 'refund_processing' ? '退款处理中' : '待付款'}}</text>
+        <text>付款状态：{{item.paymentStatus === 'paid' ? '已付款' : item.paymentStatus === 'partially_refunded' ? '部分退款' : item.paymentStatus === 'refunded' ? '已退款' : item.paymentStatus === 'refund_processing' ? '退款处理中' : item.paymentStatus === 'paying' ? '付款确认中' : '待付款'}}</text>
       </view>
       <view class="order-action">
         <text>{{item.reportReady ? '查看完整诊断报告' : (item.paymentStatus === 'paid' || item.paymentStatus === 'partially_refunded' ? '查看诊断进度' : '去付款 / 查看订单')}}</text>
