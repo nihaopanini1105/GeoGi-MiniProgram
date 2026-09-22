@@ -7,6 +7,17 @@ const {
 } = require('../src/services/customer-portal');
 
 function run() {
+  assert.strictEqual(
+    mapCustomerStatus({ projectStage: 'PAYMENT_PENDING', leadStatus: '待支付', paymentStatus: '待支付', paymentRequired: true }),
+    '待支付'
+  );
+  assert.strictEqual(
+    mapCustomerStatus({ projectStage: 'INTAKE', leadStatus: '已付款', paymentStatus: '已支付', paymentRequired: true }),
+    '已付款'
+  );
+  assert.strictEqual(mapCustomerStatus({ projectStage: 'REFUNDED', leadStatus: '已退款' }), '已退款');
+  assert.strictEqual(customerNextAction('待支付'), '完成 199 元微信支付后，GeoGi 将开始品牌 GEO 诊断。');
+
   const stageExpectations = [
     ['ONBOARDING', '资料建档中'],
     ['DETECTION', '检测进行中'],
