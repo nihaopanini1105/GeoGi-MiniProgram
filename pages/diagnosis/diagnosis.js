@@ -372,7 +372,9 @@ Page({
         submittedAt: result.submittedAt || submittedAt,
         paymentRequired: result.paymentRequired !== false,
         amountYuan: Number(result.amountYuan || 199),
-        productName: result.productName || 'GeoGi 品牌 GEO 诊断报告'
+        productName: result.productName || 'GeoGi 品牌 GEO 诊断报告',
+        paymentStatus: result.payment && result.payment.status ? result.payment.status : 'unpaid',
+        payment: result.payment || null
       };
       wx.setStorageSync('geogi_last_submission', submission);
       this.saveOrderSnapshot({
