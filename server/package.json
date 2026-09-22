@@ -9,7 +9,8 @@
     "test": "node tests/payment_store_regression.js && node tests/wechat_pay_security_regression.js && node tests/paid_diagnostic_copy_contract_regression.js && node tests/delivery_package_boundary_regression.js && node tests/customer_portal_status_regression.js && node tests/customer_session_regression.js && node tests/customer_supplement_regression.js && node tests/os_operations_bridge_regression.js && node tests/configure_os_bridge_production_regression.js && node tests/os_artifact_ingress_regression.js && node tests/feishu_transient_retry_regression.js",
     "delivery:import": "node src/scripts/import-os-delivery-package.js",
     "setup:feishu-fields": "node src/scripts/setup-feishu-fields.js",
-    "clear:workbench": "node src/scripts/clear-workbench-data.js --confirm"
+    "clear:workbench": "node src/scripts/clear-workbench-data.js --confirm",
+    "payment:preflight": "node src/scripts/verify-wechat-pay-production.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
