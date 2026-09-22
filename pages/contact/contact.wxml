@@ -30,6 +30,6 @@
   <view class="section info-card card">
     <text class="info-title">准备开始品牌诊断？</text>
     <text class="info-hint action-hint">提交品牌资料后需要支付 199 元；付款成功后 GeoGi 才会开始本次诊断。</text>
-    <button class="primary-button copy-button" bindtap="goDiagnosis">¥199 获取诊断报告</button>
+    <button class="primary-button copy-button" bindtap="goDiagnosis">获取诊断报告</button>
   </view>
 </view>
