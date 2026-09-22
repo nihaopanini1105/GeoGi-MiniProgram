@@ -72,7 +72,7 @@ ARCHIVE="$LOCAL_TMP/geogi-miniprogram-${EXPECTED_SHA}.tar.gz"
 # intentionally inspect MiniProgram page sources under ../../pages to guard against
 # reintroducing customer-side business authority. The production swap still deploys
 # only server files below SERVER_DIR.
-ARCHIVE_PATHS=(server/package.json server/src server/tests server/scripts pages)
+ARCHIVE_PATHS=(server/package.json server/src server/tests server/scripts pages app.json)
 if [ -f "$REPO_ROOT/server/package-lock.json" ]; then
   ARCHIVE_PATHS+=(server/package-lock.json)
 fi
@@ -157,7 +157,8 @@ for required in \
   "$STAGE_SERVER/src/services/os-operations-bridge.js" \
   "$STAGE_SERVER/src/services/os-artifact-ingress.js" \
   "$REMOTE_TMP/pages/report-detail/report-detail.wxml" \
-  "$REMOTE_TMP/pages/report-detail/report-detail.js"; do
+  "$REMOTE_TMP/pages/report-detail/report-detail.js" \
+  "$REMOTE_TMP/app.json"; do
   [ -f "$required" ] || {
     echo "ERROR: release package missing $required" >&2
     exit 2
