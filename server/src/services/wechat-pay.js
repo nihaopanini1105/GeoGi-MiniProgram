@@ -354,6 +354,13 @@ async function handlePaymentNotification(headers, rawBody) {
   }
   const envelope = JSON.parse(rawBody);
   const resource = decryptNotificationResource(envelope.resource);
+  const config = requireConfig();
+  if (String(resource.mchid || '') !== config.mchid || String(resource.appid || '') !== config.appid) {
+    throw new WechatPayError('WECHAT_PAY_NOTIFY_MERCHANT_SCOPE_MISMATCH');
+  }
+  if (String(resource.amount && resource.amount.currency || CURRENCY) !== CURRENCY) {
+    throw new WechatPayError('WECHAT_PAY_NOTIFY_CURRENCY_MISMATCH');
+  }
   const outTradeNo = String(resource.out_trade_no || '');
   const order = await findPaymentByOutTradeNo(outTradeNo);
   if (!order) throw new WechatPayError('PAYMENT_ORDER_NOT_FOUND');
@@ -374,6 +381,12 @@ async function handleRefundNotification(headers, rawBody) {
   }
   const envelope = JSON.parse(rawBody);
   const resource = decryptNotificationResource(envelope.resource);
+  if (String(resource.amount && resource.amount.currency || CURRENCY) !== CURRENCY) {
+    throw new WechatPayError('WECHAT_REFUND_NOTIFY_CURRENCY_MISMATCH');
+  }
+  if (Number(resource.amount && resource.amount.total || 0) !== PRODUCT_PRICE_FEN) {
+    throw new WechatPayError('WECHAT_REFUND_NOTIFY_TOTAL_MISMATCH');
+  }
   const outTradeNo = String(resource.out_trade_no || '');
   const order = await findPaymentByOutTradeNo(outTradeNo);
   if (!order) throw new WechatPayError('PAYMENT_ORDER_NOT_FOUND');
