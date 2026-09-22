@@ -54,6 +54,32 @@ async function findProjectContext({ clientId, projectId }) {
   return { tenantToken, lead, project };
 }
 
+function paymentProjectionState(paymentStatus) {
+  const status = String(paymentStatus || '');
+  const paid = status === 'paid';
+  const partiallyRefunded = status === 'partially_refunded';
+  const refundProcessing = status === 'refund_processing';
+  const refunded = status === 'refunded';
+  const serviceEligible = paid || partiallyRefunded;
+  return {
+    serviceEligible,
+    currentStatus: paid
+      ? '已付款'
+      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : '待付款'))),
+    nextAction: serviceEligible
+      ? 'GeoGi 将开始品牌 GEO 诊断并生成诊断报告'
+      : (refundProcessing
+          ? '等待微信支付退款结果确认'
+          : (refunded ? '订单已退款，如需诊断请重新提交' : '支付 199 元后开始品牌 GEO 诊断')),
+    auditStatus: paid
+      ? '待 OS 处理'
+      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : '待付款'))),
+    projectStage: serviceEligible
+      ? 'INTAKE'
+      : (refundProcessing ? 'REFUND_PROCESSING' : (refunded ? 'REFUNDED' : 'PAYMENT_PENDING'))
+  };
+}
+
 async function projectPaymentProjection({ projectId, paymentStatus }) {
   const tenantToken = await getTenantAccessToken();
   const [leads, projects] = await Promise.all([
@@ -74,26 +100,12 @@ async function projectPaymentProjection({ projectId, paymentStatus }) {
   const project = projects.find((record) => text(record.fields && record.fields.项目编号) === projectId);
   if (!lead || !project) return false;
 
-  const status = String(paymentStatus || '');
-  const paid = status === 'paid';
-  const partiallyRefunded = status === 'partially_refunded';
-  const refundProcessing = status === 'refund_processing';
-  const refunded = status === 'refunded';
-  const serviceEligible = paid || partiallyRefunded;
-  const currentStatus = paid
-    ? '已付款'
-    : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : '待付款')));
-  const nextAction = serviceEligible
-    ? 'GeoGi 将开始品牌 GEO 诊断并生成诊断报告'
-    : (refundProcessing
-        ? '等待微信支付退款结果确认'
-        : (refunded ? '订单已退款，如需诊断请重新提交' : '支付 199 元后开始品牌 GEO 诊断'));
-  const auditStatus = paid
-    ? '待 OS 处理'
-    : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : '待付款')));
-  const projectStage = serviceEligible
-    ? 'INTAKE'
-    : (refundProcessing ? 'REFUND_PROCESSING' : (refunded ? 'REFUNDED' : 'PAYMENT_PENDING'));
+  const {
+    currentStatus,
+    nextAction,
+    auditStatus,
+    projectStage
+  } = paymentProjectionState(paymentStatus);
 
   await updateBitableRecord({
     tenantToken,
@@ -217,6 +229,7 @@ module.exports = {
   getCustomerPayment,
   syncCustomerPayment,
   projectPaymentProjection,
+  paymentProjectionState,
   listPaymentsForOs,
   refundPaymentForOs
 };
