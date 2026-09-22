@@ -16,7 +16,7 @@ const {
   publicPaymentView,
   paymentSummary
 } = require('../src/services/payment-store');
-const { paymentProjectionState } = require('../src/services/payment-service');
+const { paymentProjectionState, paymentProjectionDecision } = require('../src/services/payment-service');
 
 async function main() {
   assert.strictEqual(PRODUCT_PRICE_FEN, 19900);
@@ -92,6 +92,16 @@ async function main() {
   assert.strictEqual(partialProjection.currentStatus, '部分退款');
   assert.strictEqual(partialProjection.projectStage, 'INTAKE');
   assert.strictEqual(partialProjection.serviceEligible, true);
+
+  const initialPaidDecision = paymentProjectionDecision('PAYMENT_PENDING', 'paid');
+  assert.strictEqual(initialPaidDecision.mutateBusinessProjection, true);
+  assert.strictEqual(initialPaidDecision.projectStage, 'INTAKE');
+  const activeWorkflowDecision = paymentProjectionDecision('DIAGNOSIS', 'paid');
+  assert.strictEqual(activeWorkflowDecision.mutateBusinessProjection, false);
+  assert.strictEqual(activeWorkflowDecision.projectStage, 'DIAGNOSIS');
+  const activeRefundDecision = paymentProjectionDecision('REVIEW', 'refund_processing');
+  assert.strictEqual(activeRefundDecision.mutateBusinessProjection, false);
+  assert.strictEqual(activeRefundDecision.projectStage, 'REVIEW');
 
   let rejected = false;
   try {
