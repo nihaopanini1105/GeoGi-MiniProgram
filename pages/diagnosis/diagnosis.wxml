@@ -32,7 +32,7 @@
       <view class="intro-copy">
         <text class="page-kicker">GEOGI DIAGNOSIS</text>
         <text class="intro-title">¥199 品牌 GEO 诊断报告</text>
-        <text class="intro-lead">提交品牌资料后进入付款页面。支付 199 元后，GeoGi 将完成品牌研究、主流 AI 平台检测与 GEO 诊断，并交付正式诊断报告。</text>
+        <text class="intro-lead">提交品牌资料后将直接拉起微信支付。支付 199 元后，GeoGi 将完成品牌研究、主流 AI 平台检测与 GEO 诊断，并交付正式诊断报告。</text>
         <button class="primary-button intro-button" bindtap="startForm">开始填写</button>
       </view>
       <image class="intro-orbit" src="{{assets.hero.background}}" mode="aspectFit"></image>
@@ -75,7 +75,7 @@
     <view class="section note-card card">
       <view>
         <text class="note-title">填写约 2–3 分钟</text>
-        <text class="note-copy">没有官网、竞品或附件也可以提交。资料提交后再支付 199 元，付款成功后开始诊断。</text>
+        <text class="note-copy">没有官网、竞品或附件也可以提交。点击提交后将直接拉起微信支付，订单 30 分钟内有效，付款成功后开始诊断。</text>
       </view>
     </view>
   </block>
@@ -84,7 +84,7 @@
     <view class="form-head">
       <text class="page-kicker">BRAND DIAGNOSIS</text>
       <text class="form-page-title">提交品牌 GEO 诊断资料</text>
-      <text class="form-page-copy">请用日常经营语言填写。提交资料后将进入 199 元付款页面。</text>
+      <text class="form-page-copy">请用日常经营语言填写。提交资料后将直接拉起微信支付，支付订单创建后 30 分钟内有效。</text>
     </view>
 
     <view class="step-card card">
@@ -274,7 +274,7 @@
     <view class="bottom-actions">
       <button wx:if="{{step > 1}}" class="secondary-button half-button" bindtap="prevStep" disabled="{{submitting}}">上一步</button>
       <button wx:if="{{step < 3}}" class="primary-button grow-button" bindtap="nextStep">下一步</button>
-      <button wx:if="{{step == 3}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交资料，下一步支付 ¥199</button>
+      <button wx:if="{{step == 3}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交资料并支付 ¥199</button>
     </view>
   </block>
 

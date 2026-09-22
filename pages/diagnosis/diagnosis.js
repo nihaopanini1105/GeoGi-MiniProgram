@@ -357,6 +357,7 @@ Page({
 
     this.setData({ submitting: true, fieldErrors: {} });
     const submittedAt = new Date().toISOString();
+    let submissionCreated = false;
     try {
       const uploadedFiles = await this.uploadAttachments();
       const form = { ...this.data.form, uploads: uploadedFiles, submittedAt };
@@ -376,17 +377,37 @@ Page({
         paymentStatus: result.payment && result.payment.status ? result.payment.status : 'unpaid',
         payment: result.payment || null
       };
+      submissionCreated = true;
       wx.setStorageSync('geogi_last_submission', submission);
       this.saveOrderSnapshot({
         ...submission,
         brandName: form.brandName,
         industry: form.industry,
         segment: form.segment,
-        paymentStatus: 'unpaid',
+        paymentStatus: submission.paymentStatus || 'unpaid',
         amountYuan: 199
       });
       wx.removeStorageSync(draftKey);
+      wx.removeStorageSync('geogi_payment_attempt_error');
       track('form_submit_success', { industry: form.industry });
+
+      try {
+        await this.paySubmission(submission);
+      } catch (paymentError) {
+        const message = paymentError && paymentError.errMsg
+          ? paymentError.errMsg
+          : (paymentError && paymentError.message ? paymentError.message : '付款未完成');
+        const cancelled = /cancel/i.test(message);
+        wx.setStorageSync(
+          'geogi_payment_attempt_error',
+          cancelled ? '你已取消付款，可随时重新支付。' : message
+        );
+        track('direct_payment_fail', {
+          project_id: submission.projectId,
+          error_code: message
+        });
+      }
+
       this.resetForm();
       this.goSubmitSuccess();
     } catch (error) {
@@ -397,11 +418,101 @@ Page({
         wx.removeStorageSync('geogi_customer_token_expires_at');
         this.setData({ phoneAuthorized: false, phoneDisplay: '' });
       }
+      if (submissionCreated) {
+        wx.setStorageSync('geogi_payment_attempt_error', message);
+        this.resetForm();
+        this.goSubmitSuccess();
+        return;
+      }
       track('form_submit_fail', { error_code: message });
       this.setData({ fieldErrors: { submit: message } });
     } finally {
       this.setData({ submitting: false });
     }
+  },
+
+  async paySubmission(submission) {
+    if (!submission || !submission.projectId || !submission.clientId) {
+      throw new Error('缺少诊断项目信息，请重新提交。');
+    }
+    const loginCode = await this.getLoginCode();
+    const result = await post(
+      '/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment',
+      {
+        clientId: submission.clientId,
+        loginCode
+      }
+    );
+    if (!result || !result.ok) {
+      throw new Error(result && result.userMessage ? result.userMessage : '支付订单创建失败');
+    }
+
+    if (result.alreadyPaid) {
+      this.persistPaidSubmission(submission, result.payment);
+      return;
+    }
+    if (!result.payParams) throw new Error('微信支付参数缺失');
+
+    await this.requestPayment(result.payParams);
+    const synced = await post(
+      '/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment/sync',
+      { clientId: submission.clientId }
+    );
+    const payment = synced && synced.payment ? synced.payment : result.payment;
+    const paid = Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status));
+    if (!paid) throw new Error('付款结果正在确认，请稍后刷新');
+
+    this.persistPaidSubmission(submission, payment);
+    track('direct_payment_success', { project_id: submission.projectId });
+  },
+
+  getLoginCode() {
+    return new Promise((resolve, reject) => {
+      wx.login({
+        success: (res) => res && res.code ? resolve(res.code) : reject(new Error('微信登录失败')),
+        fail: reject
+      });
+    });
+  },
+
+  requestPayment(params) {
+    return new Promise((resolve, reject) => {
+      wx.requestPayment({
+        timeStamp: params.timeStamp,
+        nonceStr: params.nonceStr,
+        package: params.package,
+        signType: params.signType || 'RSA',
+        paySign: params.paySign,
+        success: resolve,
+        fail: reject
+      });
+    });
+  },
+
+  persistPaidSubmission(submission, payment) {
+    const paidSubmission = {
+      ...submission,
+      status: '已付款',
+      paymentStatus: payment && payment.status ? payment.status : 'paid',
+      paidAt: payment && payment.paidAt ? payment.paidAt : '',
+      payment: payment || submission.payment || null
+    };
+    wx.setStorageSync('geogi_last_submission', paidSubmission);
+
+    const orders = wx.getStorageSync('geogi_my_orders') || [];
+    wx.setStorageSync(
+      'geogi_my_orders',
+      orders.map((item) => item.projectId === paidSubmission.projectId
+        ? {
+            ...item,
+            status: '已付款',
+            paymentStatus: paidSubmission.paymentStatus,
+            paidAt: paidSubmission.paidAt,
+            payment: paidSubmission.payment,
+            amountYuan: 199
+          }
+        : item)
+    );
   },
 
   uploadAttachments() {

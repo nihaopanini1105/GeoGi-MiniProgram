@@ -6,8 +6,13 @@ Page({
     submittedAtText: '',
     payment: null,
     paymentLoading: false,
+    cancelLoading: false,
     paymentError: '',
     paid: false,
+    closed: false,
+    closedReason: '',
+    canCancel: false,
+    expiresAtText: '',
     product: {
       name: 'GeoGi 品牌 GEO 诊断报告',
       priceYuan: 199,
@@ -35,9 +40,12 @@ Page({
 
   onShow() {
     const submission = wx.getStorageSync('geogi_last_submission') || {};
+    const paymentAttemptError = wx.getStorageSync('geogi_payment_attempt_error') || '';
+    wx.removeStorageSync('geogi_payment_attempt_error');
     this.setData({
       submission,
-      submittedAtText: this.formatDate(submission.submittedAt)
+      submittedAtText: this.formatDate(submission.submittedAt),
+      paymentError: paymentAttemptError
     });
     if (submission.projectId) this.loadPayment();
   },
@@ -64,11 +72,25 @@ Page({
       if (!result || !result.ok) return;
       const payment = result.payment || null;
       const paid = Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status));
+      const closed = Boolean(payment && payment.status === 'closed');
+      const closedReason = payment && payment.closedReason ? payment.closedReason : '';
       this.setData({
         payment,
         paid,
+        closed,
+        closedReason,
+        canCancel: Boolean(payment && payment.canCancel),
+        expiresAtText: this.formatDate(payment && payment.expiresAt),
         product: result.product || this.data.product,
-        paymentError: ''
+        paymentError: paid
+          ? ''
+          : (closed
+              ? (closedReason === 'expired'
+                  ? '支付订单已超过 30 分钟有效期，可重新发起支付。'
+                  : (closedReason === 'customer_cancelled'
+                      ? '订单已取消，如仍需诊断可重新发起支付。'
+                      : '支付订单已关闭，如仍需诊断可重新发起支付。'))
+              : this.data.paymentError)
       });
       if (paid) this.persistPaidStatus(payment);
     } catch (error) {
@@ -103,12 +125,26 @@ Page({
         throw new Error(result && result.userMessage ? result.userMessage : '支付订单创建失败');
       }
       if (result.alreadyPaid) {
-        this.setData({ payment: result.payment, paid: true });
+        this.setData({
+          payment: result.payment,
+          paid: true,
+          closed: false,
+          closedReason: '',
+          canCancel: false,
+          expiresAtText: this.formatDate(result.payment && result.payment.expiresAt)
+        });
         this.persistPaidStatus(result.payment);
         wx.showToast({ title: '已付款', icon: 'success' });
         return;
       }
       if (!result.payParams) throw new Error('微信支付参数缺失');
+      this.setData({
+        payment: result.payment || null,
+        closed: false,
+        closedReason: '',
+        canCancel: Boolean(result.payment && result.payment.canCancel),
+        expiresAtText: this.formatDate(result.payment && result.payment.expiresAt)
+      });
       await this.requestPayment(result.payParams);
       const synced = await post(
         '/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment/sync',
@@ -116,8 +152,16 @@ Page({
       );
       const payment = synced && synced.payment ? synced.payment : result.payment;
       const paid = Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status));
-      this.setData({ payment, paid });
-      if (!paid) throw new Error('付款结果正在确认，请稍后刷新');
+      const closed = Boolean(payment && payment.status === 'closed');
+      this.setData({
+        payment,
+        paid,
+        closed,
+        closedReason: payment && payment.closedReason ? payment.closedReason : '',
+        canCancel: Boolean(payment && payment.canCancel),
+        expiresAtText: this.formatDate(payment && payment.expiresAt)
+      });
+      if (!paid) throw new Error(closed ? '支付订单已关闭，请重新发起支付' : '付款结果正在确认，请稍后刷新');
       this.persistPaidStatus(payment);
       wx.showToast({ title: '付款成功', icon: 'success' });
     } catch (error) {
@@ -130,6 +174,50 @@ Page({
       });
     } finally {
       this.setData({ paymentLoading: false });
+    }
+  },
+
+  async cancelOrder() {
+    if (this.data.cancelLoading || this.data.paid || !this.data.canCancel) return;
+    const confirmed = await new Promise((resolve) => {
+      wx.showModal({
+        title: '取消订单',
+        content: '取消后本次支付订单将立即关闭。如仍需诊断，可重新发起支付。',
+        confirmText: '确认取消',
+        confirmColor: '#C23B3B',
+        success: (res) => resolve(Boolean(res.confirm)),
+        fail: () => resolve(false)
+      });
+    });
+    if (!confirmed) return;
+
+    const submission = this.data.submission || {};
+    this.setData({ cancelLoading: true, paymentError: '' });
+    try {
+      const result = await post(
+        '/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment/cancel',
+        { clientId: submission.clientId }
+      );
+      if (!result || !result.ok) {
+        throw new Error(result && result.userMessage ? result.userMessage : '订单取消失败');
+      }
+      const payment = result.payment || null;
+      this.setData({
+        payment,
+        paid: false,
+        closed: true,
+        closedReason: payment && payment.closedReason ? payment.closedReason : 'customer_cancelled',
+        canCancel: false,
+        expiresAtText: this.formatDate(payment && payment.expiresAt),
+        paymentError: '订单已取消，如仍需诊断可重新发起支付。'
+      });
+      wx.showToast({ title: '订单已取消', icon: 'success' });
+    } catch (error) {
+      this.setData({
+        paymentError: error && error.message ? error.message : '订单取消失败，请稍后重试'
+      });
+    } finally {
+      this.setData({ cancelLoading: false });
     }
   },
 

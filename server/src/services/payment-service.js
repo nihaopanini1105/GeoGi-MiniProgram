@@ -12,10 +12,12 @@ const {
   findPaymentByOutTradeNo,
   listPaymentOrders,
   publicPaymentView,
-  paymentSummary
+  paymentSummary,
+  isPaymentOrderExpired
 } = require('./payment-store');
 const {
   createJsapiPayment,
+  closePaymentOrder,
   syncPaymentOrder,
   requestRefund
 } = require('./wechat-pay');
@@ -60,20 +62,21 @@ function paymentProjectionState(paymentStatus) {
   const partiallyRefunded = status === 'partially_refunded';
   const refundProcessing = status === 'refund_processing';
   const refunded = status === 'refunded';
+  const closed = status === 'closed';
   const serviceEligible = paid || partiallyRefunded;
   return {
     serviceEligible,
     currentStatus: paid
       ? '已付款'
-      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : '待付款'))),
+      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : (closed ? '支付订单已关闭' : '待付款')))),
     nextAction: serviceEligible
       ? 'GeoGi 将开始品牌 GEO 诊断并生成诊断报告'
       : (refundProcessing
           ? '等待微信支付退款结果确认'
-          : (refunded ? '订单已退款，如需诊断请重新提交' : '支付 199 元后开始品牌 GEO 诊断')),
+          : (refunded ? '订单已退款，如需诊断请重新提交' : (closed ? '支付订单已关闭，可重新发起支付' : '支付 199 元后开始品牌 GEO 诊断'))),
     auditStatus: paid
       ? '待 OS 处理'
-      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : '待付款'))),
+      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : (closed ? '支付订单已关闭' : '待付款')))),
     projectStage: serviceEligible
       ? 'INTAKE'
       : (refundProcessing ? 'REFUND_PROCESSING' : (refunded ? 'REFUNDED' : 'PAYMENT_PENDING'))
@@ -145,12 +148,54 @@ async function projectPaymentProjection({ projectId, paymentStatus }) {
   return true;
 }
 
+async function refreshExpiredPaymentOrder(order) {
+  if (!order || !isPaymentOrderExpired(order)) return order;
+  try {
+    return await closePaymentOrder(order, 'expired');
+  } catch (closeError) {
+    if (order.prepayId || order.status === 'paying') {
+      const synced = await syncPaymentOrder(order);
+      if (['paid', 'partially_refunded', 'closed'].includes(synced.status)) return synced;
+    }
+    throw closeError;
+  }
+}
+
+async function cancelActivePaymentOrder(order) {
+  if (!order) return null;
+  if (['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(order.status)) {
+    const error = new Error('PAYMENT_ORDER_NOT_CANCELLABLE');
+    error.code = 'PAYMENT_ORDER_NOT_CANCELLABLE';
+    throw error;
+  }
+  if (order.status === 'closed') return order;
+  try {
+    return await closePaymentOrder(order, 'customer_cancelled');
+  } catch (closeError) {
+    if (order.prepayId || order.status === 'paying') {
+      const synced = await syncPaymentOrder(order);
+      if (['paid', 'partially_refunded'].includes(synced.status)) {
+        const error = new Error('PAYMENT_ORDER_NOT_CANCELLABLE');
+        error.code = 'PAYMENT_ORDER_NOT_CANCELLABLE';
+        throw error;
+      }
+      if (synced.status === 'closed') return synced;
+    }
+    throw closeError;
+  }
+}
+
 async function ensureOrder({ clientId, projectId, phoneNumber }) {
   const context = await findProjectContext({ clientId, projectId });
   if (!context) {
     const error = new Error('PAYMENT_PROJECT_NOT_FOUND');
     error.code = 'PAYMENT_PROJECT_NOT_FOUND';
     throw error;
+  }
+  const existing = await findPaymentByProject(projectId);
+  if (existing && isPaymentOrderExpired(existing)) {
+    const expired = await refreshExpiredPaymentOrder(existing);
+    await projectPaymentProjection({ projectId, paymentStatus: expired.status });
   }
   const fields = context.lead.fields || {};
   const result = await createOrGetPaymentOrder({
@@ -184,7 +229,11 @@ async function createCustomerPayment({ clientId, projectId, phoneNumber, loginCo
 async function getCustomerPayment({ clientId, projectId }) {
   const context = await findProjectContext({ clientId, projectId });
   if (!context) return { ok: false, userMessage: '没有找到这条诊断记录' };
-  const order = await findPaymentByProject(projectId);
+  let order = await findPaymentByProject(projectId);
+  if (order && isPaymentOrderExpired(order)) {
+    order = await refreshExpiredPaymentOrder(order);
+    await projectPaymentProjection({ projectId, paymentStatus: order.status });
+  }
   return {
     ok: true,
     payment: publicPaymentView(order),
@@ -202,11 +251,35 @@ async function getCustomerPayment({ clientId, projectId }) {
 async function syncCustomerPayment({ clientId, projectId }) {
   const context = await findProjectContext({ clientId, projectId });
   if (!context) return { ok: false, userMessage: '没有找到这条诊断记录' };
-  const order = await findPaymentByProject(projectId);
+  let order = await findPaymentByProject(projectId);
   if (!order) return { ok: false, userMessage: '还没有创建支付订单' };
+  if (isPaymentOrderExpired(order)) {
+    order = await refreshExpiredPaymentOrder(order);
+    await projectPaymentProjection({ projectId, paymentStatus: order.status });
+    return { ok: true, payment: publicPaymentView(order) };
+  }
+  if (order.status === 'closed') return { ok: true, payment: publicPaymentView(order) };
   const synced = await syncPaymentOrder(order);
   await projectPaymentProjection({ projectId, paymentStatus: synced.status });
   return { ok: true, payment: publicPaymentView(synced) };
+}
+
+async function cancelCustomerPayment({ clientId, projectId }) {
+  const context = await findProjectContext({ clientId, projectId });
+  if (!context) return { ok: false, userMessage: '没有找到这条诊断记录' };
+  let order = await findPaymentByProject(projectId);
+  if (!order) return { ok: false, userMessage: '还没有创建支付订单' };
+  if (isPaymentOrderExpired(order)) {
+    order = await refreshExpiredPaymentOrder(order);
+  } else {
+    order = await cancelActivePaymentOrder(order);
+  }
+  await projectPaymentProjection({ projectId, paymentStatus: order.status });
+  return {
+    ok: true,
+    payment: publicPaymentView(order),
+    userMessage: order.closedReason === 'expired' ? '支付订单已失效' : '订单已取消'
+  };
 }
 
 async function listPaymentsForOs() {
@@ -242,6 +315,7 @@ module.exports = {
   createCustomerPayment,
   getCustomerPayment,
   syncCustomerPayment,
+  cancelCustomerPayment,
   projectPaymentProjection,
   paymentProjectionState,
   paymentProjectionDecision,

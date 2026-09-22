@@ -9,6 +9,8 @@ process.env.GEOGI_PAYMENT_DATA_ROOT = root;
 const {
   PRODUCT_PRICE_FEN,
   PRODUCT_PRICE_YUAN,
+  PAYMENT_ORDER_TTL_MINUTES,
+  isPaymentOrderExpired,
   createOrGetPaymentOrder,
   findPaymentByProject,
   updatePaymentOrder,
@@ -21,6 +23,7 @@ const { paymentProjectionState, paymentProjectionDecision } = require('../src/se
 async function main() {
   assert.strictEqual(PRODUCT_PRICE_FEN, 19900);
   assert.strictEqual(PRODUCT_PRICE_YUAN, 199);
+  assert.strictEqual(PAYMENT_ORDER_TTL_MINUTES, 30);
 
   const first = await createOrGetPaymentOrder({
     clientId: 'GG-202609-0001',
@@ -32,6 +35,10 @@ async function main() {
   assert.strictEqual(first.created, true);
   assert.strictEqual(first.order.amountTotal, 19900);
   assert.strictEqual(first.order.status, 'unpaid');
+  assert.strictEqual(isPaymentOrderExpired(first.order), false);
+  const validityMs = Date.parse(first.order.expiresAt) - Date.parse(first.order.createdAt);
+  assert(validityMs >= (30 * 60 * 1000) - 1000 && validityMs <= (30 * 60 * 1000) + 1000);
+  assert.strictEqual(publicPaymentView(first.order).canCancel, true);
 
   const duplicate = await createOrGetPaymentOrder({
     clientId: 'GG-202609-0001',
@@ -83,6 +90,35 @@ async function main() {
   assert.strictEqual(summary.grossPaidYuan, 199);
   assert.strictEqual(summary.refundedYuan, 99);
   assert.strictEqual(summary.netPaidYuan, 100);
+
+  const cancelCandidate = await createOrGetPaymentOrder({
+    clientId: 'GG-202609-0002',
+    projectId: 'GG-P-202609-000002',
+    submissionId: 'mp-cancel-test',
+    brandName: '取消订单测试品牌',
+    phoneNumber: '13800138001'
+  });
+  const cancelled = await updatePaymentOrder(cancelCandidate.order.outTradeNo, {
+    status: 'closed',
+    closedAt: new Date().toISOString(),
+    closedReason: 'customer_cancelled'
+  });
+  assert.strictEqual(publicPaymentView(cancelled).canCancel, false);
+  const reopened = await createOrGetPaymentOrder({
+    clientId: 'GG-202609-0002',
+    projectId: 'GG-P-202609-000002',
+    submissionId: 'mp-cancel-test',
+    brandName: '取消订单测试品牌',
+    phoneNumber: '13800138001'
+  });
+  assert.strictEqual(reopened.created, true);
+  assert.notStrictEqual(reopened.order.outTradeNo, cancelCandidate.order.outTradeNo);
+  assert.strictEqual(reopened.order.status, 'unpaid');
+
+  const closedProjection = paymentProjectionState('closed');
+  assert.strictEqual(closedProjection.currentStatus, '支付订单已关闭');
+  assert.strictEqual(closedProjection.projectStage, 'PAYMENT_PENDING');
+  assert.strictEqual(closedProjection.serviceEligible, false);
 
   const refundingProjection = paymentProjectionState('refund_processing');
   assert.strictEqual(refundingProjection.currentStatus, '退款处理中');
