@@ -14,7 +14,8 @@ const REQUIRED_ENV = [
   'FEISHU_APP_ID',
   'FEISHU_APP_SECRET',
   'FEISHU_BASE_APP_TOKEN',
-  'FEISHU_LEADS_TABLE_ID'
+  'FEISHU_LEADS_TABLE_ID',
+  'FEISHU_PROJECTS_TABLE_ID'
 ];
 
 async function submitIntake(input = {}) {
