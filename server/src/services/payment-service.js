@@ -80,6 +80,23 @@ function paymentProjectionState(paymentStatus) {
   };
 }
 
+function paymentProjectionDecision(currentStage, paymentStatus) {
+  const stage = String(currentStage || 'PAYMENT_PENDING').toUpperCase();
+  const state = paymentProjectionState(paymentStatus);
+  const paymentGateStages = new Set(['', 'PAYMENT_PENDING', 'INTAKE', 'REFUND_PROCESSING', 'REFUNDED']);
+  if (!paymentGateStages.has(stage)) {
+    return {
+      mutateBusinessProjection: false,
+      projectStage: stage,
+      ...state
+    };
+  }
+  return {
+    mutateBusinessProjection: true,
+    ...state
+  };
+}
+
 async function projectPaymentProjection({ projectId, paymentStatus }) {
   const tenantToken = await getTenantAccessToken();
   const [leads, projects] = await Promise.all([
@@ -100,12 +117,9 @@ async function projectPaymentProjection({ projectId, paymentStatus }) {
   const project = projects.find((record) => text(record.fields && record.fields.项目编号) === projectId);
   if (!lead || !project) return false;
 
-  const {
-    currentStatus,
-    nextAction,
-    auditStatus,
-    projectStage
-  } = paymentProjectionState(paymentStatus);
+  const currentStage = text(project.fields && project.fields.当前阶段) || 'PAYMENT_PENDING';
+  const decision = paymentProjectionDecision(currentStage, paymentStatus);
+  if (!decision.mutateBusinessProjection) return true;
 
   await updateBitableRecord({
     tenantToken,
@@ -113,9 +127,9 @@ async function projectPaymentProjection({ projectId, paymentStatus }) {
     tableId: process.env.FEISHU_LEADS_TABLE_ID,
     recordId: lead.record_id || lead.recordId,
     fields: {
-      当前状态: currentStatus,
-      下一步动作: nextAction,
-      审核状态: auditStatus
+      当前状态: decision.currentStatus,
+      下一步动作: decision.nextAction,
+      审核状态: decision.auditStatus
     }
   });
   await updateBitableRecord({
@@ -124,8 +138,8 @@ async function projectPaymentProjection({ projectId, paymentStatus }) {
     tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
     recordId: project.record_id || project.recordId,
     fields: {
-      当前阶段: projectStage,
-      审核状态: auditStatus
+      当前阶段: decision.projectStage,
+      审核状态: decision.auditStatus
     }
   });
   return true;
@@ -230,6 +244,7 @@ module.exports = {
   syncCustomerPayment,
   projectPaymentProjection,
   paymentProjectionState,
+  paymentProjectionDecision,
   listPaymentsForOs,
   refundPaymentForOs
 };
