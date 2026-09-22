@@ -48,7 +48,7 @@ Page({
       '哪些竞品被优先推荐',
       '内容和信源缺口'
     ],
-    deliveries: ['品牌基础研究', '跨平台检测证据', '诊断结论', '优化建议'],
+    deliveries: ['品牌企业画像', '主流 AI 平台检测', '竞品与问题诊断', '正式 GEO 诊断报告'],
     industries: ['旅游与文旅', '企业服务', '软件与互联网', '消费品与零售', '教育培训', '医疗健康', '其他行业'],
     industrySegments: {
       '旅游与文旅': ['旅行社/旅游服务商', '机票/航旅服务', '酒店/住宿', '商旅服务', '定制旅行', '目的地服务', '其他旅游服务'],
@@ -368,15 +368,20 @@ Page({
       const submission = {
         clientId: result.clientId,
         projectId: result.projectId,
-        status: result.status || '已提交',
-        submittedAt: result.submittedAt || submittedAt
+        status: result.status || '待付款',
+        submittedAt: result.submittedAt || submittedAt,
+        paymentRequired: result.paymentRequired !== false,
+        amountYuan: Number(result.amountYuan || 199),
+        productName: result.productName || 'GeoGi 品牌 GEO 诊断报告'
       };
       wx.setStorageSync('geogi_last_submission', submission);
       this.saveOrderSnapshot({
         ...submission,
         brandName: form.brandName,
         industry: form.industry,
-        segment: form.segment
+        segment: form.segment,
+        paymentStatus: 'unpaid',
+        amountYuan: 199
       });
       wx.removeStorageSync(draftKey);
       track('form_submit_success', { industry: form.industry });
