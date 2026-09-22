@@ -59,7 +59,8 @@ function verifyProductionPaymentConfig() {
     process.env.GEOGI_PAYMENT_DATA_ROOT
       || path.join(__dirname, '../../data/payments')
   );
-  fs.mkdirSync(paymentRoot, { recursive: true });
+  fs.mkdirSync(paymentRoot, { recursive: true, mode: 0o700 });
+  fs.chmodSync(paymentRoot, 0o700);
   fs.accessSync(paymentRoot, fs.constants.R_OK | fs.constants.W_OK);
 
   return {
