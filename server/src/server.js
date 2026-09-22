@@ -9,6 +9,17 @@ const { getConfig } = require('./services/config');
 const { getSampleReport } = require('./services/sample-report');
 const { listCustomerProjects, getCustomerReport } = require('./services/customer-portal');
 const { getPhoneNumber } = require('./services/wechat-auth');
+const {
+  WechatPayError,
+  paymentConfiguration,
+  paymentStats,
+  createDiagnosticPayment,
+  getDiagnosticPaymentStatus,
+  handlePaymentNotification,
+  handleRefundNotification,
+  listPaymentRecords,
+  requestFullRefund
+} = require('./services/wechat-pay');
 const { requireCustomerSession, resolveOwnedClientId } = require('./services/customer-session');
 const { trackEvent } = require('./services/events');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
@@ -28,6 +39,27 @@ const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '127.0.0.1';
 
 app.use(helmet());
+
+app.post('/api/payments/wechat/notify', express.raw({ type: 'application/json', limit: '256kb' }), async (req, res) => {
+  try {
+    await handlePaymentNotification({ headers: req.headers, rawBody: req.body });
+    res.status(200).json({ code: 'SUCCESS', message: '成功' });
+  } catch (error) {
+    console.error('wechat payment notification failed', error);
+    res.status(500).json({ code: 'FAIL', message: '处理失败' });
+  }
+});
+
+app.post('/api/payments/wechat/refund-notify', express.raw({ type: 'application/json', limit: '256kb' }), async (req, res) => {
+  try {
+    await handleRefundNotification({ headers: req.headers, rawBody: req.body });
+    res.status(200).json({ code: 'SUCCESS', message: '成功' });
+  } catch (error) {
+    console.error('wechat refund notification failed', error);
+    res.status(500).json({ code: 'FAIL', message: '处理失败' });
+  }
+});
+
 app.use(express.json({ limit: '512kb' }));
 app.use('/uploads', express.static(getUploadRoot()));
 
@@ -39,7 +71,9 @@ app.get('/health', (_req, res) => {
     deliveryContract: `DeliveryPackage/${DELIVERY_CONTRACT_VERSION}`,
     customerSessionBoundary: 'signed-phone-session-v1',
     postSubmitSupplement: 'customer-supplement-v1',
-    osOperationsBridge: osBridgeConfigured() ? 'configured' : 'not_configured'
+    osOperationsBridge: osBridgeConfigured() ? 'configured' : 'not_configured',
+    wechatPay: paymentConfiguration().configured ? 'configured' : 'not_configured',
+    diagnosticProduct: { code: 'GEOGI_DIAGNOSTIC_REPORT_199', amountFen: 19900, amountYuan: '199.00' }
   });
 });
 
@@ -105,6 +139,45 @@ app.post('/api/wechat/phone', async (req, res) => {
   res.status(result.ok ? 200 : 400).json(result);
 });
 
+app.post('/api/payments/create', requireCustomerSession, async (req, res, next) => {
+  try {
+    const requestedClientId = req.body && req.body.clientId;
+    const projectId = String(req.body && req.body.projectId || '').trim();
+    const clientId = await resolveOwnedClientId({
+      phoneNumber: req.customerSession.phoneNumber,
+      requestedClientId
+    });
+    if (!clientId) return res.status(404).json({ ok: false, userMessage: '没有找到该手机号名下的诊断记录' });
+    if (!req.customerSession.openid) {
+      return res.status(409).json({ ok: false, userMessage: '请重新授权手机号后再支付' });
+    }
+    const result = await createDiagnosticPayment({
+      clientId,
+      projectId,
+      openid: req.customerSession.openid
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/payments/status', requireCustomerSession, async (req, res, next) => {
+  try {
+    const requestedClientId = req.query && req.query.clientId;
+    const projectId = String(req.query && req.query.projectId || '').trim();
+    const clientId = await resolveOwnedClientId({
+      phoneNumber: req.customerSession.phoneNumber,
+      requestedClientId
+    });
+    if (!clientId) return res.status(404).json({ ok: false, userMessage: '没有找到该手机号名下的诊断记录' });
+    const result = await getDiagnosticPaymentStatus({ clientId, projectId });
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post('/api/uploads', requireCustomerSession, (req, res) => {
   uploadMiddleware(req, res, (error) => {
     if (error) {
@@ -129,6 +202,28 @@ app.get('/internal/os/intakes', requireOsBridge, async (_req, res, next) => {
   try {
     const items = await listOsIntakes();
     res.json({ ok: true, items });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/internal/os/payments', requireOsBridge, async (_req, res, next) => {
+  try {
+    const items = await listPaymentRecords();
+    res.json({ ok: true, items, stats: paymentStats(items) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/internal/os/payments/:projectId/refund', requireOsBridge, async (req, res, next) => {
+  try {
+    const result = await requestFullRefund({
+      projectId: req.params.projectId,
+      reason: req.body && req.body.reason,
+      requestedBy: req.body && req.body.requestedBy
+    });
+    res.json({ ok: true, result });
   } catch (error) {
     next(error);
   }
@@ -179,6 +274,18 @@ app.use((error, _req, res, _next) => {
   if (error instanceof OperationsBridgeError) {
     const status = error.code === 'OS_BRIDGE_PROJECT_NOT_FOUND' ? 404 : 400;
     return res.status(status).json({ ok: false, error: error.code });
+  }
+  if (error instanceof WechatPayError) {
+    const status = error.code === 'PAYMENT_PROJECT_NOT_OWNED' || error.code === 'PAYMENT_REFUND_ORDER_NOT_FOUND'
+      ? 404
+      : (error.code === 'WECHAT_PAY_NOT_CONFIGURED' ? 503 : 400);
+    return res.status(status).json({
+      ok: false,
+      error: error.code,
+      userMessage: error.code === 'WECHAT_PAY_NOT_CONFIGURED'
+        ? '微信支付暂未配置完成，请稍后再试'
+        : (error.message || '支付处理失败，请稍后重试')
+    });
   }
   if (error instanceof OsArtifactIngressError) {
     return res.status(400).json({ ok: false, error: error.code });
