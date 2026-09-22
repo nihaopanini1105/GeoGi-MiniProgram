@@ -1,5 +1,5 @@
 .success-page { background:#F7F9FC; }
-.success-hero,.identity-card,.consult-card,.process-card,.report-card { padding:34rpx 30rpx; }
+.success-hero,.identity-card,.consult-card,.process-card,.report-card,.payment-card { padding:34rpx 30rpx; }
 .success-hero { background:linear-gradient(150deg,#FFFFFF,#F4F8FF); }
 .success-mark { display:flex; align-items:center; justify-content:center; width:88rpx; height:88rpx; border-radius:50%; background:#EAF2FF; color:#176BFF; font-size:50rpx; font-weight:700; }
 .success-kicker,.section-kicker { display:block; margin-top:26rpx; color:#176BFF; font-size:20rpx; font-weight:700; letter-spacing:.1em; }
@@ -27,3 +27,11 @@
 .report-copy { display:block; margin-top:10rpx; color:#66789A; font-size:23rpx; line-height:1.6; }
 .full-button { width:100%; margin-top:24rpx; }
 .secondary-action { margin-top:14rpx; }
+
+.payment-head { display:flex; align-items:flex-start; justify-content:space-between; gap:24rpx; }
+.payment-price { color:#176BFF; font-size:48rpx; font-weight:750; line-height:1; white-space:nowrap; }
+.payment-copy { display:block; margin-top:18rpx; color:#66789A; font-size:24rpx; line-height:1.7; }
+.payment-message { display:block; margin-top:16rpx; color:#176BFF; font-size:23rpx; font-weight:600; line-height:1.55; }
+.paid-state { margin-top:24rpx; padding:22rpx; border-radius:20rpx; background:#F0F8F5; border:1rpx solid #D7EBE2; }
+.paid-title { display:block; color:#157A59; font-size:28rpx; font-weight:700; }
+.paid-copy { display:block; margin-top:8rpx; color:#58776A; font-size:23rpx; line-height:1.55; }
