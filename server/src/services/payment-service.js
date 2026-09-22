@@ -86,9 +86,9 @@ function paymentProjectionDecision(currentStage, paymentStatus) {
   const paymentGateStages = new Set(['', 'PAYMENT_PENDING', 'INTAKE', 'REFUND_PROCESSING', 'REFUNDED']);
   if (!paymentGateStages.has(stage)) {
     return {
+      ...state,
       mutateBusinessProjection: false,
-      projectStage: stage,
-      ...state
+      projectStage: stage
     };
   }
   return {
