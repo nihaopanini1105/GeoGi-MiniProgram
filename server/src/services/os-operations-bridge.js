@@ -7,6 +7,9 @@ const {
 const { importDeliveryPackage } = require('./delivery-package-store');
 const { findPaymentByProject, publicPaymentView } = require('./payment-store');
 
+const PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z';
+const LEGACY_PAYMENT_EXEMPTION_REASON = 'submitted_before_paid_diagnostic_launch';
+
 const PROJECT_STAGES = Object.freeze({
   INTAKE: { currentStatus: '已提交', auditStatus: '待 OS 处理', nextAction: '等待 GeoGi OS 接收项目并执行诊断' },
   ONBOARDING: { currentStatus: '资料建档中', auditStatus: 'OS 处理中', nextAction: 'GeoGi OS 正在建立客户与品牌基础档案' },
@@ -60,6 +63,17 @@ function text(value) {
 function splitLines(value) {
   return text(value).split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
 }
+function legacyPaymentExemption(submittedAt) {
+  const submittedMs = Date.parse(String(submittedAt || ''));
+  const cutoffMs = Date.parse(PAID_DIAGNOSTIC_LAUNCH_CUTOFF);
+  const eligible = Number.isFinite(submittedMs) && submittedMs < cutoffMs;
+  return {
+    eligible,
+    reason: eligible ? LEGACY_PAYMENT_EXEMPTION_REASON : '',
+    cutoffAt: PAID_DIAGNOSTIC_LAUNCH_CUTOFF
+  };
+}
+
 
 function projectView(record) {
   const fields = record.fields || {};
@@ -117,12 +131,18 @@ async function listOsIntakes() {
   const items = await Promise.all(leadRecords.map(async (record) => {
     const lead = leadView(record);
     const payment = await findPaymentByProject(lead.projectId);
+    const paymentView = publicPaymentView(payment);
+    const paid = Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status));
+    const legacyExemption = legacyPaymentExemption(lead.submittedAt);
+    const legacyEligible = legacyExemption.eligible && !paid;
     return {
       ...lead,
       project: projects.get(lead.projectId) || null,
-      payment: publicPaymentView(payment),
-      paymentRequired: true,
-      paymentEligibleForProcessing: Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status))
+      payment: paymentView,
+      paymentRequired: !legacyEligible,
+      paymentEligibleForProcessing: paid || legacyEligible,
+      paymentAdmissionMode: paid ? 'paid' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required'),
+      legacyPaymentExemption: legacyExemption
     };
   }));
   return items.sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
@@ -179,6 +199,9 @@ async function publishOsDeliveryPackage(packageDocument) {
 
 module.exports = {
   PROJECT_STAGES,
+  PAID_DIAGNOSTIC_LAUNCH_CUTOFF,
+  LEGACY_PAYMENT_EXEMPTION_REASON,
+  legacyPaymentExemption,
   OperationsBridgeError,
   configured,
   requireOsBridge,
