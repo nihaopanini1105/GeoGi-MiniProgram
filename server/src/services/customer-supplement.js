@@ -107,10 +107,13 @@ function buildLeadUpdates({ fields, supplement }) {
   }
 
   const currentStatus = text(fields.当前状态);
-  if (!/诊断处理中|报告审核中|报告已完成|已完成/.test(currentStatus)) {
+  if (/待支付/.test(currentStatus)) {
+    updates.下一步动作 = '完成 199 元支付后开始品牌 GEO 诊断';
+    updates.审核状态 = '等待支付';
+  } else if (!/诊断处理中|报告审核中|报告已完成|已完成|退款/.test(currentStatus)) {
     updates.当前状态 = '已补充资料';
-    updates.下一步动作 = '等待 GeoGi OS 核验补充资料';
-    updates.审核状态 = '待 OS 核验补充资料';
+    updates.下一步动作 = '等待 GeoGi 核验补充资料';
+    updates.审核状态 = '待核验补充资料';
   }
   return updates;
 }
@@ -118,9 +121,11 @@ function buildLeadUpdates({ fields, supplement }) {
 function buildProjectUpdates({ fields, supplement }) {
   const updates = {};
   const stage = text(fields.当前阶段);
-  if (!stage || /^INTAKE(?:_|$)/.test(stage)) {
+  if (stage === 'PAYMENT_PENDING') {
+    updates.审核状态 = '等待支付';
+  } else if (!stage || /^INTAKE(?:_|$)/.test(stage)) {
     updates.当前阶段 = 'INTAKE_SUPPLEMENTED';
-    updates.审核状态 = '待 OS 核验补充资料';
+    updates.审核状态 = '待核验补充资料';
   }
   const summary = [
     supplement.companyName ? `企业主体：${supplement.companyName}` : '',
