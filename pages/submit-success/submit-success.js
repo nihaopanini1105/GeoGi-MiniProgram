@@ -87,7 +87,9 @@ Page({
           : (closed
               ? (closedReason === 'expired'
                   ? '支付订单已超过 30 分钟有效期，可重新发起支付。'
-                  : '订单已取消，如仍需诊断可重新发起支付。')
+                  : (closedReason === 'customer_cancelled'
+                      ? '订单已取消，如仍需诊断可重新发起支付。'
+                      : '支付订单已关闭，如仍需诊断可重新发起支付。'))
               : this.data.paymentError)
       });
       if (paid) this.persistPaidStatus(payment);
