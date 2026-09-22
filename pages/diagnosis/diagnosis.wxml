@@ -2,22 +2,22 @@
   <block wx:if="{{!phoneAuthorized}}">
     <view class="auth-card card">
       <image class="auth-icon" src="{{assets.brand.appIcon}}" mode="aspectFit"></image>
-      <text class="page-kicker">BRAND DIAGNOSIS</text>
-      <text class="auth-title">开始前，先确认报告归属</text>
-      <text class="auth-copy">手机号仅用于识别你的诊断申请、同步处理状态和查看报告。</text>
+      <text class="page-kicker">¥199 BRAND GEO REPORT</text>
+      <text class="auth-title">¥199 品牌 GEO 诊断报告</text>
+      <text class="auth-copy">授权手机号后填写品牌资料。资料提交完成后支付 199 元，GeoGi 再开始诊断并交付正式报告。</text>
 
       <view class="auth-points">
         <view class="auth-point">
           <view class="point-dot"></view>
-          <text>创建唯一客户与诊断项目编号</text>
+          <text>提交资料后生成唯一诊断订单</text>
         </view>
         <view class="auth-point">
           <view class="point-dot"></view>
-          <text>报告完成后同步到“报告”页面</text>
+          <text>完成 199 元支付后开始诊断，报告完成后可在“报告”查看</text>
         </view>
       </view>
 
-      <button class="primary-button auth-button" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{phoneAuthLoading}}">授权手机号并开始</button>
+      <button class="primary-button auth-button" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{phoneAuthLoading}}">授权手机号并填写资料</button>
       <text wx:if="{{phoneAuthError}}" class="submit-error">{{phoneAuthError}}</text>
 
       <view class="privacy-link-wrap">
@@ -30,10 +30,10 @@
   <block wx:elif="{{!started}}">
     <view class="intro-hero card">
       <view class="intro-copy">
-        <text class="page-kicker">GEOGI DIAGNOSIS</text>
-        <text class="intro-title">品牌 AI 可见度初步诊断</text>
-        <text class="intro-lead">提交品牌与业务信息后，GeoGi 将结合行业、客户场景和中国主流 AI 平台完成初步检查。</text>
-        <button class="primary-button intro-button" bindtap="startForm">开始填写</button>
+        <text class="page-kicker">¥199 GEO DIAGNOSTIC REPORT</text>
+        <text class="intro-title">199 元获取品牌 GEO 诊断报告</text>
+        <text class="intro-lead">先提交品牌与业务资料，再支付 199 元。GeoGi 将结合品牌企业研究和中国主流 AI 平台检测，完成诊断分析并交付正式报告。</text>
+        <button class="primary-button intro-button" bindtap="startForm">填写资料并购买报告</button>
       </view>
       <image class="intro-orbit" src="{{assets.hero.background}}" mode="aspectFit"></image>
     </view>
@@ -55,7 +55,7 @@
 
     <view class="section outcome-card card">
       <text class="section-kicker">YOU WILL GET</text>
-      <text class="section-title">初步诊断会回答三个问题</text>
+      <text class="section-title">199 元诊断报告重点回答</text>
       <view class="outcome-list">
         <view class="outcome-row">
           <text class="outcome-num">01</text>
@@ -75,16 +75,16 @@
     <view class="section note-card card">
       <view>
         <text class="note-title">填写约 2–3 分钟</text>
-        <text class="note-copy">没有官网、竞品或附件也可以提交。官网是选填项，不影响申请。</text>
+        <text class="note-copy">没有官网、竞品或附件也可以提交。资料提交后进入 199 元微信支付，支付成功后开始诊断。</text>
       </view>
     </view>
   </block>
 
   <block wx:else>
     <view class="form-head">
-      <text class="page-kicker">BRAND DIAGNOSIS</text>
-      <text class="form-page-title">提交品牌诊断信息</text>
-      <text class="form-page-copy">请用日常经营语言填写，不需要使用 GEO 专业术语。</text>
+      <text class="page-kicker">¥199 BRAND GEO REPORT</text>
+      <text class="form-page-title">提交品牌诊断资料</text>
+      <text class="form-page-copy">请按实际业务填写。完成本页后进入 199 元微信支付。</text>
     </view>
 
     <view class="step-card card">
@@ -264,7 +264,7 @@
 
       <view class="privacy-row" bindtap="togglePrivacy">
         <view class="check {{form.privacyAccepted ? 'checked' : ''}}"></view>
-        <text>我同意 GeoGi 将上述信息用于品牌诊断、报告生成与服务沟通</text>
+        <text>我同意 GeoGi 将上述信息用于本次 199 元品牌 GEO 诊断报告及必要的服务沟通</text>
       </view>
       <text wx:if="{{fieldErrors.privacyAccepted}}" class="field-error">{{fieldErrors.privacyAccepted}}</text>
       <button class="privacy-link" bindtap="goPrivacy">查看隐私说明</button>
@@ -274,7 +274,7 @@
     <view class="bottom-actions">
       <button wx:if="{{step > 1}}" class="secondary-button half-button" bindtap="prevStep" disabled="{{submitting}}">上一步</button>
       <button wx:if="{{step < 3}}" class="primary-button grow-button" bindtap="nextStep">下一步</button>
-      <button wx:if="{{step == 3}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交诊断申请</button>
+      <button wx:if="{{step == 3}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交资料，下一步支付 ¥199</button>
     </view>
   </block>
 
