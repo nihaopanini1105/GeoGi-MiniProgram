@@ -18,7 +18,11 @@ const {
   publicPaymentView,
   paymentSummary
 } = require('../src/services/payment-store');
-const { paymentProjectionState, paymentProjectionDecision } = require('../src/services/payment-service');
+const {
+  paymentProjectionState,
+  paymentProjectionDecision,
+  listPaymentsForOs
+} = require('../src/services/payment-service');
 
 async function main() {
   assert.strictEqual(PRODUCT_PRICE_FEN, 19900);
@@ -39,6 +43,7 @@ async function main() {
   const validityMs = Date.parse(first.order.expiresAt) - Date.parse(first.order.createdAt);
   assert(validityMs >= (30 * 60 * 1000) - 1000 && validityMs <= (30 * 60 * 1000) + 1000);
   assert.strictEqual(publicPaymentView(first.order).canCancel, true);
+  assert.strictEqual(publicPaymentView(first.order).refundableAmount, 0);
 
   const duplicate = await createOrGetPaymentOrder({
     clientId: 'GG-202609-0001',
@@ -53,7 +58,8 @@ async function main() {
   const paid = await updatePaymentOrder(first.order.outTradeNo, {
     status: 'paid',
     transactionId: '4200000000000000001',
-    paidAt: '2026-09-22T10:00:00+08:00'
+    paidAt: '2026-09-22T10:00:00+08:00',
+    refundableAmount: PRODUCT_PRICE_FEN
   });
   assert.strictEqual(paid.status, 'paid');
   assert.strictEqual(paid.refundableAmount, 19900);
@@ -114,6 +120,24 @@ async function main() {
   assert.strictEqual(reopened.created, true);
   assert.notStrictEqual(reopened.order.outTradeNo, cancelCandidate.order.outTradeNo);
   assert.strictEqual(reopened.order.status, 'unpaid');
+
+  const expiryCandidate = await createOrGetPaymentOrder({
+    clientId: 'GG-202609-0003',
+    projectId: 'GG-P-202609-000003',
+    submissionId: 'mp-expiry-test',
+    brandName: '过期订单测试品牌',
+    phoneNumber: '13800138002'
+  });
+  await updatePaymentOrder(expiryCandidate.order.outTradeNo, {
+    expiresAt: new Date(Date.now() - 60 * 1000).toISOString()
+  });
+  const osPayments = await listPaymentsForOs();
+  const expiredView = osPayments.items.find((item) => item.outTradeNo === expiryCandidate.order.outTradeNo);
+  assert(expiredView);
+  assert.strictEqual(expiredView.status, 'closed');
+  assert.strictEqual(expiredView.closedReason, 'expired');
+  assert.strictEqual(expiredView.refundableAmount, 0);
+  assert(osPayments.summary.closedCount >= 1);
 
   const closedProjection = paymentProjectionState('closed');
   assert.strictEqual(closedProjection.currentStatus, '支付订单已关闭');

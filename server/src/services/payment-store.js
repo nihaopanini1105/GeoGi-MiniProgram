@@ -144,7 +144,7 @@ async function createOrGetPaymentOrder(input) {
     paidAt: '',
     closedAt: '',
     closedReason: '',
-    refundableAmount: PRODUCT_PRICE_FEN,
+    refundableAmount: 0,
     refundedAmount: 0,
     refunds: []
   });
@@ -204,7 +204,9 @@ function publicPaymentView(order) {
     closedReason: order.closedReason || '',
     orderValidityMinutes: PAYMENT_ORDER_TTL_MINUTES,
     canCancel: ['unpaid', 'paying', 'payment_failed'].includes(order.status) && !isPaymentOrderExpired(order),
-    refundableAmount: Number(order.refundableAmount || 0),
+    refundableAmount: ['paid', 'refund_processing', 'partially_refunded'].includes(order.status)
+      ? Number(order.refundableAmount || 0)
+      : 0,
     refundedAmount: Number(order.refundedAmount || 0),
     refunds: (order.refunds || []).map((refund) => ({
       refundId: refund.refundId,
