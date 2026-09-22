@@ -7,6 +7,7 @@ const {
 const { importDeliveryPackage } = require('./delivery-package-store');
 
 const PROJECT_STAGES = Object.freeze({
+  PAYMENT_PENDING: { currentStatus: '待支付', auditStatus: '等待支付', nextAction: '完成 199 元支付后开始品牌 GEO 诊断' },
   INTAKE: { currentStatus: '已提交', auditStatus: '待 OS 处理', nextAction: '等待 GeoGi OS 接收项目并执行诊断' },
   ONBOARDING: { currentStatus: '资料建档中', auditStatus: 'OS 处理中', nextAction: 'GeoGi OS 正在建立客户与品牌基础档案' },
   DETECTION: { currentStatus: '检测进行中', auditStatus: 'OS 处理中', nextAction: 'GeoGi OS 正在执行多平台检测与证据采集' },
@@ -17,7 +18,8 @@ const PROJECT_STAGES = Object.freeze({
   REVIEW: { currentStatus: '报告审核中', auditStatus: '待内部审核', nextAction: 'GeoGi 团队正在完成 QA 与交付审核' },
   RELEASED: { currentStatus: '报告已交付', auditStatus: '已交付', nextAction: '可在小程序查看正式诊断报告' },
   MONITORING: { currentStatus: '持续运营中', auditStatus: '持续服务', nextAction: 'GeoGi OS 按服务计划持续监测与复测' },
-  BLOCKED: { currentStatus: '需要补充资料', auditStatus: '等待客户补充', nextAction: '请在小程序补充缺失资料后继续处理' }
+  BLOCKED: { currentStatus: '需要补充资料', auditStatus: '等待客户补充', nextAction: '请在小程序补充缺失资料后继续处理' },
+  REFUNDED: { currentStatus: '已退款', auditStatus: '已退款', nextAction: '本次 199 元诊断服务已退款，项目停止' }
 });
 
 class OperationsBridgeError extends Error {
@@ -98,7 +100,34 @@ function leadView(record) {
     currentStatus: text(fields.当前状态),
     nextAction: text(fields.下一步动作),
     auditStatus: text(fields.审核状态),
-    source: text(fields.来源)
+    source: text(fields.来源),
+    paymentRequired: text(fields.支付要求) === 'true',
+    productCode: text(fields.诊断产品代码),
+    productName: text(fields.诊断产品),
+    amountFen: Number(text(fields.应付金额分) || text(fields.支付金额分) || 0),
+    amountYuan: text(fields.应付金额) || text(fields.支付金额),
+    paymentStatus: (() => {
+      const value = text(fields.支付状态);
+      if (value === '已支付') return 'PAID';
+      if (value === '退款处理中') return 'REFUND_PROCESSING';
+      if (value === '已退款') return 'REFUNDED';
+      if (value === '支付失败') return 'FAILED';
+      if (value === '待支付') return 'PENDING';
+      return value ? value.toUpperCase() : 'UNPAID';
+    })(),
+    outTradeNo: text(fields.支付商户订单号),
+    transactionId: text(fields.微信支付单号),
+    paymentCreatedAt: text(fields.支付创建时间),
+    paidAt: text(fields.支付完成时间),
+    paymentMethod: text(fields.支付方式),
+    refundStatus: text(fields.退款状态),
+    refundNo: text(fields.退款单号),
+    wechatRefundId: text(fields.微信退款单号),
+    refundReason: text(fields.退款原因),
+    refundAmountFen: Number(text(fields.退款金额分) || 0),
+    refundRequestedAt: text(fields.退款申请时间),
+    refundCompletedAt: text(fields.退款完成时间),
+    refundRequestedBy: text(fields.退款操作人)
   };
 }
 
