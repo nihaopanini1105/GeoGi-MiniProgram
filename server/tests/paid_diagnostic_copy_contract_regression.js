@@ -15,10 +15,14 @@ function run() {
   const report = read('pages/report-detail/report-detail.wxml');
   const privacy = read('pages/privacy/privacy.wxml');
   const contact = read('pages/contact/contact.wxml');
+  const sample = read('pages/sample-report/sample-report.wxml');
+  const sampleApi = read('server/src/services/sample-report.js');
+  const config = read('server/src/services/config.js');
+  const appConfig = read('app.json');
   const server = read('server/src/server.js');
   const intake = read('server/src/services/os-intake.js');
 
-  for (const [name, source] of Object.entries({ diagnosis, success, home, services, servicesJs, mine, report, privacy, contact })) {
+  for (const [name, source] of Object.entries({ diagnosis, success, home, services, servicesJs, mine, report, privacy, contact, sample, sampleApi, config })) {
     assert(source.includes('199'), name + ' must state the 199 yuan product truth');
   }
   assert(diagnosis.includes('提交资料，下一步支付 ¥199'));
@@ -29,6 +33,10 @@ function run() {
   assert(report.includes('付款成功后开始处理'));
   assert(privacy.includes('本次 199 元品牌 GEO 诊断'));
   assert(contact.includes('付款成功后 GeoGi 才会开始本次诊断'));
+  assert(sample.includes('提交资料，下一步支付 ¥199'));
+  assert(config.includes("priceYuan: 199"));
+  assert(config.includes("paymentRequiredBeforeProcessing: true"));
+  assert(appConfig.includes('pages/contact/contact'));
   assert(server.includes('/api/payments/wechat/notify'));
   assert(server.includes('/internal/os/payments/:outTradeNo/refund'));
   assert(intake.includes('createOrGetPaymentOrder'));
