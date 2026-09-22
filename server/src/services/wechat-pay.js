@@ -196,6 +196,16 @@ async function createJsapiPayment(order, loginCode) {
   if (order.status === 'paid' || order.status === 'partially_refunded') {
     return { alreadyPaid: true, order };
   }
+  if (order.status === 'paying' && order.prepayId) {
+    return {
+      alreadyPaid: false,
+      order,
+      payParams: buildClientPayParams(order.prepayId)
+    };
+  }
+  if (order.status === 'closed') {
+    throw new WechatPayError('PAYMENT_ORDER_CLOSED');
+  }
   const config = requireConfig();
   const openid = await resolveOpenId(loginCode);
   const body = {
@@ -245,6 +255,15 @@ async function syncPaymentOrder(order) {
     '/v3/pay/transactions/out-trade-no/' + encodeURIComponent(order.outTradeNo) +
       '?mchid=' + encodeURIComponent(config.mchid)
   );
+  if (String(result.mchid || '') !== config.mchid || String(result.appid || '') !== config.appid) {
+    throw new WechatPayError('WECHAT_PAY_QUERY_MERCHANT_SCOPE_MISMATCH');
+  }
+  if (
+    Number(result.amount && result.amount.total) !== PRODUCT_PRICE_FEN
+    || String(result.amount && result.amount.currency || CURRENCY) !== CURRENCY
+  ) {
+    throw new WechatPayError('WECHAT_PAY_QUERY_AMOUNT_MISMATCH');
+  }
   const nextStatus = mapTradeState(result.trade_state);
   return updatePaymentOrder(order.outTradeNo, {
     status: nextStatus,
@@ -367,11 +386,14 @@ async function handlePaymentNotification(headers, rawBody) {
   if (Number(resource.amount && resource.amount.total) !== PRODUCT_PRICE_FEN) {
     throw new WechatPayError('WECHAT_PAY_NOTIFY_AMOUNT_MISMATCH');
   }
+  const nextStatus = mapTradeState(resource.trade_state);
   return updatePaymentOrder(outTradeNo, {
-    status: mapTradeState(resource.trade_state),
+    status: nextStatus,
     providerTradeState: String(resource.trade_state || ''),
-    transactionId: String(resource.transaction_id || ''),
-    paidAt: String(resource.success_time || order.paidAt || new Date().toISOString())
+    transactionId: String(resource.transaction_id || order.transactionId || ''),
+    paidAt: nextStatus === 'paid'
+      ? String(resource.success_time || order.paidAt || new Date().toISOString())
+      : order.paidAt
   });
 }
 
@@ -392,10 +414,10 @@ async function handleRefundNotification(headers, rawBody) {
   if (!order) throw new WechatPayError('PAYMENT_ORDER_NOT_FOUND');
 
   const outRefundNo = String(resource.out_refund_no || '');
+  if (!(order.refunds || []).some((refund) => String(refund.outRefundNo || '') === outRefundNo)) {
+    throw new WechatPayError('WECHAT_REFUND_NOTIFY_ORDER_MISMATCH');
+  }
   const refundStatus = String(resource.refund_status || '').toUpperCase();
-  const successAmount = refundStatus === 'SUCCESS'
-    ? Number(resource.amount && resource.amount.refund || 0)
-    : 0;
   const refunds = (order.refunds || []).map((refund) => (
     refund.outRefundNo === outRefundNo
       ? {
