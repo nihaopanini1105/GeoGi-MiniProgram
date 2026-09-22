@@ -4,6 +4,9 @@ const path = require('path');
 
 const {
   PROJECT_STAGES,
+  PAID_DIAGNOSTIC_LAUNCH_CUTOFF,
+  LEGACY_PAYMENT_EXEMPTION_REASON,
+  legacyPaymentExemption,
   OperationsBridgeError,
   configured,
   requireOsBridge,
@@ -30,6 +33,16 @@ async function main() {
   assert.strictEqual(PROJECT_STAGES.RELEASED.currentStatus, '报告已交付');
   assert.strictEqual(PROJECT_STAGES.BLOCKED.auditStatus, '等待客户补充');
   assert(Object.isFrozen(PROJECT_STAGES));
+  assert.strictEqual(PAID_DIAGNOSTIC_LAUNCH_CUTOFF, '2026-09-22T07:33:31Z');
+  assert.strictEqual(LEGACY_PAYMENT_EXEMPTION_REASON, 'submitted_before_paid_diagnostic_launch');
+  const legacy = legacyPaymentExemption('2026-09-22T07:00:00Z');
+  assert.strictEqual(legacy.eligible, true);
+  assert.strictEqual(legacy.reason, LEGACY_PAYMENT_EXEMPTION_REASON);
+  assert.strictEqual(legacy.cutoffAt, PAID_DIAGNOSTIC_LAUNCH_CUTOFF);
+  const current = legacyPaymentExemption('2026-09-22T07:40:00Z');
+  assert.strictEqual(current.eligible, false);
+  assert.strictEqual(current.reason, '');
+  assert.strictEqual(legacyPaymentExemption('not-a-date').eligible, false);
 
   const bridgeSource = fs.readFileSync(
     path.join(__dirname, '../src/services/os-operations-bridge.js'),
