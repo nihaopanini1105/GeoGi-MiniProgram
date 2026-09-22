@@ -5,6 +5,10 @@ const {
   listBitableRecords
 } = require('./feishu');
 const { nextMonthlyId } = require('./counter');
+const {
+  createOrGetPaymentOrder,
+  publicPaymentView
+} = require('./payment-store');
 
 const REQUIRED_ENV = [
   'FEISHU_APP_ID',
@@ -27,14 +31,24 @@ async function submitIntake(input = {}) {
     const existing = await findExistingSubmission({ tenantToken, submissionId: form.submissionId });
     if (existing) {
       const fields = existing.fields || {};
+      const clientId = text(fields.客户编号);
+      const projectId = text(fields.项目编号);
+      const paymentResult = await createOrGetPaymentOrder({
+        clientId,
+        projectId,
+        submissionId: form.submissionId,
+        brandName: text(fields.品牌名称) || form.brandName,
+        phoneNumber: form.contactMethod
+      });
       return {
         ok: true,
         duplicated: true,
-        clientId: text(fields.客户编号),
-        projectId: text(fields.项目编号),
+        clientId,
+        projectId,
         status: text(fields.当前状态) || '待付款',
         submittedAt: text(fields.提交时间) || submittedAt,
         paymentRequired: true,
+        payment: publicPaymentView(paymentResult.order),
         productName: 'GeoGi 品牌 GEO 诊断报告',
         amountYuan: 199,
         currency: 'CNY',
@@ -60,6 +74,14 @@ async function submitIntake(input = {}) {
       });
     }
 
+    const paymentResult = await createOrGetPaymentOrder({
+      clientId,
+      projectId,
+      submissionId: form.submissionId,
+      brandName: form.brandName,
+      phoneNumber: form.contactMethod
+    });
+
     return {
       ok: true,
       clientId,
@@ -67,6 +89,7 @@ async function submitIntake(input = {}) {
       status: '待付款',
       submittedAt,
       paymentRequired: true,
+      payment: publicPaymentView(paymentResult.order),
       productName: 'GeoGi 品牌 GEO 诊断报告',
       amountYuan: 199,
       currency: 'CNY',
