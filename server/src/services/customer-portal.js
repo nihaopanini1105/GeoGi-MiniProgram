@@ -99,7 +99,9 @@ function normalizeOrder({ lead, project, deliveryPackage }) {
   const reportReady = Boolean(deliveryPackage);
   const leadStatus = text(leadFields.当前状态);
   const projectStage = text(projectFields.当前阶段);
-  const status = reportReady ? '报告已完成' : mapCustomerStatus({ projectStage, leadStatus });
+  const paymentStatus = text(leadFields.支付状态);
+  const paymentRequired = text(leadFields.支付要求) === 'true';
+  const status = reportReady ? '报告已完成' : mapCustomerStatus({ projectStage, leadStatus, paymentStatus, paymentRequired });
   const deliveryView = deliveryPackage ? projectDeliveryForCustomer(deliveryPackage, {
     clientId: text(leadFields.客户编号),
     projectId: text(leadFields.项目编号) || text(projectFields.项目编号)
@@ -119,14 +121,33 @@ function normalizeOrder({ lead, project, deliveryPackage }) {
     reportLink: deliveryView ? deliveryView.reportLink : '',
     version: reportReady ? String(deliveryPackage.report_reference.report_version) : '',
     deliveryPackageId: reportReady ? deliveryPackage.delivery_package_id : '',
+    paymentRequired,
+    paymentStatus: paymentStatus || (paymentRequired ? '待支付' : ''),
+    amountFen: Number(text(leadFields.应付金额分) || text(leadFields.支付金额分) || (paymentRequired ? 19900 : 0)),
+    amountYuan: text(leadFields.应付金额) || text(leadFields.支付金额) || (paymentRequired ? '199.00' : ''),
+    productCode: text(leadFields.诊断产品代码) || (paymentRequired ? 'GEOGI_DIAGNOSTIC_REPORT_199' : ''),
+    productName: text(leadFields.诊断产品) || (paymentRequired ? 'GeoGi 品牌 GEO 诊断报告' : ''),
+    outTradeNo: text(leadFields.支付商户订单号),
+    transactionId: text(leadFields.微信支付单号),
+    paidAt: text(leadFields.支付完成时间),
+    refundStatus: text(leadFields.退款状态),
+    refundNo: text(leadFields.退款单号),
+    refundReason: text(leadFields.退款原因),
+    refundAmountFen: Number(text(leadFields.退款金额分) || 0),
+    refundRequestedAt: text(leadFields.退款申请时间),
+    refundCompletedAt: text(leadFields.退款完成时间),
     nextAction: customerNextAction(status),
     updatedAt: reportReady ? deliveryPackage.released_at : (text(projectFields.开始时间) || text(leadFields.提交时间))
   };
 }
 
-function mapCustomerStatus({ projectStage, leadStatus }) {
+function mapCustomerStatus({ projectStage, leadStatus, paymentStatus = '', paymentRequired = false }) {
   const stage = String(projectStage || '').toUpperCase();
-  const combined = [projectStage, leadStatus].filter(Boolean).join(' ');
+  const combined = [projectStage, leadStatus, paymentStatus].filter(Boolean).join(' ');
+  if (stage === 'REFUNDED' || /已退款/.test(combined)) return '已退款';
+  if (/退款处理中/.test(combined)) return '退款处理中';
+  if (paymentRequired && /待支付|未支付/.test(combined)) return '待支付';
+  if (paymentRequired && /已支付|已付款/.test(combined) && ['PAYMENT_PENDING', 'INTAKE', ''].includes(stage)) return '已付款';
   if (stage === 'BLOCKED' || /待补充|补充材料|资料不全/.test(combined)) return '资料待补充';
   if (stage === 'REVIEW' || /审核|复核|质检/.test(combined)) return '报告审核中';
   if (stage === 'RETEST' || /效果复测|复测中/.test(combined)) return '效果复测中';
@@ -141,6 +162,10 @@ function mapCustomerStatus({ projectStage, leadStatus }) {
 }
 
 function customerNextAction(status) {
+  if (status === '待支付') return '完成 199 元微信支付后，GeoGi 将开始品牌 GEO 诊断。';
+  if (status === '已付款') return '已收到 199 元付款，GeoGi 正在接收资料并准备开始诊断。';
+  if (status === '退款处理中') return '退款申请已提交，请等待微信支付处理结果。';
+  if (status === '已退款') return '本次 199 元诊断服务已完成退款。';
   if (status === '资料待补充') return '请补充诊断所需资料，必要时联系 GeoGi 顾问。';
   if (status === '资料建档中') return 'GeoGi OS 正在建立品牌与客户正式画像。';
   if (status === '检测进行中') return 'GeoGi OS 正在执行多平台检测与证据采集。';
