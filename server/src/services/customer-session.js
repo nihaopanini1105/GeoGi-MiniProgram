@@ -28,13 +28,15 @@ function sign(body) {
     .digest('base64url');
 }
 
-function createCustomerToken(phoneNumber) {
+function createCustomerToken(phoneNumber, options = {}) {
   const cleanPhone = String(phoneNumber || '').trim();
+  const openid = String(options.openid || '').trim();
   if (!cleanPhone) throw new Error('CUSTOMER_PHONE_REQUIRED');
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
   const payload = {
-    v: 1,
+    v: openid ? 2 : 1,
     phoneNumber: cleanPhone,
+    ...(openid ? { openid } : {}),
     exp: expiresAt.getTime()
   };
   const body = base64url(JSON.stringify(payload));
@@ -60,7 +62,10 @@ function verifyCustomerToken(token) {
   } catch (error) {
     throw new Error('CUSTOMER_SESSION_INVALID');
   }
-  if (!payload || payload.v !== 1 || !payload.phoneNumber || !payload.exp) {
+  if (!payload || ![1, 2].includes(Number(payload.v)) || !payload.phoneNumber || !payload.exp) {
+    throw new Error('CUSTOMER_SESSION_INVALID');
+  }
+  if (Number(payload.v) === 2 && !payload.openid) {
     throw new Error('CUSTOMER_SESSION_INVALID');
   }
   if (Number(payload.exp) <= Date.now()) throw new Error('CUSTOMER_SESSION_EXPIRED');
