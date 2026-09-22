@@ -167,16 +167,16 @@ function customerNextAction(status) {
   if (status === '退款处理中') return '退款申请已提交，请等待微信支付处理结果。';
   if (status === '已退款') return '本次 199 元诊断服务已完成退款。';
   if (status === '资料待补充') return '请补充诊断所需资料，必要时联系 GeoGi 顾问。';
-  if (status === '资料建档中') return 'GeoGi OS 正在建立品牌与客户正式画像。';
-  if (status === '检测进行中') return 'GeoGi OS 正在执行多平台检测与证据采集。';
-  if (status === '诊断分析中' || status === '诊断处理中') return 'GeoGi OS 正在基于受治理证据形成诊断结论。';
-  if (status === '方案生成中') return 'GeoGi OS 正在把诊断结果转成可实施优化方案。';
-  if (status === '优化实施中') return '已批准的优化方案正在实施，并持续记录实施证据。';
-  if (status === '效果复测中') return 'GeoGi OS 正在按同口径执行效果复测与结果评估。';
-  if (status === '报告审核中') return '诊断与复测已进入报告审核，正式发布前仍会保持未交付状态。';
-  if (status === '持续运营中') return 'GeoGi OS 已进入持续监测与周期复测服务。';
-  if (status === '报告已完成') return '报告已由 GeoGi OS 正式发布，可查看或下载交付物。';
-  return 'GeoGi 已收到资料，等待 OS 进入正式诊断流程。';
+  if (status === '资料建档中') return 'GeoGi 正在整理品牌企业资料。';
+  if (status === '检测进行中') return 'GeoGi 正在执行中国主流 AI 平台检测。';
+  if (status === '诊断分析中' || status === '诊断处理中') return 'GeoGi 正在分析检测结果并形成诊断结论。';
+  if (status === '方案生成中') return 'GeoGi 正在整理诊断问题与优化优先级建议。';
+  if (status === '优化实施中') return '后续优化服务正在按已确认的方案推进。';
+  if (status === '效果复测中') return 'GeoGi 正在按相同检测条件进行效果复测。';
+  if (status === '报告审核中') return '诊断报告正在审核，审核完成后会在小程序发布。';
+  if (status === '持续运营中') return '当前项目已进入持续监测与周期复测服务。';
+  if (status === '报告已完成') return '诊断报告已正式发布，可以查看或下载。';
+  return 'GeoGi 已收到资料，付款完成后将开始诊断。';
 }
 
 function buildPendingReport({ order }) {
