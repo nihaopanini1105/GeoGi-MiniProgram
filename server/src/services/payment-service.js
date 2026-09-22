@@ -186,9 +186,12 @@ async function refundPaymentForOs({ outTradeNo, amountFen, reason, operatorId })
     error.code = 'PAYMENT_ORDER_NOT_FOUND';
     throw error;
   }
+  const requestedAmount = amountFen === undefined || amountFen === null || amountFen === ''
+    ? Number(order.refundableAmount || 0)
+    : Number(amountFen);
   const refunded = await requestRefund({
     order,
-    amount: Number(amountFen),
+    amount: requestedAmount,
     reason,
     operatorId
   });
