@@ -35,9 +35,12 @@ Page({
 
   onShow() {
     const submission = wx.getStorageSync('geogi_last_submission') || {};
+    const paymentAttemptError = wx.getStorageSync('geogi_payment_attempt_error') || '';
+    wx.removeStorageSync('geogi_payment_attempt_error');
     this.setData({
       submission,
-      submittedAtText: this.formatDate(submission.submittedAt)
+      submittedAtText: this.formatDate(submission.submittedAt),
+      paymentError: paymentAttemptError
     });
     if (submission.projectId) this.loadPayment();
   },
@@ -68,7 +71,7 @@ Page({
         payment,
         paid,
         product: result.product || this.data.product,
-        paymentError: ''
+        paymentError: paid ? '' : this.data.paymentError
       });
       if (paid) this.persistPaidStatus(payment);
     } catch (error) {
