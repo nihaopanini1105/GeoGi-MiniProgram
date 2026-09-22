@@ -9,20 +9,20 @@ Page({
       {
         key: 'diagnosis',
         icon: assets.icons.quickCheck,
-        title: 'GEO 诊断',
-        desc: '检测品牌在 AI 平台中的可见度、理解度与推荐表现。'
+        title: '¥199 品牌 GEO 诊断报告',
+        desc: '提交品牌资料并支付 199 元，获取主流 AI 平台检测与 GEO 诊断报告。'
       },
       {
         key: 'optimization',
         icon: assets.icons.optimization,
-        title: 'GEO 优化方案',
-        desc: '分析品牌问题根因，制定行业和场景化优化方向。'
+        title: '报告后的 GEO 优化服务',
+        desc: '根据诊断结果进一步制定优化方案；不包含在 199 元诊断报告内。'
       },
       {
         key: 'execution',
         icon: assets.icons.research,
-        title: 'GEO 优化执行',
-        desc: '通过内容、信源和品牌信息治理持续提升 AI 表现。'
+        title: '持续 GEO 服务',
+        desc: '内容、信源和品牌信息优化属于后续服务，不包含在 199 元诊断报告内。'
       }
     ],
     latestArticles: [
@@ -60,7 +60,7 @@ Page({
     });
 
     return {
-      title: 'GeoGi｜品牌 AI 可见度诊断与 GEO 优化',
+      title: 'GeoGi｜199元品牌 GEO 诊断报告',
       path: '/pages/index/index'
     };
   },
