@@ -223,24 +223,30 @@ function publicPaymentView(order) {
 
 function paymentSummary(orders) {
   const rows = Array.isArray(orders) ? orders : [];
+  const latestByProject = new Map();
+  for (const row of rows) {
+    if (!latestByProject.has(row.projectId)) latestByProject.set(row.projectId, row);
+  }
+  const latestRows = [...latestByProject.values()];
   const paidRows = rows.filter((row) => ['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(row.status));
   const gross = paidRows.reduce((sum, row) => sum + Number(row.amountTotal || 0), 0);
   const refunded = rows.reduce((sum, row) => sum + Number(row.refundedAmount || 0), 0);
-  const paidEverRows = rows.filter((row) => (
+  const paidProjectIds = new Set(rows.filter((row) => (
     Boolean(row.paidAt || row.transactionId)
     || ['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(row.status)
-  ));
-  const paymentConversionRate = rows.length ? paidEverRows.length / rows.length : 0;
+  )).map((row) => row.projectId));
+  const paymentConversionRate = latestRows.length ? paidProjectIds.size / latestRows.length : 0;
   return {
-    orderCount: rows.length,
-    unpaidCount: rows.filter((row) => ['unpaid', 'paying', 'payment_failed'].includes(row.status)).length,
-    paidCount: rows.filter((row) => row.status === 'paid').length,
-    paidEverCount: paidEverRows.length,
+    orderCount: latestRows.length,
+    paymentAttemptCount: rows.length,
+    unpaidCount: latestRows.filter((row) => ['unpaid', 'paying', 'payment_failed'].includes(row.status)).length,
+    paidCount: latestRows.filter((row) => row.status === 'paid').length,
+    paidEverCount: paidProjectIds.size,
     paymentConversionRate,
-    refundProcessingCount: rows.filter((row) => row.status === 'refund_processing').length,
-    partiallyRefundedCount: rows.filter((row) => row.status === 'partially_refunded').length,
-    refundedCount: rows.filter((row) => row.status === 'refunded').length,
-    closedCount: rows.filter((row) => row.status === 'closed').length,
+    refundProcessingCount: latestRows.filter((row) => row.status === 'refund_processing').length,
+    partiallyRefundedCount: latestRows.filter((row) => row.status === 'partially_refunded').length,
+    refundedCount: latestRows.filter((row) => row.status === 'refunded').length,
+    closedCount: latestRows.filter((row) => row.status === 'closed').length,
     grossPaidAmount: gross,
     grossPaidYuan: gross / 100,
     refundedAmount: refunded,
