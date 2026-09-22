@@ -299,6 +299,9 @@ async function syncPaymentOrder(order) {
     paidAt: nextStatus === 'paid'
       ? String(result.success_time || order.paidAt || new Date().toISOString())
       : order.paidAt,
+    refundableAmount: nextStatus === 'paid'
+      ? Math.max(Number(order.refundableAmount || 0), PRODUCT_PRICE_FEN - Number(order.refundedAmount || 0))
+      : order.refundableAmount,
     closedAt: nextStatus === 'closed' ? new Date().toISOString() : order.closedAt,
     closedReason: nextStatus === 'closed'
       ? (order.closedReason || (isPaymentOrderExpired(order) ? 'expired' : 'provider_closed'))
@@ -423,7 +426,10 @@ async function handlePaymentNotification(headers, rawBody) {
     transactionId: String(resource.transaction_id || order.transactionId || ''),
     paidAt: nextStatus === 'paid'
       ? String(resource.success_time || order.paidAt || new Date().toISOString())
-      : order.paidAt
+      : order.paidAt,
+    refundableAmount: nextStatus === 'paid'
+      ? Math.max(Number(order.refundableAmount || 0), PRODUCT_PRICE_FEN - Number(order.refundedAmount || 0))
+      : order.refundableAmount
   });
 }
 
