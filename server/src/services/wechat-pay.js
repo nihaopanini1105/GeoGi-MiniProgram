@@ -6,7 +6,8 @@ const {
   PRODUCT_PRICE_FEN,
   CURRENCY,
   updatePaymentOrder,
-  findPaymentByOutTradeNo
+  findPaymentByOutTradeNo,
+  isPaymentOrderExpired
 } = require('./payment-store');
 
 class WechatPayError extends Error {
@@ -192,6 +193,7 @@ function buildClientPayParams(prepayId) {
 
 async function createJsapiPayment(order, loginCode) {
   if (!order) throw new WechatPayError('PAYMENT_ORDER_REQUIRED');
+  if (isPaymentOrderExpired(order)) throw new WechatPayError('PAYMENT_ORDER_EXPIRED');
   if (order.status === 'refunded') throw new WechatPayError('PAYMENT_ORDER_ALREADY_REFUNDED');
   if (order.status === 'paid' || order.status === 'partially_refunded') {
     return { alreadyPaid: true, order };
@@ -214,6 +216,7 @@ async function createJsapiPayment(order, loginCode) {
     description: PRODUCT_NAME,
     out_trade_no: order.outTradeNo,
     notify_url: config.notifyUrl,
+    time_expire: order.expiresAt,
     amount: {
       total: PRODUCT_PRICE_FEN,
       currency: CURRENCY
@@ -237,6 +240,30 @@ async function createJsapiPayment(order, loginCode) {
     order: updated,
     payParams: buildClientPayParams(result.prepay_id)
   };
+}
+
+async function closePaymentOrder(order, reason = 'customer_cancelled') {
+  if (!order) throw new WechatPayError('PAYMENT_ORDER_REQUIRED');
+  if (['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(order.status)) {
+    throw new WechatPayError('PAYMENT_ORDER_NOT_CANCELLABLE');
+  }
+  if (order.status === 'closed') return order;
+
+  const config = requireConfig();
+  if (order.prepayId || order.status === 'paying') {
+    await wechatPayRequest(
+      'POST',
+      '/v3/pay/transactions/out-trade-no/' + encodeURIComponent(order.outTradeNo) + '/close',
+      { mchid: config.mchid }
+    );
+  }
+
+  return updatePaymentOrder(order.outTradeNo, {
+    status: 'closed',
+    providerTradeState: 'CLOSED',
+    closedAt: new Date().toISOString(),
+    closedReason: String(reason || 'customer_cancelled').slice(0, 60)
+  });
 }
 
 function mapTradeState(tradeState) {
@@ -448,6 +475,7 @@ module.exports = {
   WechatPayError,
   configStatus,
   createJsapiPayment,
+  closePaymentOrder,
   syncPaymentOrder,
   requestRefund,
   verifyWechatSignature,
