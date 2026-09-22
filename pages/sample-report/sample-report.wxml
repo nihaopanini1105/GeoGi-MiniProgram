@@ -18,5 +18,5 @@
     <text class="body">199 元购买的是本次品牌 GEO 诊断与正式报告。小程序不自行计算或拼接诊断结论，只展示 GeoGi OS 基于真实证据生成并审核发布的正式报告。</text>
   </view>
 
-  <button class="primary-button full-button" bindtap="goDiagnosis">提交资料，下一步支付 ¥199</button>
+  <button class="primary-button full-button" bindtap="goDiagnosis">开始填写资料</button>
 </view>

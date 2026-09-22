@@ -147,6 +147,8 @@ button::after {
   padding-right: 28rpx;
   text-align: center;
   line-height: 1.2;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .primary-button:active,

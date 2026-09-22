@@ -16,6 +16,7 @@ function run() {
   const mine = read('pages/mine/mine.wxml');
   const report = read('pages/report-detail/report-detail.wxml');
   const privacy = read('pages/privacy/privacy.wxml');
+  const appWxss = read('app.wxss');
   const contact = read('pages/contact/contact.wxml');
   const sample = read('pages/sample-report/sample-report.wxml');
   const sampleApi = read('server/src/services/sample-report.js');
@@ -30,7 +31,7 @@ function run() {
   for (const [name, source] of Object.entries({ diagnosis, success, home, services, servicesJs, mine, report, privacy, contact, sample, sampleApi, config })) {
     assert(source.includes('199'), name + ' must state the 199 yuan product truth');
   }
-  assert(diagnosis.includes('提交资料并支付 ¥199'));
+  assert(diagnosis.includes('提交并支付'));
   assert(diagnosis.includes('提交资料后将直接拉起微信支付'));
   assert(diagnosisJs.includes('wx.requestPayment'));
   assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment'"));
@@ -45,14 +46,35 @@ function run() {
   assert(wechatPay.includes('time_expire: order.expiresAt'));
   assert(wechatPay.includes("'/close'"));
   assert(server.includes("/api/customer/projects/:projectId/payment/cancel"));
-  assert(success.includes('支付 ¥199 获取诊断报告'));
+  assert(success.includes("closed ? '重新支付' : '立即支付'"));
   assert(home.includes('199 元获取一次品牌 GEO 诊断及正式诊断报告'));
+  assert(home.includes('获取诊断报告'));
+  assert(!home.includes('¥199 获取诊断报告'));
+  assert(read('pages/index/index.js').includes("title: '品牌研究与问题诊断'"));
+  assert(appWxss.includes('white-space: nowrap'));
+  assert(appWxss.includes('word-break: keep-all'));
+
+  for (const [name, source] of Object.entries({
+    home,
+    diagnosis,
+    success,
+    mine,
+    report,
+    contact,
+    sample,
+    services
+  })) {
+    const buttons = source.match(/<button\b[\s\S]*?<\/button>/g) || [];
+    for (const button of buttons) {
+      assert(!/199|¥199/.test(button), name + ' CTA button must not repeat product price: ' + button);
+    }
+  }
   assert(servicesJs.includes('不包含在 199 元诊断报告中'));
   assert(mine.includes('付款状态'));
   assert(report.includes('付款成功后开始处理'));
   assert(privacy.includes('本次 199 元品牌 GEO 诊断'));
   assert(contact.includes('付款成功后 GeoGi 才会开始本次诊断'));
-  assert(sample.includes('提交资料，下一步支付 ¥199'));
+  assert(sample.includes('开始填写资料'));
   assert(config.includes("priceYuan: 199"));
   assert(config.includes("paymentRequiredBeforeProcessing: true"));
   assert(appConfig.includes('pages/contact/contact'));
