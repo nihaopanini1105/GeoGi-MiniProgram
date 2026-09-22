@@ -1,4 +1,5 @@
 const { get, post, uploadFile, isApiConfigured } = require('../../utils/request');
+const { payDiagnosticReport, PRODUCT } = require('../../utils/payment');
 
 Page({
   data: {
@@ -12,7 +13,10 @@ Page({
     supplementNote: '',
     supplementFile: null,
     supplementSubmitting: false,
-    supplementMessage: ''
+    supplementMessage: '',
+    paymentLoading: false,
+    paymentMessage: '',
+    product: PRODUCT
   },
 
   onLoad(options) {
@@ -62,7 +66,10 @@ Page({
       ...order,
       submittedAt: this.formatDisplayTime(order.submittedAt),
       completedAt: this.formatDisplayTime(order.completedAt),
-      updatedAt: this.formatDisplayTime(order.updatedAt)
+      updatedAt: this.formatDisplayTime(order.updatedAt),
+      paidAt: this.formatDisplayTime(order.paidAt),
+      refundRequestedAt: this.formatDisplayTime(order.refundRequestedAt),
+      refundCompletedAt: this.formatDisplayTime(order.refundCompletedAt)
     };
   },
 
@@ -93,6 +100,35 @@ Page({
     }
     const pad = (number) => String(number).padStart(2, '0');
     return [date.getFullYear(), pad(date.getMonth() + 1), pad(date.getDate())].join('-') + ' ' + [pad(date.getHours()), pad(date.getMinutes())].join(':');
+  },
+
+  async payNow() {
+    if (this.data.paymentLoading) return;
+    const order = this.data.order || {};
+    if (!order.clientId || !order.projectId) {
+      this.setData({ paymentMessage: '缺少诊断订单信息，请返回“报告”重新打开。' });
+      return;
+    }
+    this.setData({ paymentLoading: true, paymentMessage: '' });
+    try {
+      const result = await payDiagnosticReport({
+        clientId: order.clientId,
+        projectId: order.projectId
+      });
+      if (result.paid) {
+        this.setData({ paymentMessage: '支付成功，GeoGi 将开始本次品牌 GEO 诊断。' });
+        wx.showToast({ title: '支付成功', icon: 'success' });
+      } else if (result.cancelled) {
+        this.setData({ paymentMessage: '支付已取消，你可以稍后继续支付。' });
+      } else {
+        this.setData({ paymentMessage: '支付结果正在确认，请稍后刷新。' });
+      }
+      await this.loadReport();
+    } catch (error) {
+      this.setData({ paymentMessage: error && error.message ? error.message : '支付未完成，请稍后重试。' });
+    } finally {
+      this.setData({ paymentLoading: false });
+    }
   },
 
   updateSupplementCompanyName(event) {
@@ -156,7 +192,7 @@ Page({
         files
       });
       if (!result || !result.ok) throw new Error(result && result.userMessage ? result.userMessage : '补充资料提交失败');
-      this.setData({ supplementFile: null, supplementNote: '', supplementMessage: '补充资料已提交，等待 GeoGi OS 核验。' });
+      this.setData({ supplementFile: null, supplementNote: '', supplementMessage: '补充资料已提交，GeoGi 会继续核验并更新诊断进度。' });
       wx.showToast({ title: '资料已提交', icon: 'success' });
       await this.loadReport();
     } catch (error) {
@@ -172,7 +208,7 @@ Page({
   openPdf() {
     const url = this.data.report && this.data.report.reportLink;
     if (!url) {
-      wx.showToast({ title: '正式报告尚未发布', icon: 'none' });
+      wx.showToast({ title: '诊断报告尚未发布', icon: 'none' });
       return;
     }
     wx.showLoading({ title: '打开报告中' });
