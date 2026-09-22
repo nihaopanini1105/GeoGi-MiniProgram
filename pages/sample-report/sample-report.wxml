@@ -1,8 +1,8 @@
 <view class="page">
   <view class="report-hero card">
     <text class="eyebrow">报告结构示例</text>
-    <text class="h1">GeoGi GEO 报告</text>
-    <text class="lead">这里只说明正式报告会包含哪些章节，不展示虚构分数或示例诊断结论。客户正式报告全部由 GeoGi OS 基于真实证据生成、审核并发布。</text>
+    <text class="h1">GeoGi ¥199 品牌 GEO 诊断报告</text>
+    <text class="lead">本页展示 199 元品牌 GEO 诊断报告的结构。正式报告基于客户资料、公开研究和实际 AI 平台检测结果生成并审核后发布。</text>
   </view>
 
   <view class="section outline-card card">
@@ -15,8 +15,8 @@
 
   <view class="section card">
     <text class="block-title">数据权威边界</text>
-    <text class="body">小程序不运行 GEO 诊断、不计算评分、不生成优化建议、不拼接报告正文，只展示 GeoGi OS 已发布的正式交付物。</text>
+    <text class="body">199 元支付购买的是本次品牌 GEO 诊断报告。小程序负责资料提交、支付、进度和报告查看；实际检测、诊断和报告生成由 GeoGi 服务系统完成。</text>
   </view>
 
-  <button class="primary-button full-button" bindtap="goDiagnosis">提交品牌资料</button>
+  <button class="primary-button full-button" bindtap="goDiagnosis">提交资料并购买 ¥199 报告</button>
 </view>
