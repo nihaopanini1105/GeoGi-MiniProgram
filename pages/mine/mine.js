@@ -109,6 +109,11 @@ Page({
     if (/已退款/.test(value)) return '已退款';
     if (/付款确认/.test(value)) return '付款确认中';
     if (/待付款/.test(value)) return '待付款';
+    if (/待付款/.test(value)) return '待付款';
+    if (/已付款/.test(value)) return '已付款';
+    if (/部分退款/.test(value)) return '部分退款';
+    if (/退款处理中/.test(value)) return '退款处理中';
+    if (/已退款/.test(value)) return '已退款';
     if (/待补充|补充材料|资料不全/.test(value)) return '资料待补充';
     if (/审核|复核|初稿|质检/.test(value)) return '报告审核中';
     if (/处理中|检测|测试|分析|生成|品牌资料/.test(value)) return '诊断处理中';
