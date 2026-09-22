@@ -9,7 +9,7 @@ Page({
       {
         key: 'diagnosis',
         icon: assets.icons.quickCheck,
-        title: '¥199 品牌 GEO 诊断报告',
+        title: '品牌研究与问题诊断',
         desc: '提交资料并付款后，完成品牌研究、AI 平台检测与正式 GEO 诊断报告。'
       },
       {
