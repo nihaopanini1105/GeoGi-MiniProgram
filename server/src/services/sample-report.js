@@ -1,8 +1,8 @@
 function getSampleReport() {
   return {
     ok: true,
-    title: 'GeoGi GEO 报告结构示例',
-    notice: '仅展示报告交付结构，不包含示例评分或诊断结论。正式客户报告全部由 GeoGi OS 生成并发布。',
+    title: 'GeoGi 199 元品牌 GEO 诊断报告结构示例',
+    notice: '本页仅展示 199 元品牌 GEO 诊断报告的结构，不包含虚构评分或示例诊断结论。客户付款后，正式报告由 GeoGi OS 基于真实证据生成、审核并发布。',
     sections: [
       '执行摘要',
       '检测范围与样本质量',
