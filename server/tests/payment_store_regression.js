@@ -16,6 +16,7 @@ const {
   publicPaymentView,
   paymentSummary
 } = require('../src/services/payment-store');
+const { paymentProjectionState } = require('../src/services/payment-service');
 
 async function main() {
   assert.strictEqual(PRODUCT_PRICE_FEN, 19900);
@@ -64,6 +65,8 @@ async function main() {
   });
   const view = publicPaymentView(partial);
   assert.strictEqual(view.amountYuan, 199);
+  assert.strictEqual(view.submissionId, 'mp-test');
+  assert.strictEqual(view.customerContactMasked, '138****8000');
   assert.strictEqual(view.refundedAmount, 9900);
   assert.strictEqual(view.refundableAmount, 10000);
   assert.strictEqual(view.refunds.length, 1);
@@ -75,9 +78,20 @@ async function main() {
   const summary = paymentSummary(rows);
   assert.strictEqual(summary.orderCount, 1);
   assert.strictEqual(summary.partiallyRefundedCount, 1);
+  assert.strictEqual(summary.paidEverCount, 1);
+  assert.strictEqual(summary.paymentConversionRate, 1);
   assert.strictEqual(summary.grossPaidYuan, 199);
   assert.strictEqual(summary.refundedYuan, 99);
   assert.strictEqual(summary.netPaidYuan, 100);
+
+  const refundingProjection = paymentProjectionState('refund_processing');
+  assert.strictEqual(refundingProjection.currentStatus, '退款处理中');
+  assert.strictEqual(refundingProjection.projectStage, 'REFUND_PROCESSING');
+  assert.strictEqual(refundingProjection.serviceEligible, false);
+  const partialProjection = paymentProjectionState('partially_refunded');
+  assert.strictEqual(partialProjection.currentStatus, '部分退款');
+  assert.strictEqual(partialProjection.projectStage, 'INTAKE');
+  assert.strictEqual(partialProjection.serviceEligible, true);
 
   let rejected = false;
   try {
