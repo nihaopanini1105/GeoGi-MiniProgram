@@ -284,9 +284,23 @@ async function cancelCustomerPayment({ clientId, projectId }) {
 
 async function listPaymentsForOs() {
   const orders = await listPaymentOrders();
+  const refreshed = [];
+  for (const order of orders) {
+    if (!isPaymentOrderExpired(order)) {
+      refreshed.push(order);
+      continue;
+    }
+    try {
+      refreshed.push(await refreshExpiredPaymentOrder(order));
+    } catch (error) {
+      console.error('payment expiry refresh failed', order.outTradeNo, error);
+      refreshed.push(order);
+    }
+  }
+  refreshed.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
   return {
-    summary: paymentSummary(orders),
-    items: orders.map(publicPaymentView)
+    summary: paymentSummary(refreshed),
+    items: refreshed.map(publicPaymentView)
   };
 }
 
