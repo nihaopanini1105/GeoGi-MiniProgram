@@ -1,15 +1,27 @@
 const https = require('https');
 const { createCustomerToken } = require('./customer-session');
 
-async function getPhoneNumber({ code }) {
+async function getPhoneNumber({ code, loginCode }) {
   const cleanCode = String(code || '').trim();
+  const cleanLoginCode = String(loginCode || '').trim();
   if (!cleanCode) return fail('缺少手机号授权 code');
+  if (!cleanLoginCode) return fail('缺少微信登录 code，请重新授权手机号');
 
   const appId = process.env.WECHAT_APP_ID || process.env.WECHAT_MINI_PROGRAM_APPID;
   const appSecret = process.env.WECHAT_APP_SECRET || process.env.WECHAT_MINI_PROGRAM_SECRET;
   if (!appId || !appSecret) return fail('服务器未配置小程序 AppSecret，暂时无法完成手机号授权');
 
   try {
+    const loginResult = await requestJson({
+      method: 'GET',
+      hostname: 'api.weixin.qq.com',
+      path: `/sns/jscode2session?appid=${encodeURIComponent(appId)}&secret=${encodeURIComponent(appSecret)}&js_code=${encodeURIComponent(cleanLoginCode)}&grant_type=authorization_code`
+    });
+    const openid = String(loginResult.openid || '').trim();
+    if (!openid) {
+      return fail(`微信登录失败：${loginResult.errmsg || loginResult.errcode || '未返回 OpenID'}`);
+    }
+
     const tokenResult = await requestJson({
       method: 'GET',
       hostname: 'api.weixin.qq.com',
@@ -32,12 +44,13 @@ async function getPhoneNumber({ code }) {
     const info = phoneResult.phone_info || {};
     const phoneNumber = info.phoneNumber || '';
     if (!phoneNumber) return fail('微信未返回可用手机号');
-    const session = createCustomerToken(phoneNumber);
+    const session = createCustomerToken(phoneNumber, { openid });
     return {
       ok: true,
       phoneNumber,
       purePhoneNumber: info.purePhoneNumber || phoneNumber,
       countryCode: info.countryCode || '',
+      paymentSessionReady: true,
       ...session
     };
   } catch (error) {
