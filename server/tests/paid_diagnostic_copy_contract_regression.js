@@ -14,6 +14,7 @@ function run() {
   const mine = read('pages/mine/mine.wxml');
   const report = read('pages/report-detail/report-detail.wxml');
   const server = read('server/src/server.js');
+  const intake = read('server/src/services/os-intake.js');
 
   for (const [name, source] of Object.entries({ diagnosis, success, home, services, servicesJs, mine, report })) {
     assert(source.includes('199'), name + ' must state the 199 yuan product truth');
@@ -26,6 +27,9 @@ function run() {
   assert(report.includes('付款成功后开始处理'));
   assert(server.includes('/api/payments/wechat/notify'));
   assert(server.includes('/internal/os/payments/:outTradeNo/refund'));
+  assert(intake.includes('createOrGetPaymentOrder'));
+  assert(intake.includes("status: '待付款'"));
+  assert(intake.includes('payment: publicPaymentView(paymentResult.order)'));
 
   for (const forbidden of [
     '免费诊断', '免费报告', '初步诊断会', '提交后立即开始诊断'
