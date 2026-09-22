@@ -13,6 +13,7 @@ const {
   createCustomerPayment,
   getCustomerPayment,
   syncCustomerPayment,
+  cancelCustomerPayment,
   listPaymentsForOs,
   refundPaymentForOs,
   projectPaymentProjection
@@ -173,6 +174,23 @@ app.post('/api/customer/projects/:projectId/payment/sync', requireCustomerSessio
   }
 });
 
+app.post('/api/customer/projects/:projectId/payment/cancel', requireCustomerSession, async (req, res, next) => {
+  try {
+    const clientId = await resolveOwnedClientId({
+      phoneNumber: req.customerSession.phoneNumber,
+      requestedClientId: req.body && req.body.clientId
+    });
+    if (!clientId) return res.status(404).json({ ok: false, userMessage: '没有找到该手机号名下的诊断记录' });
+    const result = await cancelCustomerPayment({
+      clientId,
+      projectId: req.params.projectId
+    });
+    return res.status(result.ok ? 200 : 400).json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.post('/api/payments/wechat/notify', async (req, res, next) => {
   try {
     const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody.toString('utf8') : JSON.stringify(req.body || {});
@@ -301,10 +319,17 @@ app.use((error, _req, res, _next) => {
   if (error instanceof WechatPayError || (error && typeof error.code === 'string' && (error.code.startsWith('WECHAT_') || error.code.startsWith('PAYMENT_') || error.code.startsWith('REFUND_')))) {
     const code = error.code || 'WECHAT_PAY_ERROR';
     const unavailable = code === 'WECHAT_PAY_NOT_CONFIGURED';
+    const paymentMessages = {
+      PAYMENT_ORDER_EXPIRED: '支付订单已超过 30 分钟有效期，请重新发起支付',
+      PAYMENT_ORDER_CLOSED: '支付订单已关闭，请重新发起支付',
+      PAYMENT_ORDER_NOT_CANCELLABLE: '订单已付款或正在退款，不能取消'
+    };
     return res.status(unavailable ? 503 : 400).json({
       ok: false,
       error: code,
-      userMessage: unavailable ? '微信支付暂未完成配置，请稍后再试' : '支付处理失败，请稍后重试'
+      userMessage: unavailable
+        ? '微信支付暂未完成配置，请稍后再试'
+        : (paymentMessages[code] || '支付处理失败，请稍后重试')
     });
   }
   if (error instanceof OsArtifactIngressError) {
