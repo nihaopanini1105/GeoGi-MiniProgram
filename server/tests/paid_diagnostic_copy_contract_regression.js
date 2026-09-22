@@ -7,6 +7,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 function run() {
   const diagnosis = read('pages/diagnosis/diagnosis.wxml');
+  const diagnosisJs = read('pages/diagnosis/diagnosis.js');
   const success = read('pages/submit-success/submit-success.wxml');
   const home = read('pages/index/index.wxml');
   const services = read('pages/services/services.wxml');
@@ -25,7 +26,11 @@ function run() {
   for (const [name, source] of Object.entries({ diagnosis, success, home, services, servicesJs, mine, report, privacy, contact, sample, sampleApi, config })) {
     assert(source.includes('199'), name + ' must state the 199 yuan product truth');
   }
-  assert(diagnosis.includes('提交资料，下一步支付 ¥199'));
+  assert(diagnosis.includes('提交资料并支付 ¥199'));
+  assert(diagnosis.includes('提交资料后将直接拉起微信支付'));
+  assert(diagnosisJs.includes('wx.requestPayment'));
+  assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment'"));
+  assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment/sync'"));
   assert(success.includes('支付 ¥199 获取诊断报告'));
   assert(home.includes('199 元获取一次品牌 GEO 诊断及正式诊断报告'));
   assert(servicesJs.includes('不包含在 199 元诊断报告中'));
