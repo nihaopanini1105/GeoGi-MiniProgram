@@ -11,11 +11,11 @@
       <text class="hero-kicker">GEO INTELLIGENCE FOR BRANDS</text>
       <text class="hero-title">让品牌在 AI 时代
 被看见、被理解、被选择</text>
-      <text class="hero-lead">面向品牌的 GEO 诊断、优化方案与执行服务。</text>
+      <text class="hero-lead">提交品牌资料并支付 199 元，获取品牌 GEO 诊断报告。</text>
 
       <view class="hero-actions">
         <button class="primary-button hero-primary" bindtap="goDiagnosis">
-          <text>开始品牌初步诊断</text>
+          <text>获取 ¥199 诊断报告</text>
         </button>
       </view>
     </view>
@@ -43,8 +43,8 @@
 
   <view class="section services-section">
     <text class="section-eyebrow">WHAT GEOGI DOES</text>
-    <text class="section-title">从发现问题，到完成优化</text>
-    <text class="section-copy">先确认品牌在 AI 中的真实表现，再确定优化优先级并推进执行。</text>
+    <text class="section-title">先用 199 元诊断报告看清品牌 AI 表现</text>
+    <text class="section-copy">报告覆盖品牌资料研究、主流 AI 平台检测、问题诊断与优化优先级建议。后续优化服务另行提供。</text>
 
     <view class="service-list">
       <view
@@ -71,11 +71,11 @@
   <view class="section contact-panel card">
     <text class="contact-eyebrow">NEED HELP?</text>
     <text class="contact-title">不确定从哪里开始？</text>
-    <text class="contact-copy">先提交品牌初步诊断，诊断进度与结果会持续同步到小程序「报告」页面。</text>
+    <text class="contact-copy">填写品牌资料后支付 199 元即可下单，诊断进度与正式报告会同步到小程序「报告」页面。</text>
 
     <view class="contact-actions">
       <button class="primary-button contact-button" bindtap="goDiagnosis">
-        开始品牌初步诊断
+        购买 ¥199 诊断报告
       </button>
     </view>
   </view>
