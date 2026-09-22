@@ -98,9 +98,11 @@ Page({
   openService(event) {
     const key = event.currentTarget.dataset.key;
     this.safeTrack('service_card_click', { key });
-    if (key === 'diagnosis') {
-      this.goDiagnosis();
+    if (key === 'report') {
+      wx.navigateTo({ url: '/pages/sample-report/sample-report' });
+      return;
     }
+    this.goDiagnosis();
   },
 
   openArticle(event) {
