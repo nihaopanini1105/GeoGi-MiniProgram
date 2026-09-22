@@ -23,6 +23,7 @@ function run() {
   const appConfig = read('app.json');
   const server = read('server/src/server.js');
   const intake = read('server/src/services/os-intake.js');
+  const operationsBridge = read('server/src/services/os-operations-bridge.js');
   const paymentStore = read('server/src/services/payment-store.js');
   const wechatPay = read('server/src/services/wechat-pay.js');
 
@@ -60,6 +61,9 @@ function run() {
   assert(intake.includes('createOrGetPaymentOrder'));
   assert(intake.includes("status: '待付款'"));
   assert(intake.includes('payment: publicPaymentView(paymentResult.order)'));
+  assert(operationsBridge.includes("PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z'"));
+  assert(operationsBridge.includes("paymentAdmissionMode: paid ? 'paid' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required')"));
+  assert(operationsBridge.includes('paymentEligibleForProcessing: paid || legacyEligible'));
 
   for (const forbidden of [
     '免费诊断', '免费报告', '初步诊断会', '提交后立即开始诊断'
