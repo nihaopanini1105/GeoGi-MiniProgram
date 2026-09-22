@@ -149,7 +149,8 @@ Page({
 
     this.setData({ phoneAuthLoading: true, phoneAuthError: '' });
     try {
-      const result = await post('/api/wechat/phone', { code: detail.code });
+      const loginCode = await this.getWxLoginCode();
+      const result = await post('/api/wechat/phone', { code: detail.code, loginCode });
       if (!result || !result.ok || !result.phoneNumber || !result.customerToken) {
         throw new Error(result && result.userMessage ? result.userMessage : '手机号授权失败');
       }
@@ -179,6 +180,18 @@ Page({
     } finally {
       this.setData({ phoneAuthLoading: false });
     }
+  },
+
+  getWxLoginCode() {
+    return new Promise((resolve, reject) => {
+      wx.login({
+        success: (result) => {
+          if (result && result.code) resolve(result.code);
+          else reject(new Error('微信登录失败，请重试'));
+        },
+        fail: () => reject(new Error('微信登录失败，请重试'))
+      });
+    });
   },
 
   startForm(options = {}) {
@@ -368,7 +381,12 @@ Page({
       const submission = {
         clientId: result.clientId,
         projectId: result.projectId,
-        status: result.status || '已提交',
+        status: result.status || '待支付',
+        paymentStatus: result.paymentStatus || '待支付',
+        amountFen: Number(result.amountFen || 19900),
+        amountYuan: result.amountYuan || '199.00',
+        productCode: result.productCode || 'GEOGI_DIAGNOSTIC_REPORT_199',
+        productName: result.productName || 'GeoGi 品牌 GEO 诊断报告',
         submittedAt: result.submittedAt || submittedAt
       };
       wx.setStorageSync('geogi_last_submission', submission);
@@ -379,7 +397,7 @@ Page({
         segment: form.segment
       });
       wx.removeStorageSync(draftKey);
-      track('form_submit_success', { industry: form.industry });
+      track('form_submit_success', { industry: form.industry, product: 'GEOGI_DIAGNOSTIC_REPORT_199', amount_fen: 19900 });
       this.resetForm();
       this.goSubmitSuccess();
     } catch (error) {
