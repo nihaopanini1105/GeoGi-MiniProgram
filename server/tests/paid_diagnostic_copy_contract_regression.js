@@ -27,6 +27,7 @@ function run() {
   const operationsBridge = read('server/src/services/os-operations-bridge.js');
   const paymentStore = read('server/src/services/payment-store.js');
   const wechatPay = read('server/src/services/wechat-pay.js');
+  const deployScript = read('server/scripts/deploy-production-from-mac.sh');
 
   for (const [name, source] of Object.entries({ diagnosis, success, home, services, servicesJs, mine, report, privacy, contact, sample, sampleApi, config })) {
     assert(source.includes('199'), name + ' must state the 199 yuan product truth');
@@ -53,6 +54,8 @@ function run() {
   assert(read('pages/index/index.js').includes("title: '品牌研究与问题诊断'"));
   assert(appWxss.includes('white-space: nowrap'));
   assert(appWxss.includes('word-break: keep-all'));
+  assert(deployScript.includes('pages app.json app.wxss'));
+  assert(deployScript.includes('"$REMOTE_TMP/app.wxss"'));
 
   for (const [name, source] of Object.entries({
     home,
