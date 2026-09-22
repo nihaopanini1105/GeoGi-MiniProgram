@@ -4,7 +4,7 @@ const {
   isApiConfigured
 } = require('../../utils/request');
 
-const PUBLIC_STATUSES = ['已提交', '资料待补充', '诊断处理中', '报告审核中', '报告已完成'];
+const PUBLIC_STATUSES = ['待支付', '已付款', '资料待补充', '诊断处理中', '报告审核中', '报告已完成', '退款处理中', '已退款'];
 
 Page({
   data: {
@@ -104,10 +104,14 @@ Page({
   mapLegacyStatus(status, reportReady) {
     if (reportReady) return '报告已完成';
     const value = String(status || '');
+    if (/已退款/.test(value)) return '已退款';
+    if (/退款处理中/.test(value)) return '退款处理中';
+    if (/待支付|未支付/.test(value)) return '待支付';
+    if (/已支付|已付款/.test(value)) return '已付款';
     if (/待补充|补充材料|资料不全/.test(value)) return '资料待补充';
     if (/审核|复核|初稿|质检/.test(value)) return '报告审核中';
     if (/处理中|检测|测试|分析|生成|品牌资料/.test(value)) return '诊断处理中';
-    return '已提交';
+    return '待支付';
   },
 
   goDiagnosis() {
