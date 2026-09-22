@@ -21,7 +21,7 @@
       <view class="report-meta">
         <text>项目编号：{{order.projectId}}</text>
         <text>订单金额：¥{{order.amountYuan || 199}}</text>
-        <text>付款状态：{{order.paymentStatus === 'paid' || order.paymentStatus === 'partially_refunded' ? '已付款' : order.paymentStatus === 'refunded' ? '已退款' : order.paymentStatus === 'refund_processing' ? '退款处理中' : '待付款'}}</text>
+        <text>付款状态：{{order.paymentStatus === 'paid' ? '已付款' : order.paymentStatus === 'partially_refunded' ? '部分退款' : order.paymentStatus === 'refunded' ? '已退款' : order.paymentStatus === 'refund_processing' ? '退款处理中' : order.paymentStatus === 'paying' ? '付款确认中' : '待付款'}}</text>
         <text>报告状态：{{report.status}}</text>
         <text wx:if="{{report.releasedAt}}">发布时间：{{report.releasedAt}}</text>
         <text wx:if="{{report.reportVersion}}">报告版本：v{{report.reportVersion}}</text>
