@@ -1,3 +1,5 @@
+const { paymentConfiguration } = require('./wechat-pay');
+
 function getConfig() {
   return {
     ok: true,
@@ -8,10 +10,18 @@ function getConfig() {
       { key: 'deepseek', name: 'DeepSeek', enabled: true },
       { key: 'kimi', name: 'Kimi', enabled: true }
     ],
+    diagnosticProduct: {
+      code: 'GEOGI_DIAGNOSTIC_REPORT_199',
+      name: 'GeoGi 品牌 GEO 诊断报告',
+      priceFen: 19900,
+      priceYuan: '199.00',
+      currency: 'CNY',
+      paymentMethod: '微信支付',
+      paymentReady: paymentConfiguration().configured
+    },
     services: [
-      { key: 'quick-check', name: 'AI 可见度快检' },
-      { key: 'diagnosis', name: 'GEO 全景诊断' },
-      { key: 'subscription', name: '订阅优化' }
+      { key: 'diagnostic-report-199', name: '品牌 GEO 诊断报告', priceYuan: '199.00' },
+      { key: 'optimization', name: 'GEO 优化服务', includedInDiagnosticReport: false }
     ],
     contact: {
       wechatId: process.env.CONTACT_WECHAT_ID || '',
