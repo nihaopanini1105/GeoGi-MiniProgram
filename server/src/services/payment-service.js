@@ -62,20 +62,21 @@ function paymentProjectionState(paymentStatus) {
   const partiallyRefunded = status === 'partially_refunded';
   const refundProcessing = status === 'refund_processing';
   const refunded = status === 'refunded';
+  const closed = status === 'closed';
   const serviceEligible = paid || partiallyRefunded;
   return {
     serviceEligible,
     currentStatus: paid
       ? '已付款'
-      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : '待付款'))),
+      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : (closed ? '支付订单已关闭' : '待付款')))),
     nextAction: serviceEligible
       ? 'GeoGi 将开始品牌 GEO 诊断并生成诊断报告'
       : (refundProcessing
           ? '等待微信支付退款结果确认'
-          : (refunded ? '订单已退款，如需诊断请重新提交' : '支付 199 元后开始品牌 GEO 诊断')),
+          : (refunded ? '订单已退款，如需诊断请重新提交' : (closed ? '支付订单已关闭，可重新发起支付' : '支付 199 元后开始品牌 GEO 诊断'))),
     auditStatus: paid
       ? '待 OS 处理'
-      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : '待付款'))),
+      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : (closed ? '支付订单已关闭' : '待付款')))),
     projectStage: serviceEligible
       ? 'INTAKE'
       : (refundProcessing ? 'REFUND_PROCESSING' : (refunded ? 'REFUNDED' : 'PAYMENT_PENDING'))
