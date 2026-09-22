@@ -60,6 +60,7 @@ printf '%s\n' "============================================================"
   node --check src/server.js
   node --check src/services/os-operations-bridge.js
   node --check src/services/os-artifact-ingress.js
+  node --check src/services/wechat-pay.js
   npm test
 )
 
@@ -156,6 +157,7 @@ for required in \
   "$STAGE_SERVER/src/server.js" \
   "$STAGE_SERVER/src/services/os-operations-bridge.js" \
   "$STAGE_SERVER/src/services/os-artifact-ingress.js" \
+  "$STAGE_SERVER/src/services/wechat-pay.js" \
   "$REMOTE_TMP/pages/report-detail/report-detail.wxml" \
   "$REMOTE_TMP/pages/report-detail/report-detail.js"; do
   [ -f "$required" ] || {
@@ -167,6 +169,7 @@ done
 node --check "$STAGE_SERVER/src/server.js"
 node --check "$STAGE_SERVER/src/services/os-operations-bridge.js"
 node --check "$STAGE_SERVER/src/services/os-artifact-ingress.js"
+node --check "$STAGE_SERVER/src/services/wechat-pay.js"
 (
   cd "$STAGE_SERVER"
   npm test
@@ -252,5 +255,11 @@ printf '%s\n' "deployed_main_sha=$EXPECTED_SHA"
 printf '%s\n' "backup_dir=$BACKUP_DIR"
 printf '%s\n' "artifact_ingress_local=protected"
 printf '%s\n' "artifact_ingress_public=protected"
+node -e '
+const p=JSON.parse(process.argv[1]);
+if (!p || p.ok!==true || !p.diagnosticProduct || p.diagnosticProduct.amountFen!==19900) process.exit(2);
+console.log("production_diagnostic_product_199=READY");
+console.log("production_wechat_pay="+String(p.wechatPay||"not_configured"));
+' "$PUBLIC_HEALTH"
 printf '%s\n' "production_miniprogram_display_only_v3=SUCCESS"
 REMOTE
