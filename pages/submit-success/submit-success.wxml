@@ -35,7 +35,7 @@
     </view>
     <button wx:if="{{!paid}}" class="primary-button full-button pay-button" loading="{{paymentLoading}}" disabled="{{paymentLoading || cancelLoading}}" bindtap="payNow">{{closed ? '重新发起支付 ¥199' : '支付 ¥199 获取诊断报告'}}</button>
     <button wx:if="{{!paid && canCancel}}" class="cancel-order-button full-button" loading="{{cancelLoading}}" disabled="{{paymentLoading || cancelLoading}}" bindtap="cancelOrder">取消订单</button>
-    <view wx:else="{{paid}}" class="paid-banner">已付款 · GeoGi 正在处理本次诊断</view>
+    <view wx:if="{{paid}}" class="paid-banner">已付款 · GeoGi 正在处理本次诊断</view>
     <text wx:if="{{paymentError}}" class="payment-error">{{paymentError}}</text>
   </view>
 
