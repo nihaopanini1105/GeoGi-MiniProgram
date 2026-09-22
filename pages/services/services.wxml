@@ -2,7 +2,7 @@
   <view class="section-head">
     <text class="eyebrow">SERVICE SYSTEM</text>
     <text class="h1">GeoGi 服务体系</text>
-    <text class="lead">围绕 AI 可见度，从一次诊断到持续增长，帮助品牌建立能被 AI 识别、理解和推荐的内容与信源系统。</text>
+    <text class="lead">核心产品为 199 元品牌 GEO 诊断报告。后续 GEO 优化与持续服务不包含在报告价格内，可根据诊断结果另行确认。</text>
   </view>
 
   <view class="process card">
@@ -29,7 +29,7 @@
   </view>
 
   <view class="section action-panel">
-    <text class="action-title">不确定适合哪项服务？</text>
-    <text class="action-copy">先从 AI 可见度诊断开始，确认品牌当前最关键的问题。</text>
+    <text class="action-title">先从 199 元诊断报告开始</text>
+    <text class="action-copy">提交品牌资料并完成 199 元微信支付后，GeoGi 会开始检测与诊断，并交付正式报告。</text>
   </view>
 </view>
