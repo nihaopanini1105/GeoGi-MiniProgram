@@ -2,51 +2,41 @@ Page({
   data: {
     services: [
       {
-        label: '诊断',
-        title: 'AI 可见度诊断',
-        desc: '快速识别品牌在 AI 问答、智能搜索和生成式推荐中的呈现状态。',
-        points: ['品牌是否被正确识别', '核心业务是否被准确理解', '竞品是否占据答案位置']
+        label: '¥199',
+        title: '品牌 GEO 诊断报告',
+        desc: '提交品牌资料并支付 199 元后，GeoGi 开始本次诊断并交付正式报告。',
+        points: ['品牌企业画像与公开资料研究', '主流 AI 平台检测与竞品对比', '问题诊断与优先级结论', '正式 GEO 诊断报告'],
+        included: true
       },
       {
-        label: '报告',
-        title: 'GEO 全景诊断报告',
-        desc: '输出品牌实体、内容资产、权威信源、用户问题路径的系统分析。',
-        points: ['现状评分', '问题优先级', '90 天优化路线']
+        label: '诊断后可选',
+        title: 'GEO 优化方案与实施',
+        desc: '如需要根据诊断结果继续进行内容、信源和品牌信息优化，可单独沟通服务范围。',
+        points: ['不包含在 199 元诊断报告中', '根据诊断结果确定实际工作范围'],
+        included: false
       },
       {
-        label: '订阅',
-        title: 'GEO 订阅优化服务',
-        desc: '持续建设品牌内容资产，让 AI 更容易理解、引用和推荐品牌。',
-        points: ['主题内容规划', '证据链补强', '月度效果复盘']
-      },
-      {
-        label: '代运营',
-        title: '小微企业 GEO 代运营',
-        desc: '为资源有限的团队提供轻量、稳定、可执行的 AI 可见度增长支持。',
-        points: ['基础资料梳理', '内容发布协同', '咨询线索承接']
-      },
-      {
-        label: '定制',
-        title: '企业定制 GEO 增长服务',
-        desc: '围绕行业、品牌架构和获客目标，定制长期 GEO 增长系统。',
-        points: ['行业语料策略', '多品牌矩阵', '内部团队培训']
+        label: '诊断后可选',
+        title: '持续监测与复测',
+        desc: '如需要持续跟踪 AI 平台变化和优化效果，可在诊断完成后选择后续服务。',
+        points: ['不包含在 199 元诊断报告中', '按后续服务方案单独确认'],
+        included: false
       }
     ],
-    process: ['诊断现状', '定位缺口', '建设内容', '补强信源', '持续复盘']
+    process: ['提交品牌资料', '支付 ¥199', '品牌研究与 AI 检测', 'GEO 诊断', '报告审核与交付']
   },
 
   onShareAppMessage() {
     return {
-      title: 'GeoGi GEO 服务｜品牌诊断、优化方案与执行',
+      title: 'GeoGi｜199 元品牌 GEO 诊断报告',
       path: '/pages/services/services?from=share'
     };
   },
 
   onShareTimeline() {
     return {
-      title: 'GeoGi GEO 服务｜品牌诊断、优化方案与执行',
+      title: 'GeoGi｜199 元品牌 GEO 诊断报告',
       query: 'from=timeline'
     };
   }
-
 });

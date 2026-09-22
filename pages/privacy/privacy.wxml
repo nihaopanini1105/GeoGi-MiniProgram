@@ -2,12 +2,12 @@
   <view class="privacy-card card">
     <text class="eyebrow">PRIVACY</text>
     <text class="h1">GeoGi 隐私说明</text>
-    <text class="lead">我们只会把你提交的信息用于品牌 AI 可见度诊断、服务沟通、报告制作和后续复测。</text>
+    <text class="lead">我们只会把你提交的信息用于本次 199 元品牌 GEO 诊断、正式报告制作、必要的服务沟通，以及你另行确认的后续服务。</text>
   </view>
 
   <view class="section privacy-card card">
     <text class="privacy-title">我们会如何使用资料</text>
-    <text class="body">品牌名称、行业、业务、官方渠道、竞品和联系方式会用于品牌档案核验、测试问题设计、五平台人工测试和报告解读。</text>
+    <text class="body">品牌名称、行业、业务、官方渠道、竞品和联系方式会用于本次品牌资料研究、检测问题设计、主流 AI 平台检测、GEO 诊断和正式报告制作。</text>
   </view>
 
   <view class="section privacy-card card">
@@ -17,6 +17,6 @@
 
   <view class="section privacy-card card">
     <text class="privacy-title">数据安全边界</text>
-    <text class="body">正式版本中，飞书令牌、Webhook 和访问密钥不会写入小程序前端；所有写入与通知会通过你的服务器后端完成。</text>
+    <text class="body">支付、客户资料和报告访问均通过服务端处理；微信支付密钥、服务端访问密钥等敏感信息不会写入小程序前端。</text>
   </view>
 </view>

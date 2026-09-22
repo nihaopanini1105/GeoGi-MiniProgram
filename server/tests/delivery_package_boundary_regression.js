@@ -213,8 +213,8 @@ async function run() {
   for (const token of ['keyFindings', 'recommendations', 'platforms', 'dimensions', 'overallScore', 'scoreStatus']) {
     assert(!reportPageLogic.includes(token), `client-side report parsing reintroduced: ${token}`);
   }
-  assert(reportPageSource.includes('小程序仅负责展示该交付物'));
-  assert(reportPageSource.includes('打开 GeoGi OS 正式报告'));
+  assert(reportPageSource.includes('正式报告完成后会在这里开放查看'));
+  assert(reportPageSource.includes('打开正式诊断报告'));
 
   await fs.promises.rm(root, { recursive: true, force: true });
   console.log('GEOGI MINIPROGRAM DISPLAY-ONLY BOUNDARY: OK');

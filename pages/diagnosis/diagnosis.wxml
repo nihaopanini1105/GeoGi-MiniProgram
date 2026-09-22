@@ -3,8 +3,8 @@
     <view class="auth-card card">
       <image class="auth-icon" src="{{assets.brand.appIcon}}" mode="aspectFit"></image>
       <text class="page-kicker">BRAND DIAGNOSIS</text>
-      <text class="auth-title">开始前，先确认报告归属</text>
-      <text class="auth-copy">手机号仅用于识别你的诊断申请、同步处理状态和查看报告。</text>
+      <text class="auth-title">开始前，先确认诊断报告归属</text>
+      <text class="auth-copy">手机号用于识别你的诊断订单、支付后同步处理进度并查看报告。</text>
 
       <view class="auth-points">
         <view class="auth-point">
@@ -13,7 +13,7 @@
         </view>
         <view class="auth-point">
           <view class="point-dot"></view>
-          <text>报告完成后同步到“报告”页面</text>
+          <text>支付后开始诊断，报告完成后同步到“报告”页面</text>
         </view>
       </view>
 
@@ -31,8 +31,8 @@
     <view class="intro-hero card">
       <view class="intro-copy">
         <text class="page-kicker">GEOGI DIAGNOSIS</text>
-        <text class="intro-title">品牌 AI 可见度初步诊断</text>
-        <text class="intro-lead">提交品牌与业务信息后，GeoGi 将结合行业、客户场景和中国主流 AI 平台完成初步检查。</text>
+        <text class="intro-title">¥199 品牌 GEO 诊断报告</text>
+        <text class="intro-lead">提交品牌资料后进入付款页面。支付 199 元后，GeoGi 将完成品牌研究、主流 AI 平台检测与 GEO 诊断，并交付正式诊断报告。</text>
         <button class="primary-button intro-button" bindtap="startForm">开始填写</button>
       </view>
       <image class="intro-orbit" src="{{assets.hero.background}}" mode="aspectFit"></image>
@@ -55,7 +55,7 @@
 
     <view class="section outcome-card card">
       <text class="section-kicker">YOU WILL GET</text>
-      <text class="section-title">初步诊断会回答三个问题</text>
+      <text class="section-title">199 元诊断报告重点回答</text>
       <view class="outcome-list">
         <view class="outcome-row">
           <text class="outcome-num">01</text>
@@ -75,7 +75,7 @@
     <view class="section note-card card">
       <view>
         <text class="note-title">填写约 2–3 分钟</text>
-        <text class="note-copy">没有官网、竞品或附件也可以提交。官网是选填项，不影响申请。</text>
+        <text class="note-copy">没有官网、竞品或附件也可以提交。资料提交后再支付 199 元，付款成功后开始诊断。</text>
       </view>
     </view>
   </block>
@@ -83,8 +83,8 @@
   <block wx:else>
     <view class="form-head">
       <text class="page-kicker">BRAND DIAGNOSIS</text>
-      <text class="form-page-title">提交品牌诊断信息</text>
-      <text class="form-page-copy">请用日常经营语言填写，不需要使用 GEO 专业术语。</text>
+      <text class="form-page-title">提交品牌 GEO 诊断资料</text>
+      <text class="form-page-copy">请用日常经营语言填写。提交资料后将进入 199 元付款页面。</text>
     </view>
 
     <view class="step-card card">
@@ -228,7 +228,7 @@
     <view class="form-card card" wx:if="{{step == 3}}">
       <view class="form-section-head">
         <text class="form-title">联系方式</text>
-        <text class="form-desc">用于诊断资料补充、进度通知和报告归属确认。</text>
+        <text class="form-desc">用于付款订单归属、诊断资料补充、进度通知和报告查看。</text>
       </view>
 
       <view class="field">
@@ -264,7 +264,7 @@
 
       <view class="privacy-row" bindtap="togglePrivacy">
         <view class="check {{form.privacyAccepted ? 'checked' : ''}}"></view>
-        <text>我同意 GeoGi 将上述信息用于品牌诊断、报告生成与服务沟通</text>
+        <text>我同意 GeoGi 将上述信息用于本次 199 元品牌 GEO 诊断、报告生成与服务沟通</text>
       </view>
       <text wx:if="{{fieldErrors.privacyAccepted}}" class="field-error">{{fieldErrors.privacyAccepted}}</text>
       <button class="privacy-link" bindtap="goPrivacy">查看隐私说明</button>
@@ -274,7 +274,7 @@
     <view class="bottom-actions">
       <button wx:if="{{step > 1}}" class="secondary-button half-button" bindtap="prevStep" disabled="{{submitting}}">上一步</button>
       <button wx:if="{{step < 3}}" class="primary-button grow-button" bindtap="nextStep">下一步</button>
-      <button wx:if="{{step == 3}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交诊断申请</button>
+      <button wx:if="{{step == 3}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交资料，下一步支付 ¥199</button>
     </view>
   </block>
 

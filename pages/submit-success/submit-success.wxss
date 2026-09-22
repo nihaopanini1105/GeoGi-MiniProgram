@@ -1,5 +1,5 @@
 .success-page { background:#F7F9FC; }
-.success-hero,.identity-card,.consult-card,.process-card,.report-card { padding:34rpx 30rpx; }
+.success-hero,.identity-card,.consult-card,.process-card,.report-card,.payment-card { padding:34rpx 30rpx; }
 .success-hero { background:linear-gradient(150deg,#FFFFFF,#F4F8FF); }
 .success-mark { display:flex; align-items:center; justify-content:center; width:88rpx; height:88rpx; border-radius:50%; background:#EAF2FF; color:#176BFF; font-size:50rpx; font-weight:700; }
 .success-kicker,.section-kicker { display:block; margin-top:26rpx; color:#176BFF; font-size:20rpx; font-weight:700; letter-spacing:.1em; }
@@ -27,3 +27,16 @@
 .report-copy { display:block; margin-top:10rpx; color:#66789A; font-size:23rpx; line-height:1.6; }
 .full-button { width:100%; margin-top:24rpx; }
 .secondary-action { margin-top:14rpx; }
+
+.payment-card { border:1rpx solid #D9E6FA; background:linear-gradient(180deg,#FFFFFF,#F8FBFF); }
+.payment-head { display:flex; justify-content:space-between; gap:24rpx; align-items:flex-end; }
+.payment-price { color:#176BFF; font-size:52rpx; font-weight:750; line-height:1; }
+.payment-copy { display:block; margin-top:18rpx; color:#5F718F; font-size:24rpx; line-height:1.65; }
+.payment-points { display:grid; gap:12rpx; margin-top:20rpx; padding:20rpx; border-radius:20rpx; background:#F6F9FE; }
+.payment-points text { position:relative; padding-left:24rpx; color:#314766; font-size:23rpx; line-height:1.5; }
+.payment-points text::before { content:'✓'; position:absolute; left:0; top:0; color:#176BFF; font-weight:700; }
+.pay-button { margin-top:26rpx; }
+.paid-banner { margin-top:24rpx; padding:20rpx 22rpx; border-radius:18rpx; background:#EEF8F2; color:#2E7B4A; font-size:25rpx; font-weight:650; text-align:center; }
+.payment-error { display:block; margin-top:14rpx; color:#C23B3B; font-size:22rpx; line-height:1.5; }
+.status-dot.pending { background:#F2A93B; box-shadow:0 0 0 8rpx rgba(242,169,59,.10); }
+.status-dot.paid { background:#3AA76D; box-shadow:0 0 0 8rpx rgba(58,167,109,.10); }

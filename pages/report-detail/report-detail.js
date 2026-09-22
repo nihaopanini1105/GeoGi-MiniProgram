@@ -12,7 +12,9 @@ Page({
     supplementNote: '',
     supplementFile: null,
     supplementSubmitting: false,
-    supplementMessage: ''
+    supplementMessage: '',
+    paymentLoading: false,
+    paymentError: ''
   },
 
   onLoad(options) {
@@ -30,7 +32,7 @@ Page({
       return;
     }
     if (!isApiConfigured()) {
-      this.setData({ loading: false, error: '服务地址还未配置，暂时无法查看报告。' });
+      this.setData({ loading: false, error: '服务暂时不可用，请稍后再试。' });
       return;
     }
 
@@ -60,6 +62,8 @@ Page({
     if (!order) return null;
     return {
       ...order,
+      amountYuan: Number(order.amountYuan || 199),
+      paymentStatus: order.paymentStatus || (order.payment && order.payment.status) || 'unpaid',
       submittedAt: this.formatDisplayTime(order.submittedAt),
       completedAt: this.formatDisplayTime(order.completedAt),
       updatedAt: this.formatDisplayTime(order.updatedAt)
@@ -163,6 +167,64 @@ Page({
       this.setData({ supplementMessage: error && error.message ? error.message : '补充资料提交失败' });
     } finally {
       this.setData({ supplementSubmitting: false });
+    }
+  },
+
+  paymentPaid() {
+    const status = String((this.data.order && this.data.order.paymentStatus) || '');
+    return status === 'paid' || status === 'partially_refunded';
+  },
+
+  async payNow() {
+    if (this.data.paymentLoading || this.paymentPaid()) return;
+    if (!isApiConfigured()) {
+      this.setData({ paymentError: '支付服务暂未连接，请稍后再试。' });
+      return;
+    }
+    this.setData({ paymentLoading: true, paymentError: '' });
+    try {
+      const loginCode = await new Promise((resolve, reject) => {
+        wx.login({
+          success: (res) => res && res.code ? resolve(res.code) : reject(new Error('微信登录失败')),
+          fail: reject
+        });
+      });
+      const result = await post(
+        '/api/customer/projects/' + encodeURIComponent(this.data.projectId) + '/payment',
+        { clientId: this.data.clientId, loginCode }
+      );
+      if (!result || !result.ok) throw new Error(result && result.userMessage ? result.userMessage : '支付订单创建失败');
+      if (!result.alreadyPaid) {
+        const params = result.payParams;
+        if (!params) throw new Error('微信支付参数缺失');
+        await new Promise((resolve, reject) => {
+          wx.requestPayment({
+            timeStamp: params.timeStamp,
+            nonceStr: params.nonceStr,
+            package: params.package,
+            signType: params.signType || 'RSA',
+            paySign: params.paySign,
+            success: resolve,
+            fail: reject
+          });
+        });
+        await post(
+          '/api/customer/projects/' + encodeURIComponent(this.data.projectId) + '/payment/sync',
+          { clientId: this.data.clientId }
+        );
+      }
+      await this.loadReport();
+      if (!this.paymentPaid()) throw new Error('付款结果正在确认，请稍后刷新');
+      wx.showToast({ title: '付款成功', icon: 'success' });
+    } catch (error) {
+      const message = error && error.errMsg
+        ? error.errMsg
+        : (error && error.message ? error.message : '付款未完成');
+      this.setData({
+        paymentError: /cancel/i.test(message) ? '你已取消付款，可随时重新支付。' : message
+      });
+    } finally {
+      this.setData({ paymentLoading: false });
     }
   },
 

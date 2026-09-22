@@ -2,7 +2,7 @@
   <view wx:if="{{loading}}" class="state-card card">
     <image class="state-icon" src="/assets/icons/png/96/report.png" mode="aspectFit"></image>
     <text class="state-title">正在读取报告</text>
-    <text class="body">正在同步 GeoGi OS 已发布的正式交付物。</text>
+    <text class="body">正在同步你的诊断订单与报告状态。</text>
   </view>
 
   <view wx:elif="{{error}}" class="state-card card">
@@ -15,30 +15,47 @@
 
   <block wx:else>
     <view class="report-hero card">
-      <text class="eyebrow">正式报告</text>
+      <text class="eyebrow">¥199 GEO DIAGNOSIS</text>
       <text class="h1">{{order.brandName || '品牌'}} GEO 诊断报告</text>
-      <text class="lead">本页面只展示 GeoGi OS 已发布的报告文件与交付状态，不在小程序内重新生成、拆分或计算报告内容。</text>
+      <text class="lead">本次诊断报告价格为 199 元。付款成功后开始处理，报告完成并审核后可在这里查看。</text>
       <view class="report-meta">
         <text>项目编号：{{order.projectId}}</text>
+        <text>订单金额：¥{{order.amountYuan || 199}}</text>
+        <text>付款状态：{{order.paymentStatus === 'paid' ? '已付款' : order.paymentStatus === 'partially_refunded' ? '部分退款' : order.paymentStatus === 'refunded' ? '已退款' : order.paymentStatus === 'refund_processing' ? '退款处理中' : order.paymentStatus === 'paying' ? '付款确认中' : '待付款'}}</text>
         <text>报告状态：{{report.status}}</text>
         <text wx:if="{{report.releasedAt}}">发布时间：{{report.releasedAt}}</text>
         <text wx:if="{{report.reportVersion}}">报告版本：v{{report.reportVersion}}</text>
       </view>
-      <button wx:if="{{report.reportLink}}" class="primary-button full-button pdf-button" bindtap="openPdf">打开 GeoGi OS 正式报告</button>
+      <button wx:if="{{report.reportLink}}" class="primary-button full-button pdf-button" bindtap="openPdf">打开正式诊断报告</button>
     </view>
 
     <view wx:if="{{report.reportReady}}" class="section card scope-card">
-      <text class="block-title">交付信息</text>
-      <text class="body">报告已由 GeoGi OS 完成生成、审核、版本固化和正式发布。小程序仅负责展示该交付物。</text>
-      <text wx:if="{{report.deliveryPackageId}}" class="body">交付编号：{{report.deliveryPackageId}}</text>
-      <text wx:if="{{report.deliveryContractVersion}}" class="body">交付协议：{{report.deliveryContractVersion}}</text>
-      <text wx:if="{{report.reportContentHash}}" class="body">报告内容校验：{{report.reportContentHash}}</text>
-      <text wx:if="{{report.artifactSha256}}" class="body">文件校验：{{report.artifactSha256}}</text>
+      <text class="block-title">报告已完成</text>
+      <text class="body">本次 199 元品牌 GEO 诊断报告已完成审核并正式发布，可直接打开查看。</text>
+      <text wx:if="{{report.releasedAt}}" class="body">发布时间：{{report.releasedAt}}</text>
+      <text wx:if="{{report.reportVersion}}" class="body">报告版本：v{{report.reportVersion}}</text>
+    </view>
+
+    <view wx:if="{{order.paymentStatus !== 'paid' && order.paymentStatus !== 'partially_refunded' && order.paymentStatus !== 'refunded' && order.paymentStatus !== 'refund_processing'}}" class="section card payment-card">
+      <text class="block-title">完成付款后开始诊断</text>
+      <text class="body">品牌资料已提交。本次品牌 GEO 诊断报告价格为 199 元，付款成功后 GeoGi 才会开始正式诊断。</text>
+      <button class="primary-button full-button" loading="{{paymentLoading}}" disabled="{{paymentLoading}}" bindtap="payNow">支付 ¥199 获取诊断报告</button>
+      <text wx:if="{{paymentError}}" class="supplement-message">{{paymentError}}</text>
+    </view>
+
+    <view wx:if="{{order.paymentStatus === 'refund_processing'}}" class="section card state-card compact">
+      <text class="state-title">退款处理中</text>
+      <text class="body">退款请求已提交，退款结果以微信支付最终处理状态为准。</text>
+    </view>
+
+    <view wx:if="{{order.paymentStatus === 'refunded'}}" class="section card state-card compact">
+      <text class="state-title">订单已退款</text>
+      <text class="body">本次 199 元诊断订单已退款，报告访问和后续诊断流程已停止。</text>
     </view>
 
     <view wx:if="{{!order.reportReady}}" class="section card supplement-card">
       <text class="block-title">补充项目资料</text>
-      <text class="body supplement-help">如果 GeoGi OS 需要核验企业主体、品牌归属或其他资料，可在这里补充。资料只提交给 OS，不在小程序内进行诊断或生成报告。</text>
+      <text class="body supplement-help">如果诊断过程中需要核验企业主体、品牌归属或其他资料，可在这里补充。</text>
       <text class="field-label">企业 / 公司全称</text>
       <input class="supplement-input" value="{{supplementCompanyName}}" placeholder="例如：北京某某科技有限公司" bindinput="updateSupplementCompanyName" />
       <text class="field-label">证明材料</text>
@@ -51,12 +68,12 @@
       <text class="field-label">补充说明</text>
       <textarea class="supplement-textarea" value="{{supplementNote}}" placeholder="可填写品牌与企业主体关系、授权关系或其他需要说明的信息" bindinput="updateSupplementNote"></textarea>
       <text wx:if="{{supplementMessage}}" class="supplement-message">{{supplementMessage}}</text>
-      <button class="primary-button full-button" loading="{{supplementSubmitting}}" disabled="{{supplementSubmitting}}" bindtap="submitSupplement">提交给 GeoGi OS</button>
+      <button class="primary-button full-button" loading="{{supplementSubmitting}}" disabled="{{supplementSubmitting}}" bindtap="submitSupplement">提交补充资料</button>
     </view>
 
     <view wx:if="{{!report.reportReady}}" class="section card state-card compact">
       <text class="state-title">正式报告尚未发布</text>
-      <text class="body">GeoGi OS 完成资料治理、AI 平台检测、诊断、优化流程及内部审核后，正式交付物会在这里直接开放查看。</text>
+      <text class="body">付款成功后，GeoGi 会完成品牌资料研究、AI 平台检测、GEO 诊断和报告审核。正式报告完成后会在这里开放查看。</text>
     </view>
   </block>
 </view>

@@ -9,20 +9,20 @@ Page({
       {
         key: 'diagnosis',
         icon: assets.icons.quickCheck,
-        title: 'GEO 诊断',
-        desc: '检测品牌在 AI 平台中的可见度、理解度与推荐表现。'
+        title: '¥199 品牌 GEO 诊断报告',
+        desc: '提交资料并付款后，完成品牌研究、AI 平台检测与正式 GEO 诊断报告。'
       },
       {
-        key: 'optimization',
+        key: 'platforms',
         icon: assets.icons.optimization,
-        title: 'GEO 优化方案',
-        desc: '分析品牌问题根因，制定行业和场景化优化方向。'
+        title: '主流 AI 平台检测',
+        desc: '报告包含品牌理解、推荐、引用、事实准确性和竞品表现检查。'
       },
       {
-        key: 'execution',
+        key: 'report',
         icon: assets.icons.research,
-        title: 'GEO 优化执行',
-        desc: '通过内容、信源和品牌信息治理持续提升 AI 表现。'
+        title: '正式诊断报告',
+        desc: '报告完成并审核后，可在小程序报告页直接查看。'
       }
     ],
     latestArticles: [
@@ -60,7 +60,7 @@ Page({
     });
 
     return {
-      title: 'GeoGi｜品牌 AI 可见度诊断与 GEO 优化',
+      title: 'GeoGi｜199 元品牌 GEO 诊断报告',
       path: '/pages/index/index'
     };
   },
@@ -98,9 +98,11 @@ Page({
   openService(event) {
     const key = event.currentTarget.dataset.key;
     this.safeTrack('service_card_click', { key });
-    if (key === 'diagnosis') {
-      this.goDiagnosis();
+    if (key === 'report') {
+      wx.navigateTo({ url: '/pages/sample-report/sample-report' });
+      return;
     }
+    this.goDiagnosis();
   },
 
   openArticle(event) {

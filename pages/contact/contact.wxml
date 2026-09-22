@@ -1,7 +1,7 @@
 <view class="page">
   <view class="contact-hero card">
     <text class="h1">联系 GeoGi 顾问</text>
-    <text class="lead">需要确认诊断范围、交付周期或补充品牌资料，可以通过企业微信与 GeoGi 顾问沟通。</text>
+    <text class="lead">需要确认 199 元诊断报告范围、报告交付或补充品牌资料，可以通过企业微信与 GeoGi 顾问沟通。</text>
   </view>
 
   <view class="section info-card card">
@@ -29,7 +29,7 @@
 
   <view class="section info-card card">
     <text class="info-title">准备开始品牌诊断？</text>
-    <text class="info-hint action-hint">填写品牌基础资料后，GeoGi 将进入诊断流程。</text>
-    <button class="primary-button copy-button" bindtap="goDiagnosis">提交品牌诊断资料</button>
+    <text class="info-hint action-hint">提交品牌资料后需要支付 199 元；付款成功后 GeoGi 才会开始本次诊断。</text>
+    <button class="primary-button copy-button" bindtap="goDiagnosis">¥199 获取诊断报告</button>
   </view>
 </view>

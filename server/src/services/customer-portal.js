@@ -6,6 +6,10 @@ const {
   findDeliveryPackage,
   projectDeliveryForCustomer
 } = require('./delivery-package-store');
+const {
+  findPaymentByProject,
+  publicPaymentView
+} = require('./payment-store');
 
 async function listCustomerProjects({ clientId }) {
   try {
@@ -29,11 +33,15 @@ async function listCustomerProjects({ clientId }) {
       const fields = lead.fields || {};
       const projectId = text(fields.项目编号);
       if (!projectId) return null;
-      const deliveryPackage = await findDeliveryPackage({ clientId: cleanClientId, projectId });
+      const [deliveryPackage, payment] = await Promise.all([
+        findDeliveryPackage({ clientId: cleanClientId, projectId }),
+        findPaymentByProject(projectId)
+      ]);
       return normalizeOrder({
         lead,
         project: projectById.get(projectId),
-        deliveryPackage
+        deliveryPackage,
+        payment
       });
     }))).filter(Boolean);
 
@@ -64,10 +72,13 @@ async function getCustomerReport({ clientId, projectId }) {
       tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
       predicate: (fields) => text(fields.项目编号) === cleanProjectId && text(fields.客户编号) === cleanClientId
     });
-    const deliveryPackage = await findDeliveryPackage({ clientId: cleanClientId, projectId: cleanProjectId });
-    const order = normalizeOrder({ lead, project, deliveryPackage });
+    const [deliveryPackage, payment] = await Promise.all([
+      findDeliveryPackage({ clientId: cleanClientId, projectId: cleanProjectId }),
+      findPaymentByProject(cleanProjectId)
+    ]);
+    const order = normalizeOrder({ lead, project, deliveryPackage, payment });
 
-    if (!deliveryPackage) {
+    if (!deliveryPackage || !isPaidForReport(payment)) {
       return {
         ok: true,
         order,
@@ -93,13 +104,16 @@ async function getCustomerReport({ clientId, projectId }) {
   }
 }
 
-function normalizeOrder({ lead, project, deliveryPackage }) {
+function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const leadFields = (lead && lead.fields) || {};
   const projectFields = (project && project.fields) || {};
-  const reportReady = Boolean(deliveryPackage);
+  const paidForReport = isPaidForReport(payment);
+  const reportReady = Boolean(deliveryPackage && paidForReport);
   const leadStatus = text(leadFields.当前状态);
   const projectStage = text(projectFields.当前阶段);
-  const status = reportReady ? '报告已完成' : mapCustomerStatus({ projectStage, leadStatus });
+  const status = reportReady
+    ? '报告已完成'
+    : paymentStatusLabel(payment) || mapCustomerStatus({ projectStage, leadStatus });
   const deliveryView = deliveryPackage ? projectDeliveryForCustomer(deliveryPackage, {
     clientId: text(leadFields.客户编号),
     projectId: text(leadFields.项目编号) || text(projectFields.项目编号)
@@ -116,12 +130,32 @@ function normalizeOrder({ lead, project, deliveryPackage }) {
     completedAt: reportReady ? deliveryPackage.released_at : '',
     status,
     reportReady,
-    reportLink: deliveryView ? deliveryView.reportLink : '',
+    paymentRequired: true,
+    payment: publicPaymentView(payment),
+    paymentStatus: payment ? payment.status : 'unpaid',
+    amountYuan: payment ? payment.amountYuan : 199,
+    reportLink: reportReady && deliveryView ? deliveryView.reportLink : '',
     version: reportReady ? String(deliveryPackage.report_reference.report_version) : '',
     deliveryPackageId: reportReady ? deliveryPackage.delivery_package_id : '',
     nextAction: customerNextAction(status),
     updatedAt: reportReady ? deliveryPackage.released_at : (text(projectFields.开始时间) || text(leadFields.提交时间))
   };
+}
+
+function isPaidForReport(payment) {
+  return Boolean(payment && ['paid', 'partially_refunded'].includes(String(payment.status || '')));
+}
+
+function paymentStatusLabel(payment) {
+  if (!payment) return '待付款';
+  const status = String(payment.status || '');
+  if (status === 'unpaid' || status === 'payment_failed' || status === 'closed') return '待付款';
+  if (status === 'paying') return '付款确认中';
+  if (status === 'paid') return '已付款';
+  if (status === 'refund_processing') return '退款处理中';
+  if (status === 'partially_refunded') return '部分退款';
+  if (status === 'refunded') return '已退款';
+  return '';
 }
 
 function mapCustomerStatus({ projectStage, leadStatus }) {
@@ -141,23 +175,31 @@ function mapCustomerStatus({ projectStage, leadStatus }) {
 }
 
 function customerNextAction(status) {
+  if (status === '待付款') return '支付 199 元后，GeoGi 才会开始本次品牌 GEO 诊断。';
+  if (status === '付款确认中') return '付款结果正在确认，请稍后刷新。';
+  if (status === '已付款') return '付款已确认，GeoGi 将开始品牌研究和 AI 平台检测。';
+  if (status === '部分退款') return '订单已发生部分退款，剩余服务状态以当前项目进度为准。';
+  if (status === '退款处理中') return '退款请求已提交，正在等待微信支付确认。';
+  if (status === '已退款') return '本次订单已退款，如需重新诊断请重新提交资料。';
   if (status === '资料待补充') return '请补充诊断所需资料，必要时联系 GeoGi 顾问。';
-  if (status === '资料建档中') return 'GeoGi OS 正在建立品牌与客户正式画像。';
-  if (status === '检测进行中') return 'GeoGi OS 正在执行多平台检测与证据采集。';
-  if (status === '诊断分析中' || status === '诊断处理中') return 'GeoGi OS 正在基于受治理证据形成诊断结论。';
-  if (status === '方案生成中') return 'GeoGi OS 正在把诊断结果转成可实施优化方案。';
-  if (status === '优化实施中') return '已批准的优化方案正在实施，并持续记录实施证据。';
-  if (status === '效果复测中') return 'GeoGi OS 正在按同口径执行效果复测与结果评估。';
-  if (status === '报告审核中') return '诊断与复测已进入报告审核，正式发布前仍会保持未交付状态。';
-  if (status === '持续运营中') return 'GeoGi OS 已进入持续监测与周期复测服务。';
-  if (status === '报告已完成') return '报告已由 GeoGi OS 正式发布，可查看或下载交付物。';
-  return 'GeoGi 已收到资料，等待 OS 进入正式诊断流程。';
+  if (status === '资料建档中') return 'GeoGi 正在整理品牌企业资料并建立品牌画像。';
+  if (status === '检测进行中') return 'GeoGi 正在执行主流 AI 平台检测。';
+  if (status === '诊断分析中' || status === '诊断处理中') return 'GeoGi 正在分析检测结果并形成诊断结论。';
+  if (status === '方案生成中') return 'GeoGi 正在整理诊断结果。';
+  if (status === '优化实施中') return '后续优化服务正在执行中。';
+  if (status === '效果复测中') return 'GeoGi 正在进行效果复测与结果评估。';
+  if (status === '报告审核中') return '诊断报告正在审核，审核完成后即可查看。';
+  if (status === '持续运营中') return '当前项目已进入持续监测服务。';
+  if (status === '报告已完成') return '诊断报告已完成，可直接查看。';
+  return '资料已提交，支付 199 元后开始正式诊断。';
 }
 
 function buildPendingReport({ order }) {
   return {
     status: order.status,
     reportReady: false,
+    paymentRequired: true,
+    payment: order.payment || null,
     reportLink: '',
     reportVersion: '',
     releasedAt: '',
@@ -210,5 +252,7 @@ module.exports = {
   normalizeOrder,
   mapCustomerStatus,
   customerNextAction,
-  buildPendingReport
+  buildPendingReport,
+  isPaidForReport,
+  paymentStatusLabel
 };

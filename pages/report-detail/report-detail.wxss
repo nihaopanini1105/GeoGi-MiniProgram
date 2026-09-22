@@ -11,7 +11,8 @@
 .platform-card,
 .advice-card,
 .contact-card,
-.supplement-card {
+.supplement-card,
+.payment-card {
   padding: 32rpx 30rpx;
 }
 
