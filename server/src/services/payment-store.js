@@ -147,6 +147,13 @@ async function updatePaymentOrder(outTradeNo, patch) {
   return next;
 }
 
+function maskContact(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (/^1\d{10}$/.test(text)) return text.slice(0, 3) + '****' + text.slice(-4);
+  return text.length > 5 ? text.slice(0, 2) + '***' + text.slice(-2) : '***';
+}
+
 function publicPaymentView(order) {
   if (!order) return null;
   return {
@@ -154,7 +161,9 @@ function publicPaymentView(order) {
     outTradeNo: order.outTradeNo,
     clientId: order.clientId,
     projectId: order.projectId,
+    submissionId: order.submissionId || '',
     brandName: order.brandName,
+    customerContactMasked: maskContact(order.phoneNumber),
     productCode: order.productCode,
     productName: order.productName,
     amountTotal: order.amountTotal,
@@ -189,10 +198,17 @@ function paymentSummary(orders) {
   const paidRows = rows.filter((row) => ['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(row.status));
   const gross = paidRows.reduce((sum, row) => sum + Number(row.amountTotal || 0), 0);
   const refunded = rows.reduce((sum, row) => sum + Number(row.refundedAmount || 0), 0);
+  const paidEverRows = rows.filter((row) => (
+    Boolean(row.paidAt || row.transactionId)
+    || ['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(row.status)
+  ));
+  const paymentConversionRate = rows.length ? paidEverRows.length / rows.length : 0;
   return {
     orderCount: rows.length,
     unpaidCount: rows.filter((row) => ['unpaid', 'paying', 'payment_failed'].includes(row.status)).length,
     paidCount: rows.filter((row) => row.status === 'paid').length,
+    paidEverCount: paidEverRows.length,
+    paymentConversionRate,
     refundProcessingCount: rows.filter((row) => row.status === 'refund_processing').length,
     partiallyRefundedCount: rows.filter((row) => row.status === 'partially_refunded').length,
     refundedCount: rows.filter((row) => row.status === 'refunded').length,
