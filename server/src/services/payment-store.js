@@ -88,10 +88,10 @@ async function findPaymentByOutTradeNo(outTradeNo) {
 }
 
 function makeOutTradeNo(projectId) {
-  const project = String(projectId || '').replace(/[^A-Za-z0-9]/g, '').slice(-18);
-  const stamp = Date.now().toString(36).toUpperCase();
-  const random = crypto.randomBytes(4).toString('hex').toUpperCase();
-  return ('GG199' + project + stamp + random).slice(0, 32);
+  const project = String(projectId || '').trim();
+  if (!project) throw new Error('PAYMENT_PROJECT_REQUIRED');
+  const digest = crypto.createHash('sha256').update(project).digest('hex').toUpperCase();
+  return ('GG199' + digest.slice(0, 27)).slice(0, 32);
 }
 
 async function createOrGetPaymentOrder(input) {
