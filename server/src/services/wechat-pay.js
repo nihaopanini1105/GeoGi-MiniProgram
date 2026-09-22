@@ -299,7 +299,10 @@ async function syncPaymentOrder(order) {
     paidAt: nextStatus === 'paid'
       ? String(result.success_time || order.paidAt || new Date().toISOString())
       : order.paidAt,
-    closedAt: nextStatus === 'closed' ? new Date().toISOString() : order.closedAt
+    closedAt: nextStatus === 'closed' ? new Date().toISOString() : order.closedAt,
+    closedReason: nextStatus === 'closed'
+      ? (order.closedReason || (isPaymentOrderExpired(order) ? 'expired' : 'provider_closed'))
+      : order.closedReason
   });
 }
 
