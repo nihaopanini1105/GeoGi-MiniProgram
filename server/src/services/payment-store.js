@@ -38,11 +38,17 @@ function canonicalOrder(order) {
 
 async function writeOrder(order) {
   const normalized = canonicalOrder(order);
-  await fs.promises.mkdir(paymentRoot(), { recursive: true });
+  await fs.promises.mkdir(paymentRoot(), { recursive: true, mode: 0o700 });
+  await fs.promises.chmod(paymentRoot(), 0o700);
   const target = orderPath(normalized.outTradeNo);
   const temp = target + '.' + process.pid + '.' + Date.now() + '.tmp';
-  await fs.promises.writeFile(temp, JSON.stringify(normalized, null, 2) + '\n', 'utf8');
+  await fs.promises.writeFile(
+    temp,
+    JSON.stringify(normalized, null, 2) + '\n',
+    { encoding: 'utf8', mode: 0o600 }
+  );
   await fs.promises.rename(temp, target);
+  await fs.promises.chmod(target, 0o600);
   return normalized;
 }
 
