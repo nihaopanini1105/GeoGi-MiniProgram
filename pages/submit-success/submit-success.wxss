@@ -40,3 +40,7 @@
 .payment-error { display:block; margin-top:14rpx; color:#C23B3B; font-size:22rpx; line-height:1.5; }
 .status-dot.pending { background:#F2A93B; box-shadow:0 0 0 8rpx rgba(242,169,59,.10); }
 .status-dot.paid { background:#3AA76D; box-shadow:0 0 0 8rpx rgba(58,167,109,.10); }
+
+.payment-expiry { display:flex; justify-content:space-between; align-items:center; gap:20rpx; margin-top:18rpx; padding:18rpx 20rpx; border-radius:18rpx; background:#FFF8EC; color:#8A5A12; font-size:22rpx; }
+.payment-expiry strong { color:#6E460C; font-size:23rpx; font-weight:650; text-align:right; }
+.cancel-order-button { margin-top:14rpx; border:1rpx solid #E2E8F2; background:#FFFFFF; color:#66789A; font-size:25rpx; }
