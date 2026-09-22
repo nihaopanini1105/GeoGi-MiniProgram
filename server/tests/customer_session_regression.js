@@ -17,6 +17,11 @@ function run() {
   assert.strictEqual(payload.v, 1);
   assert(payload.exp > Date.now());
 
+  const paidIssued = createCustomerToken('13800138000', { openid: 'openid_test_123' });
+  const paidPayload = verifyCustomerToken(paidIssued.customerToken);
+  assert.strictEqual(paidPayload.v, 2);
+  assert.strictEqual(paidPayload.openid, 'openid_test_123');
+
   let failed = false;
   try {
     verifyCustomerToken(`${issued.customerToken}tampered`);
