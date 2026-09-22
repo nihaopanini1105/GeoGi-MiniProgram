@@ -10,7 +10,8 @@
     "delivery:import": "node src/scripts/import-os-delivery-package.js",
     "setup:feishu-fields": "node src/scripts/setup-feishu-fields.js",
     "clear:workbench": "node src/scripts/clear-workbench-data.js --confirm",
-    "payment:preflight": "node src/scripts/verify-wechat-pay-production.js"
+    "payment:preflight": "node src/scripts/verify-wechat-pay-production.js",
+    "release:paid-diagnostic": "bash ../tools/ci/paid_diagnostic_release_gate.sh"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
