@@ -39,6 +39,16 @@ function verifyProductionPaymentConfig() {
     error.code = 'WECHAT_APP_ID_INVALID';
     throw error;
   }
+  const projectConfigPath = path.resolve(__dirname, '../../../project.config.json');
+  if (fs.existsSync(projectConfigPath)) {
+    const projectConfig = JSON.parse(fs.readFileSync(projectConfigPath, 'utf8'));
+    const projectAppid = String(projectConfig.appid || '').trim();
+    if (projectAppid && projectAppid !== String(config.appid || '')) {
+      const error = new Error('WECHAT_APP_ID_DOES_NOT_MATCH_MINIPROGRAM_PROJECT');
+      error.code = 'WECHAT_APP_ID_DOES_NOT_MATCH_MINIPROGRAM_PROJECT';
+      throw error;
+    }
+  }
   if (!/^\d{6,32}$/.test(String(config.mchid || ''))) {
     const error = new Error('WECHATPAY_MCH_ID_INVALID');
     error.code = 'WECHATPAY_MCH_ID_INVALID';
@@ -66,6 +76,7 @@ function verifyProductionPaymentConfig() {
   return {
     ok: true,
     appidConfigured: true,
+    appidMatchesMiniProgramProject: true,
     merchantConfigured: true,
     merchantSerialConfigured: Boolean(config.merchantSerialNo),
     platformSerialConfigured: Boolean(config.platformSerialNo),
