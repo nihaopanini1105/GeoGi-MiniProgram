@@ -123,6 +123,7 @@ async function main() {
   const paid = await handlePaymentNotification(signed.headers, signed.rawBody);
   assert.strictEqual(paid.status, 'paid');
   assert.strictEqual(paid.transactionId, payload.transaction_id);
+  assert.strictEqual(paid.refundableAmount, 19900);
   assert.strictEqual((await findPaymentByOutTradeNo(created.order.outTradeNo)).status, 'paid');
 
   const wrongAmount = signedEnvelope({
