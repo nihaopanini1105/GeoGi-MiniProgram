@@ -32,9 +32,13 @@ async function submitIntake(input = {}) {
         duplicated: true,
         clientId: text(fields.客户编号),
         projectId: text(fields.项目编号),
-        status: text(fields.当前状态) || '已提交',
+        status: text(fields.当前状态) || '待付款',
         submittedAt: text(fields.提交时间) || submittedAt,
-        workbenchStatus: '等待 GeoGi OS 处理'
+        paymentRequired: true,
+        productName: 'GeoGi 品牌 GEO 诊断报告',
+        amountYuan: 199,
+        currency: 'CNY',
+        workbenchStatus: '等待客户支付'
       };
     }
 
@@ -60,9 +64,13 @@ async function submitIntake(input = {}) {
       ok: true,
       clientId,
       projectId,
-      status: '已提交',
+      status: '待付款',
       submittedAt,
-      workbenchStatus: '等待 GeoGi OS 处理'
+      paymentRequired: true,
+      productName: 'GeoGi 品牌 GEO 诊断报告',
+      amountYuan: 199,
+      currency: 'CNY',
+      workbenchStatus: '等待客户支付'
     };
   } catch (error) {
     console.error('submitIntake failed', error);
@@ -143,10 +151,10 @@ function buildLeadFields({ form, clientId, projectId, submittedAt, source }) {
     补充说明: form.message,
     隐私授权: form.privacyAccepted ? 'true' : 'false',
     提交时间: submittedAt,
-    当前状态: '已提交',
-    下一步动作: '等待 GeoGi OS 接收项目并执行诊断',
+    当前状态: '待付款',
+    下一步动作: '支付 199 元后开始品牌 GEO 诊断',
     来源: source,
-    审核状态: '待 OS 处理'
+    审核状态: '待付款'
   };
 }
 
@@ -156,12 +164,12 @@ function buildProjectFields({ form, clientId, projectId, submittedAt }) {
     客户编号: clientId,
     品牌名称: form.brandName,
     项目类型: 'GEO 诊断',
-    当前阶段: 'INTAKE',
+    当前阶段: 'PAYMENT_PENDING',
     开始时间: submittedAt,
     客户确认范围: form.goals.join('、'),
-    内部备注: '由微信小程序提交；业务诊断、评分、报告与交付均由 GeoGi OS 负责。',
+    内部备注: '由微信小程序提交；客户支付 199 元后由 GeoGi OS 执行品牌 GEO 诊断并交付诊断报告。',
     信息层级: '01 诊断项目',
-    审核状态: '待 OS 处理'
+    审核状态: '待付款'
   };
 }
 
