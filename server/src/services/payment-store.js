@@ -7,6 +7,8 @@ const PRODUCT_NAME = 'GeoGi 品牌 GEO 诊断报告';
 const PRODUCT_PRICE_FEN = 19900;
 const PRODUCT_PRICE_YUAN = 199;
 const CURRENCY = 'CNY';
+const PAYMENT_ORDER_TTL_MINUTES = 30;
+const PAYMENT_ORDER_TTL_MS = PAYMENT_ORDER_TTL_MINUTES * 60 * 1000;
 
 const PAYMENT_STATUSES = new Set([
   'unpaid', 'paying', 'paid', 'payment_failed', 'closed',
@@ -33,7 +35,18 @@ function canonicalOrder(order) {
   if (row.productCode !== PRODUCT_CODE) throw new Error('PAYMENT_PRODUCT_INVALID');
   if (!row.projectId || !row.clientId || !row.outTradeNo) throw new Error('PAYMENT_SCOPE_REQUIRED');
   row.refunds = Array.isArray(row.refunds) ? row.refunds : [];
+  row.closedReason = String(row.closedReason || '');
+  if (!row.expiresAt) {
+    const createdMs = Date.parse(row.createdAt || '');
+    row.expiresAt = new Date((Number.isFinite(createdMs) ? createdMs : Date.now()) + PAYMENT_ORDER_TTL_MS).toISOString();
+  }
   return row;
+}
+
+function isPaymentOrderExpired(order, nowMs = Date.now()) {
+  if (!order || !['unpaid', 'paying', 'payment_failed'].includes(String(order.status || ''))) return false;
+  const expiresAtMs = Date.parse(order.expiresAt || '');
+  return Number.isFinite(expiresAtMs) && nowMs >= expiresAtMs;
 }
 
 async function writeOrder(order) {
@@ -96,14 +109,16 @@ async function findPaymentByOutTradeNo(outTradeNo) {
 function makeOutTradeNo(projectId) {
   const project = String(projectId || '').trim();
   if (!project) throw new Error('PAYMENT_PROJECT_REQUIRED');
-  const digest = crypto.createHash('sha256').update(project).digest('hex').toUpperCase();
+  const attemptToken = crypto.randomUUID();
+  const digest = crypto.createHash('sha256').update(project + ':' + attemptToken).digest('hex').toUpperCase();
   return ('GG199' + digest.slice(0, 27)).slice(0, 32);
 }
 
 async function createOrGetPaymentOrder(input) {
   const existing = await findPaymentByProject(input.projectId);
-  if (existing) return { created: false, order: existing };
-  const now = new Date().toISOString();
+  if (existing && existing.status !== 'closed') return { created: false, order: existing };
+  const nowMs = Date.now();
+  const now = new Date(nowMs).toISOString();
   const order = canonicalOrder({
     paymentOrderId: 'payment_' + crypto.randomUUID(),
     outTradeNo: makeOutTradeNo(input.projectId),
@@ -125,8 +140,10 @@ async function createOrGetPaymentOrder(input) {
     payerOpenidHash: '',
     createdAt: now,
     updatedAt: now,
+    expiresAt: new Date(nowMs + PAYMENT_ORDER_TTL_MS).toISOString(),
     paidAt: '',
     closedAt: '',
+    closedReason: '',
     refundableAmount: PRODUCT_PRICE_FEN,
     refundedAmount: 0,
     refunds: []
@@ -182,6 +199,11 @@ function publicPaymentView(order) {
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     paidAt: order.paidAt || '',
+    expiresAt: order.expiresAt || '',
+    closedAt: order.closedAt || '',
+    closedReason: order.closedReason || '',
+    orderValidityMinutes: PAYMENT_ORDER_TTL_MINUTES,
+    canCancel: ['unpaid', 'paying', 'payment_failed'].includes(order.status) && !isPaymentOrderExpired(order),
     refundableAmount: Number(order.refundableAmount || 0),
     refundedAmount: Number(order.refundedAmount || 0),
     refunds: (order.refunds || []).map((refund) => ({
@@ -218,6 +240,7 @@ function paymentSummary(orders) {
     refundProcessingCount: rows.filter((row) => row.status === 'refund_processing').length,
     partiallyRefundedCount: rows.filter((row) => row.status === 'partially_refunded').length,
     refundedCount: rows.filter((row) => row.status === 'refunded').length,
+    closedCount: rows.filter((row) => row.status === 'closed').length,
     grossPaidAmount: gross,
     grossPaidYuan: gross / 100,
     refundedAmount: refunded,
@@ -234,7 +257,10 @@ module.exports = {
   PRODUCT_PRICE_FEN,
   PRODUCT_PRICE_YUAN,
   CURRENCY,
+  PAYMENT_ORDER_TTL_MINUTES,
+  PAYMENT_ORDER_TTL_MS,
   PAYMENT_STATUSES,
+  isPaymentOrderExpired,
   createOrGetPaymentOrder,
   findPaymentByProject,
   findPaymentByOutTradeNo,
