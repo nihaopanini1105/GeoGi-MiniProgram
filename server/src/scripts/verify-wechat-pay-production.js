@@ -1,8 +1,7 @@
-require('dotenv').config();
-
 const fs = require('fs');
 const path = require('path');
 const { configStatus } = require('../services/wechat-pay');
+const { loadProductionEnv } = require('./production-env');
 
 function assertHttps(name, value) {
   const text = String(value || '').trim();
@@ -96,6 +95,7 @@ function verifyProductionPaymentConfig() {
 
 function main() {
   try {
+    loadProductionEnv();
     process.stdout.write(JSON.stringify(verifyProductionPaymentConfig(), null, 2) + '\n');
   } catch (error) {
     process.stderr.write(JSON.stringify({
