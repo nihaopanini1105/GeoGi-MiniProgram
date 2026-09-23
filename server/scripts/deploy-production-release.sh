@@ -112,6 +112,12 @@ node --check "$STAGE_SERVER/src/scripts/configure-os-bridge-production.js"
 GEOGI_PRODUCTION_ENV_FILE="$SERVER_DIR/.env" \
   node "$STAGE_SERVER/src/scripts/configure-os-bridge-production.js"
 
+(
+  cd "$SERVER_DIR"
+  node "$STAGE_SERVER/src/scripts/verify-wechat-pay-production.js"
+  node "$STAGE_SERVER/src/scripts/verify-feishu-notification-production.js"
+)
+
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 BACKUP_DIR="$BACKUP_ROOT/$STAMP-${EXPECTED_SHA:0:12}"
 mkdir -p "$BACKUP_DIR"
@@ -150,8 +156,8 @@ node -e '
 const local = JSON.parse(process.argv[1]);
 const pub = JSON.parse(process.argv[2]);
 for (const [name, payload] of [["local", local], ["public", pub]]) {
-  if (!payload || payload.ok !== true || payload.businessAuthority !== "GeoGi OS" || payload.deliveryContract !== "DeliveryPackage/3.0.0" || payload.osOperationsBridge !== "configured") {
-    console.error(`ERROR: ${name} health is not bridge-ready`);
+  if (!payload || payload.ok !== true || payload.businessAuthority !== "GeoGi OS" || payload.deliveryContract !== "DeliveryPackage/3.0.0" || payload.osOperationsBridge !== "configured" || payload.wechatPay !== "configured" || payload.feishuNotification !== "configured") {
+    console.error(`ERROR: ${name} health is not fully ready for paid diagnostic + Feishu notifications`);
     process.exit(2);
   }
 }
