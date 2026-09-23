@@ -174,7 +174,14 @@ node --check "$STAGE_SERVER/src/services/os-artifact-ingress.js"
   npm test
 )
 
+(
+  cd "$SERVER_DIR"
+  node "$STAGE_SERVER/src/scripts/verify-wechat-pay-production.js"
+  node "$STAGE_SERVER/src/scripts/verify-feishu-notification-production.js"
+)
+
 echo "remote_stage_repository_layout=PASS"
+echo "production_paid_product_preflight=PASS"
 
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 BACKUP_DIR="$BACKUP_ROOT/$STAMP-${EXPECTED_SHA:0:12}"
@@ -233,8 +240,8 @@ PUBLIC_HEALTH="$HEALTH_PAYLOAD"
 node -e '
 const local=JSON.parse(process.argv[1]); const pub=JSON.parse(process.argv[2]);
 for (const [name,p] of [["local",local],["public",pub]]) {
-  if (!p || p.ok!==true || p.businessAuthority!=="GeoGi OS" || p.deliveryContract!=="DeliveryPackage/3.0.0" || p.osOperationsBridge!=="configured") {
-    console.error(`ERROR: ${name} health is not V1 bridge-ready`);
+  if (!p || p.ok!==true || p.businessAuthority!=="GeoGi OS" || p.deliveryContract!=="DeliveryPackage/3.0.0" || p.osOperationsBridge!=="configured" || p.wechatPay!=="configured" || p.feishuNotification!=="configured") {
+    console.error(`ERROR: ${name} health is not fully ready for paid diagnostic + Feishu notifications`);
     process.exit(2);
   }
 }
@@ -254,5 +261,7 @@ printf '%s\n' "deployed_main_sha=$EXPECTED_SHA"
 printf '%s\n' "backup_dir=$BACKUP_DIR"
 printf '%s\n' "artifact_ingress_local=protected"
 printf '%s\n' "artifact_ingress_public=protected"
+printf '%s\n' "wechat_pay=ready"
+printf '%s\n' "feishu_notifications=ready"
 printf '%s\n' "production_miniprogram_display_only_v3=SUCCESS"
 REMOTE
