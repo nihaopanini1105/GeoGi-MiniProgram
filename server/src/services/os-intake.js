@@ -9,6 +9,7 @@ const {
   createOrGetPaymentOrder,
   publicPaymentView
 } = require('./payment-store');
+const { notifyIntakeSubmitted } = require('./ops-notifications');
 
 const REQUIRED_ENV = [
   'FEISHU_APP_ID',
@@ -81,6 +82,14 @@ async function submitIntake(input = {}) {
       submissionId: form.submissionId,
       brandName: form.brandName,
       phoneNumber: form.contactMethod
+    });
+
+    notifyIntakeSubmitted({
+      form,
+      clientId,
+      projectId,
+      payment: paymentResult.order,
+      submittedAt
     });
 
     return {
