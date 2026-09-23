@@ -1,4 +1,8 @@
-require('dotenv').config();
+try {
+  require('dotenv').config();
+} catch (error) {
+  if (!error || error.code !== 'MODULE_NOT_FOUND') throw error;
+}
 
 const { notificationConfigured } = require('../services/ops-notifications');
 
