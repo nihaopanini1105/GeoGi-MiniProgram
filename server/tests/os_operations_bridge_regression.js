@@ -59,6 +59,9 @@ async function main() {
     releasedProjectionIndex > packageImportIndex,
     'MiniProgram project must advance to RELEASED only after DeliveryPackage import succeeds'
   );
+  assert(bridgeSource.includes("contactName: text(fields.联系人)"));
+  assert(bridgeSource.includes("contactMethod: text(fields.联系方式)"));
+  assert(bridgeSource.includes("message: text(fields.补充说明)"));
 
   const prior = process.env.GEOGI_OS_BRIDGE_TOKEN;
   delete process.env.GEOGI_OS_BRIDGE_TOKEN;
