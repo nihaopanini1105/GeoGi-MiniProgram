@@ -1,12 +1,5 @@
 const { notificationConfigured } = require('../services/ops-notifications');
-
-function loadDotenvForCli() {
-  try {
-    require('dotenv').config();
-  } catch (error) {
-    if (!error || error.code !== 'MODULE_NOT_FOUND') throw error;
-  }
-}
+const { loadProductionEnv } = require('./production-env');
 
 function verifyProductionNotificationConfig() {
   if (!notificationConfigured()) {
@@ -66,7 +59,7 @@ function verifyProductionNotificationConfig() {
 
 function main() {
   try {
-    loadDotenvForCli();
+    loadProductionEnv();
     process.stdout.write(JSON.stringify(verifyProductionNotificationConfig(), null, 2) + '\n');
   } catch (error) {
     process.stderr.write(JSON.stringify({
