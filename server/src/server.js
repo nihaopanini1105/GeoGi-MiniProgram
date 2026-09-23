@@ -26,6 +26,7 @@ const {
 } = require('./services/wechat-pay');
 const { requireCustomerSession, resolveOwnedClientId } = require('./services/customer-session');
 const { trackEvent } = require('./services/events');
+const { notificationConfigured } = require('./services/ops-notifications');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
 const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
@@ -61,7 +62,8 @@ app.get('/health', (_req, res) => {
     postSubmitSupplement: 'customer-supplement-v1',
     osOperationsBridge: osBridgeConfigured() ? 'configured' : 'not_configured',
     diagnosticProduct: { name: 'GeoGi 品牌 GEO 诊断报告', priceYuan: 199, currency: 'CNY' },
-    wechatPay: wechatPayConfigStatus().configured ? 'configured' : 'not_configured'
+    wechatPay: wechatPayConfigStatus().configured ? 'configured' : 'not_configured',
+    feishuNotification: notificationConfigured() ? 'configured' : 'not_configured'
   });
 });
 

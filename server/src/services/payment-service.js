@@ -21,6 +21,7 @@ const {
   syncPaymentOrder,
   requestRefund
 } = require('./wechat-pay');
+const { notifyPaymentPaid } = require('./ops-notifications');
 
 function text(value) {
   if (Array.isArray(value)) return value.map(text).filter(Boolean).join('');
@@ -259,8 +260,14 @@ async function syncCustomerPayment({ clientId, projectId }) {
     return { ok: true, payment: publicPaymentView(order) };
   }
   if (order.status === 'closed') return { ok: true, payment: publicPaymentView(order) };
+  const previousStatus = order.status;
+  const wasPaid = Boolean(order.paidAt || order.transactionId)
+    || ['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(previousStatus);
   const synced = await syncPaymentOrder(order);
   await projectPaymentProjection({ projectId, paymentStatus: synced.status });
+  if (synced.status === 'paid' && !wasPaid) {
+    notifyPaymentPaid(synced);
+  }
   return { ok: true, payment: publicPaymentView(synced) };
 }
 
