@@ -33,7 +33,7 @@ function tokenFromScene(scene) {
 
 function tokenFromLaunch(options = {}) {
   const query = options.query || {};
-  return String(query.src || query.source || tokenFromScene(query.scene || options.scene || '') || '').trim();
+  return String(query.src || query.source || tokenFromScene(query.scene || '') || '').trim();
 }
 
 function getAttribution() {
