@@ -44,7 +44,10 @@ jobs:
         run: cd server && node tests/paid_diagnostic_copy_contract_regression.js
 
       - name: Source attribution and commission regression
-        run: cd server && node tests/channel_redemption_commission_regression.js
+        run: |
+          cd server
+          node tests/channel_redemption_commission_regression.js
+          node tests/channel_store_concurrency_regression.js
 
       - name: Customer portal regressions
         run: |
