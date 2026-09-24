@@ -16,12 +16,13 @@ Page({
     product: {
       name: 'GeoGi 品牌 GEO 诊断报告',
       priceYuan: 199,
+      payableYuan: 199,
       currency: 'CNY'
     },
     nextSteps: [
       {
-        title: '确认付款',
-        desc: '支付 199 元后，GeoGi 才会开始本次品牌 GEO 诊断。'
+        title: '确认订单',
+        desc: '完成付款或有效兑换后，GeoGi 将开始本次品牌 GEO 诊断。'
       },
       {
         title: '建立品牌企业画像',
@@ -71,7 +72,7 @@ Page({
       );
       if (!result || !result.ok) return;
       const payment = result.payment || null;
-      const paid = Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status));
+      const paid = Boolean(payment && ['paid', 'free', 'partially_refunded'].includes(payment.status));
       const closed = Boolean(payment && payment.status === 'closed');
       const closedReason = payment && payment.closedReason ? payment.closedReason : '';
       this.setData({
@@ -134,7 +135,7 @@ Page({
           expiresAtText: this.formatDate(result.payment && result.payment.expiresAt)
         });
         this.persistPaidStatus(result.payment);
-        wx.showToast({ title: '已付款', icon: 'success' });
+        wx.showToast({ title: result.payment && result.payment.status === 'free' ? '兑换成功' : '已付款', icon: 'success' });
         return;
       }
       if (!result.payParams) throw new Error('微信支付参数缺失');
@@ -151,7 +152,7 @@ Page({
         { clientId: submission.clientId }
       );
       const payment = synced && synced.payment ? synced.payment : result.payment;
-      const paid = Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status));
+      const paid = Boolean(payment && ['paid', 'free', 'partially_refunded'].includes(payment.status));
       const closed = Boolean(payment && payment.status === 'closed');
       this.setData({
         payment,
@@ -163,7 +164,7 @@ Page({
       });
       if (!paid) throw new Error(closed ? '支付订单已关闭，请重新发起支付' : '付款结果正在确认，请稍后刷新');
       this.persistPaidStatus(payment);
-      wx.showToast({ title: '付款成功', icon: 'success' });
+      wx.showToast({ title: payment && payment.status === 'free' ? '兑换成功' : '付款成功', icon: 'success' });
     } catch (error) {
       const message = error && error.errMsg
         ? error.errMsg
@@ -247,16 +248,29 @@ Page({
   persistPaidStatus(payment) {
     const submission = {
       ...(this.data.submission || {}),
-      status: '已付款',
+      status: payment && payment.status === 'free' ? '已兑换' : '已付款',
       paymentStatus: payment && payment.status ? payment.status : 'paid',
-      paidAt: payment && payment.paidAt ? payment.paidAt : ''
+      paidAt: payment && payment.paidAt ? payment.paidAt : '',
+      amountYuan: payment && payment.amountYuan !== undefined ? Number(payment.amountYuan) : Number((this.data.submission || {}).amountYuan || 199),
+      listPriceYuan: payment && payment.listPriceYuan !== undefined ? Number(payment.listPriceYuan) : Number((this.data.submission || {}).listPriceYuan || 199),
+      redemptionCode: payment && payment.redemptionCode ? payment.redemptionCode : ((this.data.submission || {}).redemptionCode || ''),
+      channelName: payment && payment.channelName ? payment.channelName : ((this.data.submission || {}).channelName || '')
     };
     wx.setStorageSync('geogi_last_submission', submission);
     const orders = wx.getStorageSync('geogi_my_orders') || [];
     wx.setStorageSync(
       'geogi_my_orders',
       orders.map((item) => item.projectId === submission.projectId
-        ? { ...item, status: '已付款', paymentStatus: submission.paymentStatus, paidAt: submission.paidAt, amountYuan: 199 }
+        ? {
+            ...item,
+            status: submission.status,
+            paymentStatus: submission.paymentStatus,
+            paidAt: submission.paidAt,
+            amountYuan: submission.amountYuan,
+            listPriceYuan: submission.listPriceYuan,
+            redemptionCode: submission.redemptionCode,
+            channelName: submission.channelName
+          }
         : item)
     );
     this.setData({ submission });
