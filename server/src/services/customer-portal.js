@@ -232,7 +232,7 @@ function paymentStatusLabel(payment) {
   if (status === 'unpaid' || status === 'payment_failed' || status === 'closed') return '待付款';
   if (status === 'paying') return '付款确认中';
   if (status === 'paid') return '已付款';
-  if (status === 'free') return '已兑换';
+  if (status === 'free') return '已优惠至免费';
   if (status === 'refund_processing') return '退款处理中';
   if (status === 'partially_refunded') return '部分退款';
   if (status === 'refunded') return '已退款';
@@ -256,10 +256,10 @@ function mapCustomerStatus({ projectStage, leadStatus }) {
 }
 
 function customerNextAction(status) {
-  if (status === '待付款') return '支付 199 元后，GeoGi 才会开始本次品牌 GEO 诊断。';
+  if (status === '待付款') return '完成当前订单付款后，GeoGi 才会开始本次品牌 GEO 诊断。';
   if (status === '付款确认中') return '付款结果正在确认，请稍后刷新。';
   if (status === '已付款') return '付款已确认，GeoGi 将开始品牌研究和 AI 平台检测。';
-  if (status === '已兑换') return '兑换码已生效，本次诊断无需付款，GeoGi 将开始品牌研究和 AI 平台检测。';
+  if (status === '已优惠至免费') return '渠道专享优惠已生效，本次诊断无需付款，GeoGi 将开始品牌研究和 AI 平台检测。';
   if (status === '部分退款') return '订单已发生部分退款，剩余服务状态以当前项目进度为准。';
   if (status === '退款处理中') return '退款请求已提交，正在等待微信支付确认。';
   if (status === '已退款') return '本次订单已退款，如需重新诊断请重新提交资料。';
