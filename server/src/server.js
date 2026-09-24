@@ -28,12 +28,15 @@ const { requireCustomerSession, resolveOwnedClientId } = require('./services/cus
 const { trackEvent } = require('./services/events');
 const { notificationConfigured } = require('./services/ops-notifications');
 const {
-  quoteRedemptionCode,
+  resolveAttribution,
   channelDashboardForPhone,
   channelAdminDashboard,
   upsertChannel,
+  upsertSource,
   settleChannelPeriod,
-  reconcileCommission
+  reconcileCommission,
+  generateSourceMiniProgramCode,
+  sourceCodeRoot
 } = require('./services/channel-service');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
 const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
@@ -59,6 +62,7 @@ app.use(express.json({
   }
 }));
 app.use('/uploads', express.static(getUploadRoot()));
+app.use('/source-codes', express.static(sourceCodeRoot()));
 
 app.get('/health', (_req, res) => {
   res.json({
@@ -77,9 +81,12 @@ app.get('/health', (_req, res) => {
 
 app.get('/api/config', (_req, res) => res.json(getConfig()));
 
-app.post('/api/redemption/quote', requireCustomerSession, async (req, res, next) => {
+app.get('/api/attribution/resolve', async (req, res, next) => {
   try {
-    const result = await quoteRedemptionCode(req.body && req.body.code);
+    const result = await resolveAttribution(
+      req.query && req.query.token,
+      req.query && req.query.visitorId
+    );
     return res.json(result);
   } catch (error) {
     return next(error);
@@ -285,6 +292,24 @@ app.post('/internal/os/channels', requireOsBridge, async (req, res, next) => {
   }
 });
 
+app.post('/internal/os/sources', requireOsBridge, async (req, res, next) => {
+  try {
+    const source = await upsertSource(req.body || {});
+    return res.json({ ok: true, source });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/internal/os/sources/:sourceId/miniprogram-code', requireOsBridge, async (req, res, next) => {
+  try {
+    const result = await generateSourceMiniProgramCode(req.params.sourceId);
+    return res.json({ ok: true, result });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.post('/internal/os/channels/:channelId/settlements/:period', requireOsBridge, async (req, res, next) => {
   try {
     const result = await settleChannelPeriod({
@@ -394,24 +419,34 @@ app.use((error, _req, res, _next) => {
     });
   }
   const channelErrorCode = error && String(error.code || error.message || '');
-  if (channelErrorCode.startsWith('CHANNEL_')) {
+  if (
+    channelErrorCode.startsWith('CHANNEL_')
+    || channelErrorCode.startsWith('SOURCE_')
+    || channelErrorCode.startsWith('WECHAT_SOURCE_CODE_')
+  ) {
     const messages = {
-      CHANNEL_CODE_NOT_FOUND: '兑换码不存在，请检查后重试',
-      CHANNEL_CODE_INACTIVE: '该兑换码当前不可使用',
-      CHANNEL_CODE_NOT_STARTED: '该兑换码尚未生效',
-      CHANNEL_CODE_EXPIRED: '该兑换码已过期',
-      CHANNEL_CODE_INVALID: '兑换码格式不正确',
-      CHANNEL_CODE_DUPLICATE: '该兑换码已被其他渠道使用',
       CHANNEL_NAME_REQUIRED: '请填写渠道名称',
-      CHANNEL_DISCOUNT_RATE_INVALID: '渠道折扣设置不正确',
+      CHANNEL_DISCOUNT_RATE_INVALID: '渠道优惠设置不正确',
       CHANNEL_COMMISSION_RATE_INVALID: '返佣比例设置不正确',
-      CHANNEL_EFFECTIVE_PERIOD_INVALID: '兑换码有效期设置不正确',
-      CHANNEL_SETTLEMENT_NOTHING_DUE: '该渠道当月没有待结算返佣'
+      CHANNEL_EFFECTIVE_PERIOD_INVALID: '渠道有效期设置不正确',
+      CHANNEL_SETTLEMENT_NOTHING_DUE: '该渠道当月没有待结算返佣',
+      CHANNEL_SETTLEMENT_PERIOD_INVALID: '结算月份格式不正确',
+      CHANNEL_NOT_FOUND: '没有找到对应渠道',
+      SOURCE_TOKEN_NOT_FOUND: '来源入口无效',
+      SOURCE_NAME_REQUIRED: '请填写来源名称',
+      SOURCE_TYPE_INVALID: '来源类型不正确',
+      SOURCE_CHANNEL_REQUIRED: '渠道来源必须绑定渠道',
+      SOURCE_EFFECTIVE_PERIOD_INVALID: '来源有效期设置不正确',
+      SOURCE_NOT_FOUND: '没有找到对应来源入口',
+      WECHAT_SOURCE_CODE_NOT_CONFIGURED: '微信小程序码服务未完成配置',
+      WECHAT_SOURCE_CODE_GENERATION_FAILED: '小程序码生成失败',
+      WECHAT_SOURCE_CODE_REQUEST_FAILED: '微信小程序码接口请求失败',
+      WECHAT_SOURCE_CODE_TOKEN_FAILED: '微信接口授权失败'
     };
     return res.status(400).json({
       ok: false,
       error: channelErrorCode,
-      userMessage: messages[channelErrorCode] || '渠道规则处理失败，请检查设置'
+      userMessage: messages[channelErrorCode] || '渠道或来源规则处理失败，请检查设置'
     });
   }
   if (error instanceof OsArtifactIngressError) {
