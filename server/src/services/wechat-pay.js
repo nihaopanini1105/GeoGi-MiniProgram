@@ -343,7 +343,7 @@ async function requestRefund({ order, amount, reason, operatorId }) {
     notify_url: config.refundNotifyUrl,
     amount: {
       refund: refundAmount,
-      total: PRODUCT_PRICE_FEN,
+      total: Number(order.amountTotal),
       currency: CURRENCY
     }
   };
@@ -364,12 +364,12 @@ async function requestRefund({ order, amount, reason, operatorId }) {
   const refundedAmount = Number(order.refundedAmount || 0) +
     (String(result.status || '').toUpperCase() === 'SUCCESS' ? refundAmount : 0);
   const status = String(result.status || '').toUpperCase() === 'SUCCESS'
-    ? (refundedAmount >= PRODUCT_PRICE_FEN ? 'refunded' : 'partially_refunded')
+    ? (refundedAmount >= Number(order.amountTotal || 0) ? 'refunded' : 'partially_refunded')
     : 'refund_processing';
   const updated = await updatePaymentOrder(order.outTradeNo, {
     refunds,
     refundedAmount,
-    refundableAmount: Math.max(0, PRODUCT_PRICE_FEN - refundedAmount),
+    refundableAmount: Math.max(0, Number(order.amountTotal || 0) - refundedAmount),
     status
   });
   notifyRefundRequested({ order: updated, refund });
@@ -429,7 +429,7 @@ async function handlePaymentNotification(headers, rawBody) {
   const outTradeNo = String(resource.out_trade_no || '');
   const order = await findPaymentByOutTradeNo(outTradeNo);
   if (!order) throw new WechatPayError('PAYMENT_ORDER_NOT_FOUND');
-  if (Number(resource.amount && resource.amount.total) !== PRODUCT_PRICE_FEN) {
+  if (Number(resource.amount && resource.amount.total) !== Number(order.amountTotal)) {
     throw new WechatPayError('WECHAT_PAY_NOTIFY_AMOUNT_MISMATCH');
   }
   const nextStatus = mapTradeState(resource.trade_state);
@@ -443,7 +443,7 @@ async function handlePaymentNotification(headers, rawBody) {
       ? String(resource.success_time || order.paidAt || new Date().toISOString())
       : order.paidAt,
     refundableAmount: nextStatus === 'paid'
-      ? Math.max(Number(order.refundableAmount || 0), PRODUCT_PRICE_FEN - Number(order.refundedAmount || 0))
+      ? Math.max(Number(order.refundableAmount || 0), Number(order.amountTotal || 0) - Number(order.refundedAmount || 0))
       : order.refundableAmount
   });
   if (nextStatus === 'paid' && !wasPaid) {
@@ -461,12 +461,12 @@ async function handleRefundNotification(headers, rawBody) {
   if (String(resource.amount && resource.amount.currency || CURRENCY) !== CURRENCY) {
     throw new WechatPayError('WECHAT_REFUND_NOTIFY_CURRENCY_MISMATCH');
   }
-  if (Number(resource.amount && resource.amount.total || 0) !== PRODUCT_PRICE_FEN) {
-    throw new WechatPayError('WECHAT_REFUND_NOTIFY_TOTAL_MISMATCH');
-  }
   const outTradeNo = String(resource.out_trade_no || '');
   const order = await findPaymentByOutTradeNo(outTradeNo);
   if (!order) throw new WechatPayError('PAYMENT_ORDER_NOT_FOUND');
+  if (Number(resource.amount && resource.amount.total || 0) !== Number(order.amountTotal || 0)) {
+    throw new WechatPayError('WECHAT_REFUND_NOTIFY_TOTAL_MISMATCH');
+  }
 
   const outRefundNo = String(resource.out_refund_no || '');
   if (!(order.refunds || []).some((refund) => String(refund.outRefundNo || '') === outRefundNo)) {
@@ -491,13 +491,13 @@ async function handleRefundNotification(headers, rawBody) {
   const refundedAmount = refunds
     .filter((refund) => String(refund.status).toLowerCase() === 'success')
     .reduce((sum, refund) => sum + Number(refund.amount || 0), 0);
-  const status = refundedAmount >= PRODUCT_PRICE_FEN
+  const status = refundedAmount >= Number(order.amountTotal || 0)
     ? 'refunded'
     : (refundedAmount > 0 ? 'partially_refunded' : (refundStatus === 'ABNORMAL' || refundStatus === 'CLOSED' ? 'paid' : 'refund_processing'));
   const updated = await updatePaymentOrder(outTradeNo, {
     refunds,
     refundedAmount,
-    refundableAmount: Math.max(0, PRODUCT_PRICE_FEN - refundedAmount),
+    refundableAmount: Math.max(0, Number(order.amountTotal || 0) - refundedAmount),
     status
   });
   const updatedRefund = refunds.find(
