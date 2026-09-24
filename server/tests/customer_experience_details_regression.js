@@ -62,10 +62,11 @@ function run() {
   assert(mine.includes('分享专属入口'));
   assert(mine.includes('我的推广与返佣'));
   assert(diagnosis.includes('渠道专享优惠'));
+  assert(diagnosis.includes('attribution.discountFen > 0'), 'channel offer UI must require a real discount');
 
   assert(!diagnosis.includes('wx:if="{{!phoneAuthorized}}"'), 'diagnosis first screen must not be blocked by phone authorization');
-  assert(diagnosis.includes('浏览服务和填写资料无需登录'));
-  assert(diagnosis.includes('提交订单前才需要授权手机号'));
+  assert(!diagnosis.includes('浏览服务和填写资料无需登录'), 'button helper copy should be removed');
+  assert(diagnosis.includes('提交订单前需授权一次微信绑定手机号'));
   assert(diagnosis.includes('GeoGi 仅用于识别本次订单和后续服务，不获取你的头像或昵称'));
   assert(diagnosis.includes('step == 3 && !phoneAuthorized'));
   assert(diagnosis.includes('授权手机号并继续'));
