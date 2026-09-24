@@ -1,7 +1,7 @@
 <view class="page">
   <view class="contact-hero card">
     <text class="h1">联系 GeoGi 顾问</text>
-    <text class="lead">需要确认品牌 GEO 诊断范围、渠道优惠、报告交付或补充品牌资料，可以通过企业微信与 GeoGi 顾问沟通。</text>
+    <text class="lead">需要确认品牌 GEO 诊断范围、报告交付或补充品牌资料，可以通过企业微信与 GeoGi 顾问沟通。</text>
   </view>
 
   <view class="section info-card card">
@@ -29,7 +29,7 @@
 
   <view class="section info-card card">
     <text class="info-title">准备开始品牌诊断？</text>
-    <text class="info-hint action-hint">品牌 GEO 诊断标准价 199 元；系统会按当前来源自动应用渠道优惠。完成实际应付金额，或符合免费渠道条件后，GeoGi 开始本次诊断。</text>
+    <text class="info-hint action-hint">品牌 GEO 诊断标准价 199 元。提交资料并完成订单确认后，GeoGi 开始本次正式诊断。</text>
     <button class="primary-button copy-button" bindtap="goDiagnosis">获取诊断报告</button>
   </view>
 </view>

@@ -36,7 +36,10 @@ function run() {
   assert(diagnosis.includes('标准价 199 元'));
   assert(diagnosis.includes('这份诊断报告会重点回答'));
   assert(diagnosis.includes('整个流程怎么完成？'));
-  assert(diagnosis.includes('渠道优惠会自动应用'));
+  assert(diagnosis.includes('渠道专享优惠'));
+  assert(diagnosis.includes('attribution.discountFen > 0'));
+  assert(!diagnosis.includes('合作渠道优惠会自动应用'));
+  assert(!diagnosis.includes('系统自动计算渠道优惠'));
   assert(diagnosis.includes('不获取你的头像或昵称'));
   assert(!diagnosis.includes('兑换码'));
   assert(diagnosisJs.includes('wx.requestPayment'));
@@ -80,15 +83,15 @@ function run() {
     }
   }
   assert(servicesJs.includes('不包含在本次诊断报告中'));
-  assert(servicesJs.includes('渠道优惠自动应用'));
-  assert(mine.includes('订单优惠与付款状态'));
+  assert(!servicesJs.includes('渠道优惠自动应用'));
+  assert(mine.includes('订单与付款状态'));
   assert(report.includes('订单确认后开始处理'));
-  assert(report.includes('渠道优惠'));
+  assert(report.includes('渠道专属优惠'));
   assert(privacy.includes('本次品牌 GEO 诊断'));
   assert(contact.includes('标准价 199 元'));
-  assert(contact.includes('渠道优惠'));
-  assert(contact.includes('符合免费渠道条件'));
-  assert(sample.includes('渠道优惠以订单实际结算金额为准'));
+  assert(!contact.includes('渠道优惠'));
+  assert(!contact.includes('免费渠道'));
+  assert(!sample.includes('渠道优惠'));
   assert(sample.includes('开始填写资料'));
   assert(config.includes("priceYuan: 199"));
   assert(config.includes("paymentRequiredBeforeProcessing: true"));

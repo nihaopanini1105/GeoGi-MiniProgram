@@ -1,9 +1,9 @@
 <view class="page success-page">
   <view class="success-hero card">
     <view class="success-mark">{{paid ? '✓' : '¥'}}</view>
-    <text class="success-kicker">{{paid ? (payment && payment.status === 'free' ? 'CHANNEL OFFER' : 'PAYMENT CONFIRMED') : 'PAYMENT REQUIRED'}}</text>
-    <text class="success-title">{{paid ? (payment && payment.status === 'free' ? '渠道优惠已生效，诊断已进入处理' : '付款成功，诊断已进入处理') : (closed ? (closedReason === 'expired' ? '支付订单已失效' : (closedReason === 'customer_cancelled' ? '订单已取消' : '支付订单已关闭')) : '资料已提交，请完成付款')}}</text>
-    <text class="success-copy">{{paid ? (payment && payment.status === 'free' ? '渠道专享优惠已生效，本次诊断无需付款。GeoGi 将开始品牌研究、AI 平台检测与诊断。' : '订单已完成付款，GeoGi 将开始品牌研究、AI 平台检测与诊断。') : (closed ? '本次支付订单已经关闭。诊断资料仍会保留，如仍需诊断可重新发起支付。' : '品牌 GEO 诊断标准价 199 元，当前订单按来源对应的渠道优惠结算。完成付款后 GeoGi 开始诊断并交付正式报告。')}}</text>
+    <text class="success-kicker">{{paid ? (payment && payment.discountYuan > 0 ? 'CHANNEL OFFER' : 'PAYMENT CONFIRMED') : 'PAYMENT REQUIRED'}}</text>
+    <text class="success-title">{{paid ? (payment && payment.status === 'free' ? '渠道专属优惠已生效，诊断已进入处理' : (payment && payment.discountYuan > 0 ? '渠道专属优惠已应用，付款成功' : '付款成功，诊断已进入处理')) : (closed ? (closedReason === 'expired' ? '支付订单已失效' : (closedReason === 'customer_cancelled' ? '订单已取消' : '支付订单已关闭')) : '资料已提交，请完成付款')}}</text>
+    <text class="success-copy">{{paid ? (payment && payment.discountYuan > 0 ? '渠道专属优惠已应用。订单确认后，GeoGi 将开始品牌研究、AI 平台检测与诊断。' : '订单已完成付款，GeoGi 将开始品牌研究、AI 平台检测与诊断。') : (closed ? '本次支付订单已经关闭。诊断资料仍会保留，如仍需诊断可重新发起支付。' : (payment && payment.discountYuan > 0 ? '渠道专属优惠已自动应用，请按当前订单金额完成付款。付款后 GeoGi 开始诊断并交付正式报告。' : '品牌 GEO 诊断标准价 199 元。完成付款后 GeoGi 开始诊断并交付正式报告。'))}}</text>
 
     <view class="status-row">
       <view>
@@ -22,13 +22,13 @@
       </view>
       <text class="payment-price">¥{{payment && payment.amountYuan !== undefined ? payment.amountYuan : (submission.amountYuan !== undefined ? submission.amountYuan : 199)}}</text>
     </view>
-    <text class="payment-copy">品牌 GEO 诊断标准价 199 元。如当前来源享有渠道优惠，订单会自动按优惠后的金额结算；报告完成并审核后会出现在「我的」页面。</text>
+    <text class="payment-copy">{{payment && payment.discountYuan > 0 ? '当前订单已应用渠道专属优惠；报告完成并审核后会出现在「我的」页面。' : '品牌 GEO 诊断标准价 199 元；报告完成并审核后会出现在「我的」页面。'}}</text>
     <view wx:if="{{payment && (payment.sourceName || payment.channelName)}}" class="payment-expiry">
       <text>来源</text>
       <strong>{{payment.channelName || payment.sourceName}}</strong>
     </view>
     <view wx:if="{{payment && payment.discountYuan > 0}}" class="payment-expiry">
-      <text>优惠金额</text>
+      <text>渠道专属优惠</text>
       <strong>-¥{{payment.discountYuan}}</strong>
     </view>
     <view wx:if="{{!paid && expiresAtText}}" class="payment-expiry">
@@ -43,7 +43,7 @@
     </view>
     <button wx:if="{{!paid}}" class="primary-button full-button pay-button" loading="{{paymentLoading}}" disabled="{{paymentLoading || cancelLoading}}" bindtap="payNow">{{closed ? '重新支付' : '立即支付'}}</button>
     <button wx:if="{{!paid && canCancel}}" class="cancel-order-button full-button" loading="{{cancelLoading}}" disabled="{{paymentLoading || cancelLoading}}" bindtap="cancelOrder">取消订单</button>
-    <view wx:if="{{paid}}" class="paid-banner">{{payment && payment.status === 'free' ? '渠道优惠 · 本次无需付款' : '已付款'}} · GeoGi 正在处理本次诊断</view>
+    <view wx:if="{{paid}}" class="paid-banner">{{payment && payment.status === 'free' ? '渠道专属优惠 · 本次无需付款' : (payment && payment.discountYuan > 0 ? '渠道专属优惠已应用 · 已付款' : '已付款')}} · GeoGi 正在处理本次诊断</view>
     <text wx:if="{{paymentError}}" class="payment-error">{{paymentError}}</text>
   </view>
 
