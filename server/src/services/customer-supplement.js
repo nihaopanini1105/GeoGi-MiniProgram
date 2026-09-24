@@ -3,12 +3,18 @@ const {
   listBitableRecords,
   updateBitableRecord
 } = require('./feishu');
+const { findPaymentByProject } = require('./payment-store');
 
 async function submitCustomerSupplement(input = {}) {
   try {
     const supplement = sanitizeSupplement(input);
     const validationError = validateSupplement(supplement);
     if (validationError) return fail(validationError);
+
+    const payment = await findPaymentByProject(supplement.projectId);
+    if (payment && ['refund_processing', 'refunded'].includes(String(payment.status || ''))) {
+      return fail('退款订单不能再提交补充资料');
+    }
 
     const tenantToken = await getTenantAccessToken();
     const lead = await findRecord({
