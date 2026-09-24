@@ -200,6 +200,9 @@ async function createJsapiPayment(order, loginCode) {
   if (!order) throw new WechatPayError('PAYMENT_ORDER_REQUIRED');
   if (isPaymentOrderExpired(order)) throw new WechatPayError('PAYMENT_ORDER_EXPIRED');
   if (order.status === 'refunded') throw new WechatPayError('PAYMENT_ORDER_ALREADY_REFUNDED');
+  if (order.status === 'free') {
+    return { alreadyPaid: true, order };
+  }
   if (order.status === 'paid' || order.status === 'partially_refunded') {
     return { alreadyPaid: true, order };
   }
@@ -223,7 +226,7 @@ async function createJsapiPayment(order, loginCode) {
     notify_url: config.notifyUrl,
     time_expire: order.expiresAt,
     amount: {
-      total: PRODUCT_PRICE_FEN,
+      total: Number(order.amountTotal),
       currency: CURRENCY
     },
     payer: { openid },
@@ -291,7 +294,7 @@ async function syncPaymentOrder(order) {
     throw new WechatPayError('WECHAT_PAY_QUERY_MERCHANT_SCOPE_MISMATCH');
   }
   if (
-    Number(result.amount && result.amount.total) !== PRODUCT_PRICE_FEN
+    Number(result.amount && result.amount.total) !== Number(order.amountTotal)
     || String(result.amount && result.amount.currency || CURRENCY) !== CURRENCY
   ) {
     throw new WechatPayError('WECHAT_PAY_QUERY_AMOUNT_MISMATCH');
@@ -305,7 +308,7 @@ async function syncPaymentOrder(order) {
       ? String(result.success_time || order.paidAt || new Date().toISOString())
       : order.paidAt,
     refundableAmount: nextStatus === 'paid'
-      ? Math.max(Number(order.refundableAmount || 0), PRODUCT_PRICE_FEN - Number(order.refundedAmount || 0))
+      ? Math.max(Number(order.refundableAmount || 0), Number(order.amountTotal || 0) - Number(order.refundedAmount || 0))
       : order.refundableAmount,
     closedAt: nextStatus === 'closed' ? new Date().toISOString() : order.closedAt,
     closedReason: nextStatus === 'closed'
