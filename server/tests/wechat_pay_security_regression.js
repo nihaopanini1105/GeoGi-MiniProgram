@@ -34,13 +34,15 @@ process.env.WECHATPAY_REFUND_NOTIFY_URL = 'https://api.geogi.cn/api/payments/wec
 
 const {
   createOrGetPaymentOrder,
-  findPaymentByOutTradeNo
+  findPaymentByOutTradeNo,
+  updatePaymentOrder
 } = require('../src/services/payment-store');
 const {
   configStatus,
   verifyWechatSignature,
   decryptNotificationResource,
-  handlePaymentNotification
+  handlePaymentNotification,
+  handleRefundNotification
 } = require('../src/services/wechat-pay');
 
 function encryptedResource(payload) {
@@ -125,6 +127,63 @@ async function main() {
   assert.strictEqual(paid.transactionId, payload.transaction_id);
   assert.strictEqual(paid.refundableAmount, 19900);
   assert.strictEqual((await findPaymentByOutTradeNo(created.order.outTradeNo)).status, 'paid');
+
+  const discounted = await createOrGetPaymentOrder({
+    clientId: 'GG-202609-0100',
+    projectId: 'GG-P-202609-010000',
+    submissionId: 'mp-discount-security',
+    brandName: '折扣支付安全测试品牌',
+    phoneNumber: '13800138001',
+    amountTotal: 15920,
+    promotionCode: 'A80',
+    channelId: 'channel_a',
+    channelName: 'A 渠道',
+    discountType: 'percent',
+    discountRateBps: 8000,
+    commissionRateBps: 1000
+  });
+  const discountedPayload = {
+    ...payload,
+    out_trade_no: discounted.order.outTradeNo,
+    transaction_id: '4200000000000100000',
+    amount: { total: 15920, payer_total: 15920, currency: 'CNY', payer_currency: 'CNY' }
+  };
+  const discountedSigned = signedEnvelope(discountedPayload);
+  const discountedPaid = await handlePaymentNotification(discountedSigned.headers, discountedSigned.rawBody);
+  assert.strictEqual(discountedPaid.status, 'paid');
+  assert.strictEqual(discountedPaid.refundableAmount, 15920);
+
+  const refundNo = 'RA80SECURITY';
+  const refunding = await updatePaymentOrder(discounted.order.outTradeNo, {
+    status: 'refund_processing',
+    refundableAmount: 15920,
+    refunds: [{
+      refundId: 'refund-a80',
+      outRefundNo: refundNo,
+      providerRefundId: '',
+      amount: 15920,
+      status: 'processing',
+      reason: '渠道折扣订单退款',
+      requestedAt: '2026-09-22T10:10:00+08:00',
+      successAt: '',
+      operatorId: 'test'
+    }]
+  });
+  assert.strictEqual(refunding.amountTotal, 15920);
+  const refundPayload = {
+    mchid: process.env.WECHATPAY_MCH_ID,
+    out_trade_no: discounted.order.outTradeNo,
+    out_refund_no: refundNo,
+    refund_id: '5000000000000100000',
+    refund_status: 'SUCCESS',
+    success_time: '2026-09-22T10:15:00+08:00',
+    amount: { total: 15920, refund: 15920, payer_total: 15920, payer_refund: 15920, currency: 'CNY' }
+  };
+  const signedRefund = signedEnvelope(refundPayload);
+  const discountedRefunded = await handleRefundNotification(signedRefund.headers, signedRefund.rawBody);
+  assert.strictEqual(discountedRefunded.status, 'refunded');
+  assert.strictEqual(discountedRefunded.refundedAmount, 15920);
+  assert.strictEqual(discountedRefunded.refundableAmount, 0);
 
   const wrongAmount = signedEnvelope({
     ...payload,
