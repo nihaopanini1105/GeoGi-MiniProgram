@@ -9,6 +9,7 @@ const {
   upsertChannel,
   upsertSource,
   resolveSourceToken,
+  quoteRedeemCode,
   recordSourceVisit,
   listSourceVisits,
   listCommissionRecords,
@@ -67,6 +68,23 @@ async function resolveAttribution(token, visitorId = '') {
   };
 }
 
+async function quoteCustomerRedeemCode(code) {
+  const quote = await quoteRedeemCode(code);
+  return {
+    ok: true,
+    applied: true,
+    redeemCode: quote.redeemCode,
+    listPriceFen: quote.listPriceFen,
+    listPriceYuan: yuan(quote.listPriceFen),
+    discountFen: quote.discountFen,
+    discountYuan: yuan(quote.discountFen),
+    payableFen: quote.payableFen,
+    payableYuan: yuan(quote.payableFen),
+    discountType: quote.discountType,
+    discountRateBps: quote.discountRateBps
+  };
+}
+
 async function channelDashboardForPhone(phoneNumber) {
   const phone = String(phoneNumber || '').trim();
   if (!phone) return { ok: true, isChannel: false, channels: [], monthly: [], recentOrders: [] };
@@ -80,28 +98,44 @@ async function channelDashboardForPhone(phoneNumber) {
   const owned = channels.filter((channel) => Array.isArray(channel.ownerPhones) && channel.ownerPhones.includes(phone));
   if (!owned.length) return { ok: true, isChannel: false, channels: [], monthly: [], recentOrders: [] };
 
-  const ownedIds = new Set(owned.map((channel) => channel.channelId));
-  const channelOrders = orders.filter((order) => ownedIds.has(order.channelId));
-  const channelCommissions = commissions.filter((item) => ownedIds.has(item.channelId));
   const currentPeriod = monthKey();
 
-  const summaries = owned.map((channel) => {
-    const rows = channelOrders.filter((order) => order.channelId === channel.channelId);
-    const commissionRows = channelCommissions.filter((item) => item.channelId === channel.channelId);
-    const shareSource = sources.find((source) => source.channelId === channel.channelId && source.sourceType === 'channel' && source.notes === 'auto_channel_share')
-      || sources.find((source) => source.channelId === channel.channelId && source.sourceType === 'channel')
+  const channelContext = owned.map((channel) => {
+    const channelSources = sources.filter((source) => source.channelId === channel.channelId);
+    const sourceIds = new Set(channelSources.map((source) => source.sourceId));
+    const sourceOrders = orders.filter((order) => sourceIds.has(order.sourceId));
+    const redeemedOrders = orders.filter((order) => order.channelId === channel.channelId && order.redeemCode);
+    const relatedByProject = new Map();
+    for (const order of sourceOrders.concat(redeemedOrders)) relatedByProject.set(order.projectId, order);
+    const relatedOrders = [...relatedByProject.values()];
+    const commissionRows = commissions.filter((item) => item.channelId === channel.channelId);
+    const shareSource = channelSources.find((source) => source.sourceType === 'channel' && source.notes === 'auto_channel_share')
+      || channelSources.find((source) => source.sourceType === 'channel')
       || null;
-    const channelSourceIds = new Set(sources.filter((source) => source.channelId === channel.channelId).map((source) => source.sourceId));
-    const channelVisits = visits.filter((visit) => channelSourceIds.has(visit.sourceId));
-    const grossFen = rows.reduce((sum, order) => sum + (paymentCompleted(order) ? Number(order.amountTotal || 0) : 0), 0);
+    const channelVisits = visits.filter((visit) => sourceIds.has(visit.sourceId));
+    return {
+      channel,
+      channelSources,
+      sourceIds,
+      sourceOrders,
+      redeemedOrders,
+      relatedOrders,
+      commissionRows,
+      shareSource,
+      channelVisits
+    };
+  });
+
+  const summaries = channelContext.map((ctx) => {
+    const { channel, sourceOrders, relatedOrders, commissionRows, shareSource, channelVisits } = ctx;
+    const grossFen = relatedOrders.reduce((sum, order) => sum + (paymentCompleted(order) ? Number(order.amountTotal || 0) : 0), 0);
     const pendingCommissionFen = commissionRows.reduce((sum, item) => sum + Number(item.dueFen || 0), 0);
     const paidCommissionFen = commissionRows.reduce((sum, item) => sum + Number(item.payoutFen || 0), 0);
     return {
       channelId: channel.channelId,
       name: channel.name,
+      redeemCode: channel.redeemCode || '',
       active: channel.active,
-      discountType: channel.discountType,
-      discountRateBps: channel.discountRateBps,
       commissionRateBps: channel.commissionRateBps,
       startsAt: channel.startsAt,
       endsAt: channel.endsAt,
@@ -109,30 +143,39 @@ async function channelDashboardForPhone(phoneNumber) {
       sharePath: shareSource ? '/pages/index/index?src=' + encodeURIComponent(shareSource.token) : '/pages/index/index',
       visits: channelVisits.length,
       uniqueVisitors: new Set(channelVisits.map((item) => item.visitorId).filter(Boolean)).size,
-      promotedOrders: rows.length,
-      paidOrders: rows.filter(paymentCompleted).length,
-      completedReports: rows.filter((order) => order.reportReleasedAt).length,
+      promotedOrders: sourceOrders.length,
+      paidOrders: relatedOrders.filter(paymentCompleted).length,
+      completedReports: relatedOrders.filter((order) => order.reportReleasedAt).length,
       grossPaidYuan: yuan(grossFen),
       pendingCommissionYuan: yuan(pendingCommissionFen),
       paidCommissionYuan: yuan(paidCommissionFen)
     };
   });
 
+  const relatedOrdersByProject = new Map();
+  for (const ctx of channelContext) {
+    for (const order of ctx.relatedOrders) relatedOrdersByProject.set(order.projectId, order);
+  }
+  const relatedOrders = [...relatedOrdersByProject.values()];
+  const ownedCommissionRows = channelContext.flatMap((ctx) => ctx.commissionRows);
+
   const periods = [...new Set([
     currentPeriod,
-    ...channelOrders.map((order) => String(order.createdAt || '').slice(0, 7)).filter(Boolean),
-    ...channelCommissions.map((item) => item.period).filter(Boolean)
+    ...relatedOrders.map((order) => String(order.createdAt || '').slice(0, 7)).filter(Boolean),
+    ...ownedCommissionRows.map((item) => item.period).filter(Boolean)
   ])].sort().reverse();
 
   const monthly = periods.map((period) => {
-    const orderRows = channelOrders.filter((order) => String(order.createdAt || '').slice(0, 7) === period);
-    const commissionRows = channelCommissions.filter((item) => item.period === period);
+    const orderRows = relatedOrders.filter((order) => String(order.createdAt || '').slice(0, 7) === period);
+    const sourceOrderRows = channelContext.flatMap((ctx) => ctx.sourceOrders)
+      .filter((order) => String(order.createdAt || '').slice(0, 7) === period);
+    const commissionRows = ownedCommissionRows.filter((item) => item.period === period);
     const grossFen = orderRows.reduce((sum, order) => sum + (paymentCompleted(order) ? Number(order.amountTotal || 0) : 0), 0);
     const pendingFen = commissionRows.reduce((sum, item) => sum + Number(item.dueFen || 0), 0);
     const paidFen = commissionRows.reduce((sum, item) => sum + Number(item.payoutFen || 0), 0);
     return {
       period,
-      promotedOrders: orderRows.length,
+      promotedOrders: sourceOrderRows.length,
       paidOrders: orderRows.filter(paymentCompleted).length,
       completedReports: orderRows.filter((order) => order.reportReleasedAt).length,
       grossPaidYuan: yuan(grossFen),
@@ -141,7 +184,7 @@ async function channelDashboardForPhone(phoneNumber) {
     };
   });
 
-  const recentOrders = channelOrders
+  const recentOrders = relatedOrders
     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
     .slice(0, 30)
     .map((order) => ({
@@ -149,6 +192,7 @@ async function channelDashboardForPhone(phoneNumber) {
       brandName: order.brandName,
       channelId: order.channelId,
       channelName: order.channelName,
+      redeemCode: order.redeemCode || '',
       sourceName: order.sourceName || '',
       sourceType: order.sourceType || '',
       listPriceYuan: yuan(order.listPriceFen || BASE_PRICE_FEN),
@@ -382,6 +426,7 @@ async function generateSourceMiniProgramCode(sourceId, options = {}) {
 
 module.exports = {
   resolveAttribution,
+  quoteCustomerRedeemCode,
   channelDashboardForPhone,
   channelAdminDashboard,
   upsertChannel,
