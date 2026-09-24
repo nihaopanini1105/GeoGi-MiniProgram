@@ -93,9 +93,17 @@ app.get('/api/source-codes/:fileName', async (req, res, next) => {
     } catch (_error) {
       return res.status(404).json({ ok: false, error: 'SOURCE_CODE_NOT_FOUND' });
     }
-    res.setHeader('Content-Type', 'image/png');
+    const bytes = await fs.promises.readFile(filePath);
+    const isPng = bytes.length >= 8
+      && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+      && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a;
+    const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    if (!isPng && !isJpeg) {
+      return res.status(500).json({ ok: false, error: 'SOURCE_CODE_IMAGE_INVALID' });
+    }
+    res.setHeader('Content-Type', isPng ? 'image/png' : 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=3600');
-    return res.sendFile(filePath);
+    return res.send(bytes);
   } catch (error) {
     return next(error);
   }

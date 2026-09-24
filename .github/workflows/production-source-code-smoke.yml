@@ -34,13 +34,15 @@ jobs:
           node <<'NODE'
           const fs=require('fs');
           const names=['official-website','official-account','business-card-liaohuafeng','business-card-lishasha'];
-          const sig=Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]);
+          const png=Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]);
           for (const name of names) {
             const p='source-codes/'+name+'.png';
             const b=fs.readFileSync(p);
-            if (b.length < 1024) throw new Error(name+' PNG too small: '+b.length);
-            if (!b.subarray(0,8).equals(sig)) throw new Error(name+' is not PNG');
-            console.log(name+'_png=PASS bytes='+b.length);
+            if (b.length < 1024) throw new Error(name+' image too small: '+b.length);
+            const isPng=b.subarray(0,8).equals(png);
+            const isJpeg=b.length>=3 && b[0]===0xff && b[1]===0xd8 && b[2]===0xff;
+            if (!isPng && !isJpeg) throw new Error(name+' is not a supported image');
+            console.log(name+'_image=PASS format='+(isPng?'PNG':'JPEG')+' bytes='+b.length);
           }
           NODE
 
