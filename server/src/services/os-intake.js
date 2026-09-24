@@ -128,7 +128,7 @@ function sanitizeForm(form) {
     offerings: cleanText(form.offerings, 800),
     audiences: cleanText(form.audiences, 500),
     advantages: cleanText(form.advantages, 500),
-    competitors: cleanText(form.competitors, 300),
+    competitors: cleanText(form.competitors, 5000),
     goals: cleanList(form.goals, 3, 120),
     uploads: normalizeUploads(form.uploads),
     contactName: cleanText(form.contactName, 80),
