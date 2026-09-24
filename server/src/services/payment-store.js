@@ -173,7 +173,15 @@ async function updatePaymentOrder(outTradeNo, patch) {
     clientId: existing.clientId,
     projectId: existing.projectId,
     productCode: existing.productCode,
+    listPriceFen: existing.listPriceFen,
     amountTotal: existing.amountTotal,
+    promotionCode: existing.promotionCode,
+    channelId: existing.channelId,
+    channelName: existing.channelName,
+    discountType: existing.discountType,
+    discountRateBps: existing.discountRateBps,
+    discountFen: existing.discountFen,
+    commissionRateBps: existing.commissionRateBps,
     currency: existing.currency,
     updatedAt: new Date().toISOString()
   });
