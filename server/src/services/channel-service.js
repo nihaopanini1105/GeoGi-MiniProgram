@@ -189,9 +189,10 @@ async function channelAdminDashboard() {
     sourceTypeLabel: sourceTypeLabel(source.sourceType),
     channelName: (channels.find((channel) => channel.channelId === source.channelId) || {}).name || '',
     miniProgramPath: '/pages/index/index?src=' + encodeURIComponent(source.token),
-    codeUrl: fs.existsSync(path.join(sourceCodeRoot(), source.sourceId.replace(/[^a-zA-Z0-9_.-]/g, '_') + '.png'))
-      ? String(process.env.GEOGI_PUBLIC_BASE_URL || 'https://api.geogi.cn').replace(/\/+$/, '') + '/source-codes/' + encodeURIComponent(source.sourceId.replace(/[^a-zA-Z0-9_.-]/g, '_') + '.png')
-      : '',
+    codeUrl: (() => {
+      const fileName = sourceCodeExistingFileName(source);
+      return fileName ? sourceCodePublicUrl(fileName) : '';
+    })(),
     ...sourceMetrics(source, visits, orders)
   }));
   const channelRows = channels.map((channel) => {
@@ -266,6 +267,28 @@ function sourceCodeRoot() {
     return path.join(path.dirname(process.env.GEOGI_PAYMENT_DATA_ROOT), 'source-codes');
   }
   return path.join(__dirname, '../../data/source-codes');
+}
+
+function sourceCodeAliasForSource(source) {
+  const notes = String(source && source.notes || '');
+  if (notes === 'auto_official_source:website') return 'official-website';
+  if (notes === 'auto_official_source:official_account') return 'official-account';
+  if (notes === 'official_business_card:liaohuafeng') return 'business-card-liaohuafeng';
+  if (notes === 'official_business_card:lishasha') return 'business-card-lishasha';
+  return '';
+}
+
+function sourceCodePublicUrl(fileName) {
+  const base = String(process.env.GEOGI_PUBLIC_BASE_URL || 'https://api.geogi.cn').replace(/\/+$/, '');
+  return base + '/api/source-codes/' + encodeURIComponent(String(fileName || '').trim());
+}
+
+function sourceCodeExistingFileName(source) {
+  const candidates = [];
+  const alias = sourceCodeAliasForSource(source);
+  if (alias) candidates.push(sourceCodeFileName(source, alias));
+  candidates.push(sourceCodeFileName(source));
+  return candidates.find((fileName) => fs.existsSync(path.join(sourceCodeRoot(), fileName))) || '';
 }
 
 function requestJson({ method, hostname, requestPath, body }) {
@@ -345,7 +368,6 @@ async function generateSourceMiniProgramCode(sourceId, options = {}) {
   await fs.promises.mkdir(root, { recursive: true, mode: 0o700 });
   const fileName = sourceCodeFileName(source, options.alias || '');
   await fs.promises.writeFile(path.join(root, fileName), result.buffer, { mode: 0o600 });
-  const base = String(process.env.GEOGI_PUBLIC_BASE_URL || 'https://api.geogi.cn').replace(/\/+$/, '');
   return {
     ok: true,
     sourceId: source.sourceId,
@@ -354,7 +376,7 @@ async function generateSourceMiniProgramCode(sourceId, options = {}) {
     sourceType: source.sourceType,
     miniProgramPath: '/pages/index/index?src=' + encodeURIComponent(source.token),
     miniProgramScene: source.token,
-    codeUrl: base + '/source-codes/' + encodeURIComponent(fileName)
+    codeUrl: sourceCodePublicUrl(fileName)
   };
 }
 
@@ -369,5 +391,8 @@ module.exports = {
   generateSourceMiniProgramCode,
   sourceCodeRoot,
   sourceTypeLabel,
-  sourceCodeFileName
+  sourceCodeFileName,
+  sourceCodeAliasForSource,
+  sourceCodePublicUrl,
+  sourceCodeExistingFileName
 };
