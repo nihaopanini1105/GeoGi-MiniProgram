@@ -1,9 +1,9 @@
 <view class="page mine-page">
   <view class="mine-head card">
     <view class="mine-copy">
-      <text class="eyebrow">GEOGI REPORTS</text>
-      <text class="h1">诊断报告</text>
-      <text class="lead">查看 199 元品牌 GEO 诊断订单、付款状态、处理进度和正式报告。</text>
+      <text class="eyebrow">MY GEOGI</text>
+      <text class="h1">我的</text>
+      <text class="lead">查看你的品牌 GEO 诊断订单、结果提醒、处理进度和正式报告。</text>
     </view>
 </view>
 
@@ -13,6 +13,29 @@
   </view>
 
   <text wx:if="{{error}}" class="error-tip">{{error}}</text>
+
+  <view wx:if="{{notifications.length}}" class="section notification-section">
+    <view class="notification-head">
+      <text class="notification-title">结果提醒</text>
+      <text class="notification-desc">退款结果、诊断报告完成等重要状态会在这里更新。</text>
+    </view>
+    <view
+      class="notification-card card"
+      wx:for="{{notifications}}"
+      wx:key="id"
+      data-project-id="{{item.projectId}}"
+      data-client-id="{{item.clientId}}"
+      bindtap="openNotification"
+    >
+      <view class="notification-dot {{item.type}}"></view>
+      <view class="notification-copy">
+        <text class="notification-card-title">{{item.title}}</text>
+        <text class="notification-message">{{item.message}}</text>
+        <text wx:if="{{item.occurredAtText}}" class="notification-time">{{item.occurredAtText}}</text>
+      </view>
+      <text class="notification-action">{{item.actionText || '查看'}}</text>
+    </view>
+  </view>
 
   <view wx:if="{{orders.length}}" class="section order-list">
     <view class="order-card card" wx:for="{{orders}}" wx:key="projectId" data-project-id="{{item.projectId}}" data-client-id="{{item.clientId}}" bindtap="openReport">
