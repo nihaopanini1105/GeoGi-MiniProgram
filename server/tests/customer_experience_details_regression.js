@@ -69,9 +69,7 @@ function run() {
   assert(mine.includes('推广兑换码'));
 
   assert(!diagnosis.includes('wx:if="{{!phoneAuthorized}}"'), 'diagnosis first screen must not be blocked by phone authorization');
-  assert(!diagnosisIntro.includes('open-type="getPhoneNumber"'));
-  assert(!diagnosisIntro.includes('授权手机号并继续'));
-  assert(diagnosisIntro.includes('提交前授权手机号'));
+  assert(!diagnosisIntro.includes('授权手机号'));
   assert(diagnosis.includes('GeoGi 仅用于识别本次订单和后续服务，不获取你的头像或昵称'));
   assert(diagnosis.includes('step == 3 && !phoneAuthorized'));
   assert(diagnosis.includes('授权手机号并继续'));
