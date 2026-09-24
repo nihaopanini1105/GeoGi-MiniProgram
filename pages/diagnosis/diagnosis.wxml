@@ -32,7 +32,7 @@
       <view class="intro-copy">
         <text class="page-kicker">GEOGI DIAGNOSIS</text>
         <text class="intro-title">¥199 品牌 GEO 诊断报告</text>
-        <text class="intro-lead">提交品牌资料后将直接拉起微信支付。支付 199 元后，GeoGi 将完成品牌研究、主流 AI 平台检测与 GEO 诊断，并交付正式诊断报告。</text>
+        <text class="intro-lead">品牌 GEO 诊断标准价 199 元。提交资料后按订单金额结算；如使用有效兑换码，将按兑换后的优惠价格付款或免支付。</text>
         <button class="primary-button intro-button" bindtap="startForm">开始填写</button>
       </view>
       <image class="intro-orbit" src="{{assets.hero.background}}" mode="aspectFit"></image>
@@ -75,7 +75,7 @@
     <view class="section note-card card">
       <view>
         <text class="note-title">填写约 2–3 分钟</text>
-        <text class="note-copy">没有官网、竞品或附件也可以提交。点击提交后将直接拉起微信支付，订单 30 分钟内有效，付款成功后开始诊断。</text>
+        <text class="note-copy">没有官网、竞品或附件也可以提交。普通订单付款成功后开始诊断；有效兑换码会在提交前显示优惠结果。</text>
       </view>
     </view>
   </block>
@@ -84,7 +84,7 @@
     <view class="form-head">
       <text class="page-kicker">BRAND DIAGNOSIS</text>
       <text class="form-page-title">提交品牌 GEO 诊断资料</text>
-      <text class="form-page-copy">请用日常经营语言填写。提交资料后将直接拉起微信支付，支付订单创建后 30 分钟内有效。</text>
+      <text class="form-page-copy">请用日常经营语言填写。标准价 199 元；如有兑换码，可在最后一步填写并查看兑换后的应付金额。</text>
     </view>
 
     <view class="step-card card">
@@ -256,6 +256,24 @@
 
       <view class="field">
         <view class="field-label-row">
+          <text class="field-label">兑换码</text>
+          <text class="optional-tag">选填</text>
+        </view>
+        <view class="redemption-row">
+          <input class="redemption-input" value="{{form.redemptionCode}}" maxlength="40" data-key="redemptionCode" bindinput="updateField" placeholder="请输入渠道兑换码" placeholder-class="placeholder" />
+          <button class="redemption-check" loading="{{redemptionChecking}}" disabled="{{redemptionChecking || !form.redemptionCode}}" bindtap="validateRedemptionCode">验证</button>
+        </view>
+        <view wx:if="{{redemptionQuote}}" class="redemption-result">
+          <view><text>标准价</text><strong>¥{{redemptionQuote.listPriceYuan}}</strong></view>
+          <view><text>优惠</text><strong>-¥{{redemptionQuote.discountYuan}}</strong></view>
+          <view class="payable"><text>应付</text><strong>¥{{redemptionQuote.payableYuan}}</strong></view>
+          <text class="redemption-success">{{redemptionQuote.payableFen === 0 ? '兑换成功，本次诊断无需付款' : '兑换码已生效'}}</text>
+        </view>
+        <text wx:if="{{fieldErrors.redemptionCode}}" class="field-error">{{fieldErrors.redemptionCode}}</text>
+      </view>
+
+      <view class="field">
+        <view class="field-label-row">
           <text class="field-label">补充说明</text>
           <text class="optional-tag">选填</text>
         </view>
@@ -274,7 +292,7 @@
     <view class="bottom-actions">
       <button wx:if="{{step > 1}}" class="secondary-button half-button" bindtap="prevStep" disabled="{{submitting}}">上一步</button>
       <button wx:if="{{step < 3}}" class="primary-button grow-button" bindtap="nextStep">下一步</button>
-      <button wx:if="{{step == 3}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交并支付</button>
+      <button wx:if="{{step == 3}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">{{redemptionQuote && redemptionQuote.payableFen === 0 ? '提交并兑换' : '提交并支付'}}</button>
     </view>
   </block>
 
