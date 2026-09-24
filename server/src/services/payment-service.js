@@ -23,6 +23,7 @@ const {
   requestRefund
 } = require('./wechat-pay');
 const { notifyPaymentPaid } = require('./ops-notifications');
+const { reconcileCommission } = require('./channel-service');
 
 function text(value) {
   if (Array.isArray(value)) return value.map(text).filter(Boolean).join('');
@@ -347,6 +348,7 @@ async function refundPaymentForOs({ outTradeNo, amountFen, reason, operatorId })
     operatorId
   });
   await projectPaymentProjection({ projectId: refunded.projectId, paymentStatus: refunded.status });
+  await reconcileCommission({ order: refunded });
   return publicPaymentView(refunded);
 }
 
