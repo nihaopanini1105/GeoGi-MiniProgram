@@ -6,6 +6,7 @@ const {
 } = require('./feishu');
 const { importDeliveryPackage } = require('./delivery-package-store');
 const { findPaymentByProject, publicPaymentView } = require('./payment-store');
+const { reconcileCommission } = require('./channel-service');
 
 const PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z';
 const LEGACY_PAYMENT_EXEMPTION_REASON = 'submitted_before_paid_diagnostic_launch';
@@ -136,15 +137,16 @@ async function listOsIntakes() {
     const payment = await findPaymentByProject(lead.projectId);
     const paymentView = publicPaymentView(payment);
     const paid = Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status));
+    const freeRedemption = Boolean(payment && payment.status === 'free');
     const legacyExemption = legacyPaymentExemption(lead.submittedAt);
     const legacyEligible = legacyExemption.eligible && !paid;
     return {
       ...lead,
       project: projects.get(lead.projectId) || null,
       payment: paymentView,
-      paymentRequired: !legacyEligible,
-      paymentEligibleForProcessing: paid || legacyEligible,
-      paymentAdmissionMode: paid ? 'paid' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required'),
+      paymentRequired: !legacyEligible && !freeRedemption,
+      paymentEligibleForProcessing: paid || freeRedemption || legacyEligible,
+      paymentAdmissionMode: paid ? 'paid' : (freeRedemption ? 'channel_redemption' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required')),
       legacyPaymentExemption: legacyExemption
     };
   }));
@@ -191,12 +193,17 @@ async function updateOsProjectStage({ projectId, stage }) {
 async function publishOsDeliveryPackage(packageDocument) {
   const result = await importDeliveryPackage(packageDocument);
   await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
+  const payment = await findPaymentByProject(packageDocument.project_id);
+  const commission = payment
+    ? await reconcileCommission({ order: payment, releasedAt: packageDocument.released_at })
+    : null;
   return {
     imported: result.imported,
     idempotent: result.idempotent,
     deliveryPackageId: packageDocument.delivery_package_id,
     projectId: packageDocument.project_id,
-    clientId: packageDocument.client_id
+    clientId: packageDocument.client_id,
+    commission
   };
 }
 
