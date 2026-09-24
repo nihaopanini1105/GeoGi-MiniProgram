@@ -175,7 +175,11 @@ async function run() {
   assert.strictEqual(bOrderResult.order.status, 'free');
   assert.strictEqual(bOrderResult.order.provider, 'channel_offer');
   const bReleased = await markProjectReportReleased('GG-P-B-1', '2026-09-26T02:00:00Z');
+  assert(bReleased, 'free channel order must remain readable after report release');
+  assert.strictEqual(bReleased.channelId, channelB.channelId, 'free order must preserve channel attribution');
+  assert.strictEqual(bReleased.reportReleasedAt, '2026-09-26T02:00:00Z');
   const bCommission = await reconcileCommission({ order: bReleased });
+  assert(bCommission, 'report release must materialize a zero-value commission ledger record for an attributed free order');
   assert.strictEqual(bCommission.earnedFen, 0);
   assert.strictEqual(bCommission.payoutStatus, 'not_applicable');
 
