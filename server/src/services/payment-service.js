@@ -209,7 +209,14 @@ async function ensureOrder({ clientId, projectId, phoneNumber }) {
     projectId,
     submissionId: text(fields.提交ID),
     brandName: text(fields.品牌名称),
-    phoneNumber
+    phoneNumber,
+    amountTotal: existing ? Number(existing.amountTotal) : PRODUCT_PRICE_FEN,
+    promotionCode: existing && existing.promotionCode,
+    channelId: existing && existing.channelId,
+    channelName: existing && existing.channelName,
+    discountType: existing && existing.discountType,
+    discountRateBps: existing && existing.discountRateBps,
+    commissionRateBps: existing && existing.commissionRateBps
   });
   return result.order;
 }
@@ -244,7 +251,7 @@ async function getCustomerPayment({ clientId, projectId }) {
   return {
     ok: true,
     payment: publicPaymentView(order),
-    paymentRequired: true,
+    paymentRequired: !(order && order.status === 'free'),
     product: {
       code: 'diagnostic_report_199',
       name: PRODUCT_NAME,
