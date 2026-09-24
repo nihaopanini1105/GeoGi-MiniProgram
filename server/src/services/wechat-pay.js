@@ -252,7 +252,7 @@ async function createJsapiPayment(order, loginCode) {
 
 async function closePaymentOrder(order, reason = 'customer_cancelled') {
   if (!order) throw new WechatPayError('PAYMENT_ORDER_REQUIRED');
-  if (['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(order.status)) {
+  if (['paid', 'free', 'refund_processing', 'partially_refunded', 'refunded'].includes(order.status)) {
     throw new WechatPayError('PAYMENT_ORDER_NOT_CANCELLABLE');
   }
   if (order.status === 'closed') return order;
