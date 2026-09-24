@@ -14,6 +14,9 @@ const {
 function run() {
   const diagnosisJs = read('pages/diagnosis/diagnosis.js');
   const diagnosis = read('pages/diagnosis/diagnosis.wxml');
+  const homeJs = read('pages/index/index.js');
+  const contactJs = read('pages/contact/contact.js');
+  const mineJs = read('pages/mine/mine.js');
   const appConfig = read('app.json');
   const home = read('pages/index/index.wxml');
   const mine = read('pages/mine/mine.wxml');
@@ -59,6 +62,20 @@ function run() {
   assert(mine.includes('分享专属入口'));
   assert(mine.includes('我的推广与返佣'));
   assert(diagnosis.includes('渠道专享优惠'));
+
+  assert(!diagnosis.includes('wx:if="{{!phoneAuthorized}}"'), 'diagnosis first screen must not be blocked by phone authorization');
+  assert(diagnosis.includes('你可以先浏览诊断内容并填写品牌资料'));
+  assert(diagnosis.includes('step == 3 && !phoneAuthorized'));
+  assert(diagnosis.includes('授权手机号以继续提交'));
+  assert(!diagnosis.includes('<strong>'));
+  assert(!diagnosisJs.includes("this.startForm({ forceNew: true });"));
+  for (const source of [homeJs, contactJs, mineJs]) {
+    assert(!source.includes("wx.setStorageSync('geogi_start_new_diagnosis', true)"));
+  }
+  const clientSources = [diagnosisJs, diagnosis, homeJs, contactJs, mineJs, appJs, attributionJs].join('\n');
+  assert(!clientSources.includes('getUserProfile'));
+  assert(!clientSources.includes('chooseAvatar'));
+  assert(!/nickname/i.test(clientSources), 'client must not request nickname authorization');
 
   assert.strictEqual(canCustomerSupplement({ status: 'paid' }, false), true);
   assert.strictEqual(canCustomerSupplement({ status: 'refund_processing' }, false), false);

@@ -29,7 +29,6 @@ Page({
   },
 
   goDiagnosis() {
-    wx.setStorageSync('geogi_start_new_diagnosis', true);
     wx.switchTab({ url: '/pages/diagnosis/diagnosis' });
   }
 });
