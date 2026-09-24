@@ -90,8 +90,9 @@ function run() {
   assert(intake.includes("paymentRequired: paymentResult.order.status !== 'free'"));
   assert(intake.includes('payment: publicPaymentView(paymentResult.order)'));
   assert(operationsBridge.includes("PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z'"));
-  assert(operationsBridge.includes("paymentAdmissionMode: paid ? 'paid' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required')"));
-  assert(operationsBridge.includes('paymentEligibleForProcessing: paid || legacyEligible'));
+  assert(operationsBridge.includes("freeRedemption ? 'channel_redemption'"));
+  assert(operationsBridge.includes("legacyEligible ? 'legacy_pre_payment' : 'payment_required'"));
+  assert(operationsBridge.includes('paymentEligibleForProcessing: paid || freeRedemption || legacyEligible'));
 
   for (const forbidden of [
     '免费诊断', '免费报告', '初步诊断会', '提交后立即开始诊断'
