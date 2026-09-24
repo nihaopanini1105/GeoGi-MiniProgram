@@ -272,6 +272,7 @@ async function channelAdminDashboard() {
         ...order,
         listPriceYuan: yuan(order.listPriceFen || BASE_PRICE_FEN),
         amountYuan: yuan(order.amountTotal || 0),
+        discountYuan: yuan(order.discountFen || 0),
         refundedYuan: yuan(order.refundedAmount || 0)
       })),
     commissions,
