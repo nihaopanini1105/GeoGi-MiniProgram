@@ -45,7 +45,7 @@
       },
       {
         "pagePath": "pages/mine/mine",
-        "text": "报告",
+        "text": "我的",
         "iconPath": "assets/tabbar/mine.png",
         "selectedIconPath": "assets/tabbar/mine_selected.png"
       }

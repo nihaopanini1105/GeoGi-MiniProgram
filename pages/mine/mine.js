@@ -11,7 +11,8 @@ Page({
     loading: false,
     error: '',
     clientId: '',
-    orders: []
+    orders: [],
+    notifications: []
   },
 
   onShow() {
@@ -27,6 +28,7 @@ Page({
     this.setData({
       clientId,
       orders: normalizedLocal,
+      notifications: this.buildLocalNotifications(normalizedLocal),
       error: ''
     });
 
@@ -57,9 +59,12 @@ Page({
         || clientId
         || '';
 
+      const notifications = (result.notifications || []).map((item) => this.normalizeNotification(item));
+
       this.setData({
         clientId: recoveredClientId,
         orders,
+        notifications,
         error: ''
       });
 
@@ -114,6 +119,70 @@ Page({
     if (/审核|复核|初稿|质检/.test(value)) return '报告审核中';
     if (/处理中|检测|测试|分析|生成|品牌资料/.test(value)) return '诊断处理中';
     return '已提交';
+  },
+
+  normalizeNotification(notification) {
+    const item = notification || {};
+    return {
+      ...item,
+      occurredAtText: this.formatDisplayTime(item.occurredAt)
+    };
+  },
+
+  buildLocalNotifications(orders) {
+    return (orders || []).flatMap((order) => {
+      if (order.reportReady) {
+        return [{
+          id: 'local-report-' + order.projectId,
+          type: 'report_ready',
+          title: '诊断报告已完成',
+          message: (order.brandName || '品牌') + ' 的品牌 GEO 诊断报告已完成，可直接查看。',
+          actionText: '查看报告',
+          projectId: order.projectId,
+          clientId: order.clientId,
+          occurredAtText: this.formatDisplayTime(order.completedAt || order.updatedAt)
+        }];
+      }
+      if (order.paymentStatus === 'refunded') {
+        return [{
+          id: 'local-refund-' + order.projectId,
+          type: 'refund_completed',
+          title: '订单退款已完成',
+          message: (order.brandName || '品牌') + ' 的诊断订单已退款。',
+          actionText: '查看订单',
+          projectId: order.projectId,
+          clientId: order.clientId,
+          occurredAtText: this.formatDisplayTime(order.updatedAt)
+        }];
+      }
+      if (order.paymentStatus === 'refund_processing') {
+        return [{
+          id: 'local-refund-processing-' + order.projectId,
+          type: 'refund_processing',
+          title: '退款正在处理中',
+          message: (order.brandName || '品牌') + ' 的退款申请已提交。',
+          actionText: '查看订单',
+          projectId: order.projectId,
+          clientId: order.clientId,
+          occurredAtText: this.formatDisplayTime(order.updatedAt)
+        }];
+      }
+      return [];
+    });
+  },
+
+  formatDisplayTime(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return raw.replace('T', ' ').slice(0, 16);
+    const pad = (number) => String(number).padStart(2, '0');
+    return [date.getFullYear(), pad(date.getMonth() + 1), pad(date.getDate())].join('-') + ' ' +
+      [pad(date.getHours()), pad(date.getMinutes())].join(':');
+  },
+
+  openNotification(event) {
+    this.openReport(event);
   },
 
   goDiagnosis() {

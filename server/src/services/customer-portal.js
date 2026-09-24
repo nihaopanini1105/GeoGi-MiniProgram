@@ -46,7 +46,10 @@ async function listCustomerProjects({ clientId }) {
     }))).filter(Boolean);
 
     orders.sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
-    return { ok: true, clientId: cleanClientId, orders };
+    const notifications = orders
+      .flatMap((order) => buildCustomerResultNotifications(order))
+      .sort((a, b) => String(b.occurredAt || '').localeCompare(String(a.occurredAt || '')));
+    return { ok: true, clientId: cleanClientId, orders, notifications };
   } catch (error) {
     console.error('listCustomerProjects failed', error);
     return fail('报告状态读取失败，请稍后重试');
@@ -119,6 +122,8 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
     projectId: text(leadFields.项目编号) || text(projectFields.项目编号)
   }) : null;
 
+  const paymentView = publicPaymentView(payment);
+
   return {
     clientId: text(leadFields.客户编号),
     projectId: text(leadFields.项目编号) || text(projectFields.项目编号),
@@ -131,15 +136,90 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
     status,
     reportReady,
     paymentRequired: true,
-    payment: publicPaymentView(payment),
+    payment: paymentView,
     paymentStatus: payment ? payment.status : 'unpaid',
     amountYuan: payment ? payment.amountYuan : 199,
     reportLink: reportReady && deliveryView ? deliveryView.reportLink : '',
     version: reportReady ? String(deliveryPackage.report_reference.report_version) : '',
     deliveryPackageId: reportReady ? deliveryPackage.delivery_package_id : '',
+    canSupplement: canCustomerSupplement(payment, reportReady),
     nextAction: customerNextAction(status),
     updatedAt: reportReady ? deliveryPackage.released_at : (text(projectFields.开始时间) || text(leadFields.提交时间))
   };
+}
+
+function canCustomerSupplement(payment, reportReady) {
+  if (reportReady) return false;
+  const status = String(payment && payment.status || 'unpaid');
+  return !['refund_processing', 'refunded'].includes(status);
+}
+
+function buildCustomerResultNotifications(order = {}) {
+  const notifications = [];
+  const payment = order.payment || {};
+  const projectId = String(order.projectId || '');
+  const clientId = String(order.clientId || '');
+  const brandName = String(order.brandName || '品牌');
+  const paymentStatus = String(order.paymentStatus || payment.status || '');
+
+  if (order.reportReady) {
+    notifications.push({
+      id: ['report_ready', projectId, order.deliveryPackageId || order.version || order.completedAt].filter(Boolean).join(':'),
+      type: 'report_ready',
+      title: '诊断报告已完成',
+      message: brandName + ' 的品牌 GEO 诊断报告已完成，可直接查看。',
+      actionText: '查看报告',
+      projectId,
+      clientId,
+      occurredAt: order.completedAt || order.updatedAt || ''
+    });
+  }
+
+  const refunds = Array.isArray(payment.refunds) ? payment.refunds : [];
+  const successfulRefunds = refunds.filter((refund) => String(refund.status || '').toLowerCase() === 'success');
+  const latestSuccess = successfulRefunds.sort(
+    (a, b) => String(b.successAt || b.requestedAt || '').localeCompare(String(a.successAt || a.requestedAt || ''))
+  )[0] || null;
+
+  if (paymentStatus === 'refunded') {
+    notifications.push({
+      id: ['refund_completed', projectId, latestSuccess && (latestSuccess.outRefundNo || latestSuccess.refundId) || payment.updatedAt].filter(Boolean).join(':'),
+      type: 'refund_completed',
+      title: '订单退款已完成',
+      message: brandName + ' 的诊断订单已退款，退款结果以微信支付到账记录为准。',
+      actionText: '查看订单',
+      projectId,
+      clientId,
+      occurredAt: latestSuccess && (latestSuccess.successAt || latestSuccess.requestedAt) || payment.updatedAt || order.updatedAt || ''
+    });
+  } else if (paymentStatus === 'partially_refunded') {
+    notifications.push({
+      id: ['refund_partial', projectId, latestSuccess && (latestSuccess.outRefundNo || latestSuccess.refundId) || payment.updatedAt].filter(Boolean).join(':'),
+      type: 'refund_partial',
+      title: '订单已部分退款',
+      message: brandName + ' 的诊断订单已完成部分退款，可查看订单了解当前服务状态。',
+      actionText: '查看订单',
+      projectId,
+      clientId,
+      occurredAt: latestSuccess && (latestSuccess.successAt || latestSuccess.requestedAt) || payment.updatedAt || order.updatedAt || ''
+    });
+  } else if (paymentStatus === 'refund_processing') {
+    const latestRefund = refunds.sort(
+      (a, b) => String(b.requestedAt || '').localeCompare(String(a.requestedAt || ''))
+    )[0] || null;
+    notifications.push({
+      id: ['refund_processing', projectId, latestRefund && (latestRefund.outRefundNo || latestRefund.refundId) || payment.updatedAt].filter(Boolean).join(':'),
+      type: 'refund_processing',
+      title: '退款正在处理中',
+      message: brandName + ' 的退款申请已提交，正在等待微信支付确认。',
+      actionText: '查看订单',
+      projectId,
+      clientId,
+      occurredAt: latestRefund && latestRefund.requestedAt || payment.updatedAt || order.updatedAt || ''
+    });
+  }
+
+  return notifications;
 }
 
 function isPaidForReport(payment) {
@@ -254,5 +334,7 @@ module.exports = {
   customerNextAction,
   buildPendingReport,
   isPaidForReport,
+  canCustomerSupplement,
+  buildCustomerResultNotifications,
   paymentStatusLabel
 };

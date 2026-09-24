@@ -13,7 +13,7 @@
         </view>
         <view class="auth-point">
           <view class="point-dot"></view>
-          <text>支付后开始诊断，报告完成后同步到“报告”页面</text>
+          <text>支付后开始诊断，报告完成后同步到“我的”页面</text>
         </view>
       </view>
 
@@ -191,9 +191,9 @@
       <view class="field">
         <view class="field-label-row">
           <text class="field-label">主要竞品</text>
-          <text class="optional-tag">选填 · 最多3个</text>
+          <text class="optional-tag">选填 · 可填写多个</text>
         </view>
-        <textarea class="auto-textarea compact-textarea" auto-height="{{true}}" show-confirm-bar="{{false}}" value="{{form.competitors}}" maxlength="160" data-key="competitors" bindinput="updateField" placeholder="用逗号分隔，例如：品牌A、品牌B、品牌C" placeholder-class="placeholder" />
+        <textarea class="auto-textarea compact-textarea" auto-height="{{true}}" show-confirm-bar="{{false}}" value="{{form.competitors}}" maxlength="-1" data-key="competitors" bindinput="updateField" placeholder="可填写多个，用逗号、顿号或换行分隔，例如：品牌A、品牌B、品牌C……" placeholder-class="placeholder" />
         <text wx:if="{{fieldErrors.competitors}}" class="field-error">{{fieldErrors.competitors}}</text>
       </view>
 

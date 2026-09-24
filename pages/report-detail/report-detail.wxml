@@ -53,7 +53,7 @@
       <text class="body">本次 199 元诊断订单已退款，报告访问和后续诊断流程已停止。</text>
     </view>
 
-    <view wx:if="{{!order.reportReady}}" class="section card supplement-card">
+    <view wx:if="{{order.canSupplement}}" class="section card supplement-card">
       <text class="block-title">补充项目资料</text>
       <text class="body supplement-help">如果诊断过程中需要核验企业主体、品牌归属或其他资料，可在这里补充。</text>
       <text class="field-label">企业 / 公司全称</text>

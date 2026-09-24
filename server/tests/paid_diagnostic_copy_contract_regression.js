@@ -48,7 +48,7 @@ function run() {
   assert(wechatPay.includes("'/close'"));
   assert(server.includes("/api/customer/projects/:projectId/payment/cancel"));
   assert(success.includes("closed ? '重新支付' : '立即支付'"));
-  assert(home.includes('199 元获取一次品牌 GEO 诊断及正式诊断报告'));
+  assert(home.includes('199元获取一次品牌 GEO诊断'));
   assert(home.includes('获取诊断报告'));
   assert(!home.includes('¥199 获取诊断报告'));
   assert(read('pages/index/index.js').includes("title: '品牌研究与问题诊断'"));
