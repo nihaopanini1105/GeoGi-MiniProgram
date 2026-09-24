@@ -22,7 +22,7 @@ Page({
     nextSteps: [
       {
         title: '确认订单',
-        desc: '完成付款或渠道优惠确认后，GeoGi 将开始本次品牌 GEO 诊断。'
+        desc: '完成订单确认后，GeoGi 将开始本次品牌 GEO 诊断。'
       },
       {
         title: '建立品牌企业画像',
