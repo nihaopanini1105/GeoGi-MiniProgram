@@ -22,7 +22,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p source-codes
-          base="https://api.geogi.cn/source-codes"
+          base="https://api.geogi.cn/api/source-codes"
           for name in official-website official-account business-card-liaohuafeng business-card-lishasha; do
             curl --fail --silent --show-error --location --retry 3 --retry-delay 2               "$base/$name.png" -o "source-codes/$name.png"
           done
@@ -45,6 +45,7 @@ jobs:
           NODE
 
       - name: Upload verified production codes
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: geogi-production-source-codes

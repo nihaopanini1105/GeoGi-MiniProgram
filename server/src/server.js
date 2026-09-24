@@ -1,5 +1,7 @@
 require('dotenv').config();
 
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
 const { submitIntake } = require('./services/os-intake');
@@ -77,6 +79,26 @@ app.get('/health', (_req, res) => {
     wechatPay: wechatPayConfigStatus().configured ? 'configured' : 'not_configured',
     feishuNotification: notificationConfigured() ? 'configured' : 'not_configured'
   });
+});
+
+app.get('/api/source-codes/:fileName', async (req, res, next) => {
+  try {
+    const fileName = String(req.params.fileName || '').trim();
+    if (!/^[A-Za-z0-9_.-]+\.png$/.test(fileName) || path.basename(fileName) !== fileName) {
+      return res.status(400).json({ ok: false, error: 'SOURCE_CODE_FILE_INVALID' });
+    }
+    const filePath = path.join(sourceCodeRoot(), fileName);
+    try {
+      await fs.promises.access(filePath, fs.constants.R_OK);
+    } catch (_error) {
+      return res.status(404).json({ ok: false, error: 'SOURCE_CODE_NOT_FOUND' });
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.sendFile(filePath);
+  } catch (error) {
+    return next(error);
+  }
 });
 
 app.get('/api/config', (_req, res) => res.json(getConfig()));
