@@ -14,6 +14,52 @@
 
   <text wx:if="{{error}}" class="error-tip">{{error}}</text>
 
+  <view wx:if="{{channelDashboard && channelDashboard.isChannel}}" class="section channel-section">
+    <view class="channel-head card">
+      <text class="eyebrow">CHANNEL PARTNER</text>
+      <text class="channel-title">我的推广与返佣</text>
+      <text class="channel-desc">仅显示你名下渠道的兑换码、推广订单和月度返佣数据。</text>
+    </view>
+
+    <view class="channel-card card" wx:for="{{channelDashboard.channels}}" wx:key="channelId">
+      <view class="channel-card-top">
+        <view>
+          <text class="channel-name">{{item.name}}</text>
+          <text class="channel-code">兑换码：{{item.code}}</text>
+        </view>
+        <text class="channel-status">{{item.active ? '生效中' : '已停用'}}</text>
+      </view>
+      <view class="channel-rule-row">
+        <view><text>兑换优惠</text><strong>{{item.discountText}}</strong></view>
+        <view><text>返佣比例</text><strong>{{item.commissionText}}</strong></view>
+      </view>
+      <view class="channel-metrics">
+        <view><strong>{{item.promotedOrders}}</strong><text>推广订单</text></view>
+        <view><strong>{{item.paidOrders}}</strong><text>已成交</text></view>
+        <view><strong>{{item.completedReports}}</strong><text>报告完成</text></view>
+      </view>
+      <view class="channel-commission-row">
+        <view><text>待返佣</text><strong>¥{{item.pendingCommissionYuan}}</strong></view>
+        <view><text>已返佣</text><strong>¥{{item.paidCommissionYuan}}</strong></view>
+      </view>
+      <text wx:if="{{item.startsAt || item.endsAt}}" class="channel-validity">有效期：{{item.startsAt || '立即生效'}} 至 {{item.endsAt || '长期有效'}}</text>
+    </view>
+
+    <view wx:if="{{channelDashboard.monthly.length}}" class="channel-monthly card">
+      <text class="channel-monthly-title">月度统计</text>
+      <view class="channel-month-row channel-month-head">
+        <text>月份</text><text>成交</text><text>报告完成</text><text>待返佣</text><text>已返佣</text>
+      </view>
+      <view class="channel-month-row" wx:for="{{channelDashboard.monthly}}" wx:key="period">
+        <text>{{item.period}}</text>
+        <text>{{item.paidOrders}}</text>
+        <text>{{item.completedReports}}</text>
+        <text>¥{{item.pendingCommissionYuan}}</text>
+        <text>¥{{item.paidCommissionYuan}}</text>
+      </view>
+    </view>
+  </view>
+
   <view wx:if="{{notifications.length}}" class="section notification-section">
     <view class="notification-head">
       <text class="notification-title">结果提醒</text>
@@ -49,11 +95,11 @@
       <view class="order-info">
         <text>诊断编号：{{item.projectId}}</text>
         <text wx:if="{{item.submittedAt}}">提交时间：{{item.submittedAt}}</text>
-        <text>订单金额：¥{{item.amountYuan || 199}}</text>
-        <text>付款状态：{{item.paymentStatus === 'paid' ? '已付款' : item.paymentStatus === 'partially_refunded' ? '部分退款' : item.paymentStatus === 'refunded' ? '已退款' : item.paymentStatus === 'refund_processing' ? '退款处理中' : item.paymentStatus === 'paying' ? '付款确认中' : '待付款'}}</text>
+        <text>订单金额：¥{{item.amountYuan !== undefined ? item.amountYuan : 199}}</text>
+        <text>付款状态：{{item.paymentStatus === 'free' ? '已兑换' : item.paymentStatus === 'paid' ? '已付款' : item.paymentStatus === 'partially_refunded' ? '部分退款' : item.paymentStatus === 'refunded' ? '已退款' : item.paymentStatus === 'refund_processing' ? '退款处理中' : item.paymentStatus === 'paying' ? '付款确认中' : '待付款'}}</text>
       </view>
       <view class="order-action">
-        <text>{{item.reportReady ? '查看完整诊断报告' : (item.paymentStatus === 'paid' || item.paymentStatus === 'partially_refunded' ? '查看诊断进度' : '去付款 / 查看订单')}}</text>
+        <text>{{item.reportReady ? '查看完整诊断报告' : (item.paymentStatus === 'free' || item.paymentStatus === 'paid' || item.paymentStatus === 'partially_refunded' ? '查看诊断进度' : '去付款 / 查看订单')}}</text>
         <text class="arrow">›</text>
       </view>
     </view>

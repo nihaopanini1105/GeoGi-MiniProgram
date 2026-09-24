@@ -10,6 +10,7 @@ const {
   publicPaymentView
 } = require('./payment-store');
 const { notifyIntakeSubmitted } = require('./ops-notifications');
+const { quoteChannelCode } = require('./channel-store');
 
 const REQUIRED_ENV = [
   'FEISHU_APP_ID',
@@ -29,6 +30,19 @@ async function submitIntake(input = {}) {
     if (validationError) return fail(validationError);
 
     const submittedAt = form.submittedAt || new Date().toISOString();
+    let channelQuote = null;
+    try {
+      channelQuote = await quoteChannelCode(form.redemptionCode);
+    } catch (error) {
+      const code = String(error && (error.code || error.message) || '');
+      const messages = {
+        CHANNEL_CODE_NOT_FOUND: '兑换码不存在，请检查后重试',
+        CHANNEL_CODE_INACTIVE: '该兑换码当前不可使用',
+        CHANNEL_CODE_NOT_STARTED: '该兑换码尚未生效',
+        CHANNEL_CODE_EXPIRED: '该兑换码已过期'
+      };
+      return fail(messages[code] || '兑换码暂时无法使用，请稍后重试');
+    }
     const tenantToken = await getTenantAccessToken();
     const existing = await findExistingSubmission({ tenantToken, submissionId: form.submissionId });
     if (existing) {
@@ -40,21 +54,31 @@ async function submitIntake(input = {}) {
         projectId,
         submissionId: form.submissionId,
         brandName: text(fields.品牌名称) || form.brandName,
-        phoneNumber: form.contactMethod
+        phoneNumber: form.contactMethod,
+        amountTotal: channelQuote.payableFen,
+        promotionCode: channelQuote.promotionCode,
+        channelId: channelQuote.channelId,
+        channelName: channelQuote.channelName,
+        discountType: channelQuote.discountType,
+        discountRateBps: channelQuote.discountRateBps,
+        commissionRateBps: channelQuote.commissionRateBps
       });
       return {
         ok: true,
         duplicated: true,
         clientId,
         projectId,
-        status: text(fields.当前状态) || '待付款',
+        status: paymentResult.order.status === 'free' ? '已兑换' : (text(fields.当前状态) || '待付款'),
         submittedAt: text(fields.提交时间) || submittedAt,
-        paymentRequired: true,
+        paymentRequired: paymentResult.order.status !== 'free',
         payment: publicPaymentView(paymentResult.order),
         productName: 'GeoGi 品牌 GEO 诊断报告',
-        amountYuan: 199,
+        amountYuan: Number(paymentResult.order.amountTotal || 0) / 100,
+        listPriceYuan: 199,
+        redemptionCode: paymentResult.order.promotionCode || '',
+        channelName: paymentResult.order.channelName || '',
         currency: 'CNY',
-        workbenchStatus: '等待客户支付'
+        workbenchStatus: paymentResult.order.status === 'free' ? '兑换成功 / 待 OS 处理' : '等待客户支付'
       };
     }
 
@@ -64,7 +88,7 @@ async function submitIntake(input = {}) {
       tenantToken,
       appToken: process.env.FEISHU_BASE_APP_TOKEN,
       tableId: process.env.FEISHU_LEADS_TABLE_ID,
-      fields: buildLeadFields({ form, clientId, projectId, submittedAt, source: input.source || 'wechat_miniprogram' })
+      fields: buildLeadFields({ form, clientId, projectId, submittedAt, source: input.source || 'wechat_miniprogram', channelQuote })
     });
 
     if (process.env.FEISHU_PROJECTS_TABLE_ID) {
@@ -72,7 +96,7 @@ async function submitIntake(input = {}) {
         tenantToken,
         appToken: process.env.FEISHU_BASE_APP_TOKEN,
         tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
-        fields: buildProjectFields({ form, clientId, projectId, submittedAt })
+        fields: buildProjectFields({ form, clientId, projectId, submittedAt, channelQuote })
       });
     }
 
@@ -81,7 +105,14 @@ async function submitIntake(input = {}) {
       projectId,
       submissionId: form.submissionId,
       brandName: form.brandName,
-      phoneNumber: form.contactMethod
+      phoneNumber: form.contactMethod,
+      amountTotal: channelQuote.payableFen,
+      promotionCode: channelQuote.promotionCode,
+      channelId: channelQuote.channelId,
+      channelName: channelQuote.channelName,
+      discountType: channelQuote.discountType,
+      discountRateBps: channelQuote.discountRateBps,
+      commissionRateBps: channelQuote.commissionRateBps
     });
 
     notifyIntakeSubmitted({
@@ -96,14 +127,17 @@ async function submitIntake(input = {}) {
       ok: true,
       clientId,
       projectId,
-      status: '待付款',
+      status: paymentResult.order.status === 'free' ? '已兑换' : '待付款',
       submittedAt,
-      paymentRequired: true,
+      paymentRequired: paymentResult.order.status !== 'free',
       payment: publicPaymentView(paymentResult.order),
       productName: 'GeoGi 品牌 GEO 诊断报告',
-      amountYuan: 199,
+      amountYuan: Number(paymentResult.order.amountTotal || 0) / 100,
+      listPriceYuan: 199,
+      redemptionCode: paymentResult.order.promotionCode || '',
+      channelName: paymentResult.order.channelName || '',
       currency: 'CNY',
-      workbenchStatus: '等待客户支付'
+      workbenchStatus: paymentResult.order.status === 'free' ? '兑换成功 / 待 OS 处理' : '等待客户支付'
     };
   } catch (error) {
     console.error('submitIntake failed', error);
@@ -130,6 +164,7 @@ function sanitizeForm(form) {
     advantages: cleanText(form.advantages, 500),
     competitors: cleanText(form.competitors, 5000),
     goals: cleanList(form.goals, 3, 120),
+    redemptionCode: cleanText(form.redemptionCode, 40).replace(/\s+/g, '').toUpperCase(),
     uploads: normalizeUploads(form.uploads),
     contactName: cleanText(form.contactName, 80),
     contactMethod: cleanText(form.contactMethod, 120),
@@ -162,7 +197,8 @@ function validateForm(form) {
   return '';
 }
 
-function buildLeadFields({ form, clientId, projectId, submittedAt, source }) {
+function buildLeadFields({ form, clientId, projectId, submittedAt, source, channelQuote = {} }) {
+  const free = Number(channelQuote.payableFen) === 0 && Boolean(channelQuote.applied);
   return {
     提交ID: form.submissionId,
     客户编号: clientId,
@@ -184,25 +220,28 @@ function buildLeadFields({ form, clientId, projectId, submittedAt, source }) {
     补充说明: form.message,
     隐私授权: form.privacyAccepted ? 'true' : 'false',
     提交时间: submittedAt,
-    当前状态: '待付款',
-    下一步动作: '支付 199 元后开始品牌 GEO 诊断',
+    当前状态: free ? '已兑换' : '待付款',
+    下一步动作: free ? '兑换码已生效，开始品牌 GEO 诊断' : '完成订单付款后开始品牌 GEO 诊断',
     来源: source,
-    审核状态: '待付款'
+    审核状态: free ? '待 OS 处理' : '待付款'
   };
 }
 
-function buildProjectFields({ form, clientId, projectId, submittedAt }) {
+function buildProjectFields({ form, clientId, projectId, submittedAt, channelQuote = {} }) {
+  const free = Number(channelQuote.payableFen) === 0 && Boolean(channelQuote.applied);
   return {
     项目编号: projectId,
     客户编号: clientId,
     品牌名称: form.brandName,
     项目类型: 'GEO 诊断',
-    当前阶段: 'PAYMENT_PENDING',
+    当前阶段: free ? 'INTAKE' : 'PAYMENT_PENDING',
     开始时间: submittedAt,
     客户确认范围: form.goals.join('、'),
-    内部备注: '由微信小程序提交；客户支付 199 元后由 GeoGi OS 执行品牌 GEO 诊断并交付诊断报告。',
+    内部备注: free
+      ? '由微信小程序提交；渠道兑换码已免单，GeoGi OS 可直接执行品牌 GEO 诊断并交付诊断报告。'
+      : '由微信小程序提交；客户完成订单付款后由 GeoGi OS 执行品牌 GEO 诊断并交付诊断报告。',
     信息层级: '01 诊断项目',
-    审核状态: '待付款'
+    审核状态: free ? '待 OS 处理' : '待付款'
   };
 }
 

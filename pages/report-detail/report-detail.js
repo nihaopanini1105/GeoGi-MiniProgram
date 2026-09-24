@@ -62,7 +62,7 @@ Page({
     if (!order) return null;
     return {
       ...order,
-      amountYuan: Number(order.amountYuan || 199),
+      amountYuan: Number(order.amountYuan !== undefined ? order.amountYuan : 199),
       paymentStatus: order.paymentStatus || (order.payment && order.payment.status) || 'unpaid',
       submittedAt: this.formatDisplayTime(order.submittedAt),
       completedAt: this.formatDisplayTime(order.completedAt),
@@ -172,7 +172,7 @@ Page({
 
   paymentPaid() {
     const status = String((this.data.order && this.data.order.paymentStatus) || '');
-    return status === 'paid' || status === 'partially_refunded';
+    return status === 'paid' || status === 'free' || status === 'partially_refunded';
   },
 
   async payNow() {
@@ -215,7 +215,7 @@ Page({
       }
       await this.loadReport();
       if (!this.paymentPaid()) throw new Error('付款结果正在确认，请稍后刷新');
-      wx.showToast({ title: '付款成功', icon: 'success' });
+      wx.showToast({ title: this.data.order && this.data.order.paymentStatus === 'free' ? '兑换成功' : '付款成功', icon: 'success' });
     } catch (error) {
       const message = error && error.errMsg
         ? error.errMsg

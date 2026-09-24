@@ -4,7 +4,7 @@ const {
   isApiConfigured
 } = require('../../utils/request');
 
-const PUBLIC_STATUSES = ['待付款', '付款确认中', '已付款', '退款处理中', '部分退款', '已退款', '已提交', '资料待补充', '诊断处理中', '报告审核中', '报告已完成'];
+const PUBLIC_STATUSES = ['待付款', '付款确认中', '已付款', '已兑换', '退款处理中', '部分退款', '已退款', '已提交', '资料待补充', '诊断处理中', '报告审核中', '报告已完成'];
 
 Page({
   data: {
@@ -12,7 +12,8 @@ Page({
     error: '',
     clientId: '',
     orders: [],
-    notifications: []
+    notifications: [],
+    channelDashboard: null
   },
 
   onShow() {
@@ -60,11 +61,21 @@ Page({
         || '';
 
       const notifications = (result.notifications || []).map((item) => this.normalizeNotification(item));
+      let channelDashboard = null;
+      try {
+        const channelResult = await get('/api/customer/channel-dashboard', {});
+        if (channelResult && channelResult.ok && channelResult.isChannel) {
+          channelDashboard = this.normalizeChannelDashboard(channelResult);
+        }
+      } catch (channelError) {
+        console.warn('channel dashboard unavailable', channelError);
+      }
 
       this.setData({
         clientId: recoveredClientId,
         orders,
         notifications,
+        channelDashboard,
         error: ''
       });
 
@@ -114,11 +125,32 @@ Page({
     if (/已退款/.test(value)) return '已退款';
     if (/付款确认/.test(value)) return '付款确认中';
     if (/待付款/.test(value)) return '待付款';
+    if (/已兑换/.test(value)) return '已兑换';
     if (/已付款/.test(value)) return '已付款';
     if (/待补充|补充材料|资料不全/.test(value)) return '资料待补充';
     if (/审核|复核|初稿|质检/.test(value)) return '报告审核中';
     if (/处理中|检测|测试|分析|生成|品牌资料/.test(value)) return '诊断处理中';
     return '已提交';
+  },
+
+  normalizeChannelDashboard(data) {
+    const result = data || {};
+    return {
+      ...result,
+      channels: (result.channels || []).map((item) => ({
+        ...item,
+        discountText: item.discountType === 'free'
+          ? '免费兑换'
+          : (Number(item.discountRateBps || 0) / 100).toFixed(0) + '% 支付价',
+        commissionText: Number(item.commissionRateBps || 0) > 0
+          ? (Number(item.commissionRateBps || 0) / 100).toFixed(0) + '%'
+          : '无返佣'
+      })),
+      monthly: (result.monthly || []).map((item) => ({
+        ...item,
+        periodText: String(item.period || '').replace('-', '年') + '月'
+      }))
+    };
   },
 
   normalizeNotification(notification) {

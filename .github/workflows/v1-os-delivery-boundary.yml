@@ -34,5 +34,30 @@ jobs:
           bash -n server/scripts/deploy-production-release.sh
           bash -n server/scripts/activate-production-os-bridge.sh
 
-      - name: Validate MiniProgram consumes OS DeliveryPackage only
-        run: cd server && npm test
+      - name: Payment and redemption regressions
+        run: |
+          cd server
+          node tests/payment_store_regression.js
+          node tests/wechat_pay_security_regression.js
+          node tests/paid_diagnostic_copy_contract_regression.js
+          node tests/channel_redemption_commission_regression.js
+
+      - name: Customer portal regressions
+        run: |
+          cd server
+          node tests/delivery_package_boundary_regression.js
+          node tests/customer_portal_status_regression.js
+          node tests/customer_session_regression.js
+          node tests/customer_supplement_regression.js
+          node tests/customer_experience_details_regression.js
+
+      - name: OS bridge notification and production regressions
+        run: |
+          cd server
+          node tests/os_operations_bridge_regression.js
+          node tests/configure_os_bridge_production_regression.js
+          node tests/os_artifact_ingress_regression.js
+          node tests/feishu_transient_retry_regression.js
+          node tests/feishu_ops_notifications_regression.js
+          node tests/feishu_notification_preflight_regression.js
+          node tests/production_env_loader_regression.js

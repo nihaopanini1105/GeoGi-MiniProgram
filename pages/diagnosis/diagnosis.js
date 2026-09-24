@@ -18,6 +18,7 @@ const initialForm = {
   advantages: '',
   competitors: '',
   goals: [],
+  redemptionCode: '',
   uploads: [],
   contactName: '',
   contactMethod: '',
@@ -34,6 +35,8 @@ Page({
     phoneDisplay: '',
     step: 1,
     submitting: false,
+    redemptionChecking: false,
+    redemptionQuote: null,
     fieldErrors: {},
     form: { ...initialForm },
     industryIndex: 0,
@@ -228,7 +231,45 @@ Page({
 
   updateField(event) {
     const key = event.currentTarget.dataset.key;
-    this.setFormValue(key, event.detail.value);
+    const value = key === 'redemptionCode'
+      ? String(event.detail.value || '').replace(/\s+/g, '').toUpperCase()
+      : event.detail.value;
+    if (key === 'redemptionCode') this.setData({ redemptionQuote: null });
+    this.setFormValue(key, value);
+  },
+
+  async validateRedemptionCode() {
+    const code = String(this.data.form.redemptionCode || '').trim();
+    if (!code) {
+      this.setData({ redemptionQuote: null });
+      return null;
+    }
+    if (!isApiConfigured()) {
+      this.setData({ fieldErrors: { ...this.data.fieldErrors, redemptionCode: '兑换码服务暂不可用，请稍后再试。' } });
+      return null;
+    }
+    this.setData({ redemptionChecking: true });
+    try {
+      const result = await post('/api/redemption/quote', { code });
+      if (!result || !result.ok || !result.applied) {
+        throw new Error(result && result.userMessage ? result.userMessage : '兑换码暂时无法使用');
+      }
+      const fieldErrors = { ...this.data.fieldErrors };
+      delete fieldErrors.redemptionCode;
+      this.setData({ redemptionQuote: result, fieldErrors });
+      return result;
+    } catch (error) {
+      this.setData({
+        redemptionQuote: null,
+        fieldErrors: {
+          ...this.data.fieldErrors,
+          redemptionCode: error && error.message ? error.message : '兑换码暂时无法使用'
+        }
+      });
+      return null;
+    } finally {
+      this.setData({ redemptionChecking: false });
+    }
   },
 
   chooseIndustry(event) {
@@ -373,6 +414,10 @@ Page({
       this.setData({ fieldErrors: { submit: '诊断服务暂未连接，请稍后再试。' } });
       return;
     }
+    if (String(this.data.form.redemptionCode || '').trim()) {
+      const quote = await this.validateRedemptionCode();
+      if (!quote) return;
+    }
 
     this.setData({ submitting: true, fieldErrors: {} });
     const submittedAt = new Date().toISOString();
@@ -394,6 +439,10 @@ Page({
         amountYuan: Number(result.amountYuan || 199),
         productName: result.productName || 'GeoGi 品牌 GEO 诊断报告',
         paymentStatus: result.payment && result.payment.status ? result.payment.status : 'unpaid',
+        amountYuan: Number(result.amountYuan !== undefined ? result.amountYuan : 199),
+        listPriceYuan: Number(result.listPriceYuan || 199),
+        redemptionCode: result.redemptionCode || '',
+        channelName: result.channelName || '',
         payment: result.payment || null
       };
       submissionCreated = true;
@@ -404,7 +453,7 @@ Page({
         industry: form.industry,
         segment: form.segment,
         paymentStatus: submission.paymentStatus || 'unpaid',
-        amountYuan: 199
+        amountYuan: submission.amountYuan
       });
       wx.removeStorageSync(draftKey);
       wx.removeStorageSync('geogi_payment_attempt_error');
@@ -511,7 +560,7 @@ Page({
   persistPaidSubmission(submission, payment) {
     const paidSubmission = {
       ...submission,
-      status: '已付款',
+      status: payment && payment.status === 'free' ? '已兑换' : '已付款',
       paymentStatus: payment && payment.status ? payment.status : 'paid',
       paidAt: payment && payment.paidAt ? payment.paidAt : '',
       payment: payment || submission.payment || null
@@ -524,11 +573,11 @@ Page({
       orders.map((item) => item.projectId === paidSubmission.projectId
         ? {
             ...item,
-            status: '已付款',
+            status: payment && payment.status === 'free' ? '已兑换' : '已付款',
             paymentStatus: paidSubmission.paymentStatus,
             paidAt: paidSubmission.paidAt,
             payment: paidSubmission.payment,
-            amountYuan: 199
+            amountYuan: Number(payment && payment.amountYuan !== undefined ? payment.amountYuan : paidSubmission.amountYuan || 199)
           }
         : item)
     );
@@ -590,6 +639,8 @@ Page({
       submitting: false,
       fieldErrors: {},
       form: { ...initialForm, contactMethod: phoneAuth.phoneNumber || '' },
+      redemptionQuote: null,
+      redemptionChecking: false,
       industryIndex: 0,
       segmentIndex: 0,
       segmentOptions: this.getSegmentOptions(this.data.industries[0]),

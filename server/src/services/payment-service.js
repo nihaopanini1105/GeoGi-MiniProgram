@@ -60,24 +60,29 @@ async function findProjectContext({ clientId, projectId }) {
 function paymentProjectionState(paymentStatus) {
   const status = String(paymentStatus || '');
   const paid = status === 'paid';
+  const free = status === 'free';
   const partiallyRefunded = status === 'partially_refunded';
   const refundProcessing = status === 'refund_processing';
   const refunded = status === 'refunded';
   const closed = status === 'closed';
-  const serviceEligible = paid || partiallyRefunded;
+  const serviceEligible = paid || free || partiallyRefunded;
   return {
     serviceEligible,
-    currentStatus: paid
+    currentStatus: free
+      ? '已兑换'
+      : (paid
       ? '已付款'
-      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : (closed ? '支付订单已关闭' : '待付款')))),
+      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : (closed ? '支付订单已关闭' : '待付款'))))),
     nextAction: serviceEligible
       ? 'GeoGi 将开始品牌 GEO 诊断并生成诊断报告'
       : (refundProcessing
           ? '等待微信支付退款结果确认'
           : (refunded ? '订单已退款，如需诊断请重新提交' : (closed ? '支付订单已关闭，可重新发起支付' : '支付 199 元后开始品牌 GEO 诊断'))),
-    auditStatus: paid
+    auditStatus: free
+      ? '兑换完成 / 待 OS 处理'
+      : (paid
       ? '待 OS 处理'
-      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : (closed ? '支付订单已关闭' : '待付款')))),
+      : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : (closed ? '支付订单已关闭' : '待付款'))))),
     projectStage: serviceEligible
       ? 'INTAKE'
       : (refundProcessing ? 'REFUND_PROCESSING' : (refunded ? 'REFUNDED' : 'PAYMENT_PENDING'))
@@ -164,7 +169,7 @@ async function refreshExpiredPaymentOrder(order) {
 
 async function cancelActivePaymentOrder(order) {
   if (!order) return null;
-  if (['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(order.status)) {
+  if (['paid', 'free', 'refund_processing', 'partially_refunded', 'refunded'].includes(order.status)) {
     const error = new Error('PAYMENT_ORDER_NOT_CANCELLABLE');
     error.code = 'PAYMENT_ORDER_NOT_CANCELLABLE';
     throw error;
@@ -204,7 +209,14 @@ async function ensureOrder({ clientId, projectId, phoneNumber }) {
     projectId,
     submissionId: text(fields.提交ID),
     brandName: text(fields.品牌名称),
-    phoneNumber
+    phoneNumber,
+    amountTotal: existing ? Number(existing.amountTotal) : PRODUCT_PRICE_FEN,
+    promotionCode: existing && existing.promotionCode,
+    channelId: existing && existing.channelId,
+    channelName: existing && existing.channelName,
+    discountType: existing && existing.discountType,
+    discountRateBps: existing && existing.discountRateBps,
+    commissionRateBps: existing && existing.commissionRateBps
   });
   return result.order;
 }
@@ -220,8 +232,9 @@ async function createCustomerPayment({ clientId, projectId, phoneNumber, loginCo
     product: {
       code: 'diagnostic_report_199',
       name: PRODUCT_NAME,
-      priceYuan: PRODUCT_PRICE_YUAN,
-      amountTotal: PRODUCT_PRICE_FEN,
+      priceYuan: Number(result.order.listPriceFen || PRODUCT_PRICE_FEN) / 100,
+      payableYuan: Number(result.order.amountTotal || 0) / 100,
+      amountTotal: Number(result.order.amountTotal || 0),
       currency: 'CNY'
     }
   };
@@ -238,12 +251,13 @@ async function getCustomerPayment({ clientId, projectId }) {
   return {
     ok: true,
     payment: publicPaymentView(order),
-    paymentRequired: true,
+    paymentRequired: !(order && order.status === 'free'),
     product: {
       code: 'diagnostic_report_199',
       name: PRODUCT_NAME,
-      priceYuan: PRODUCT_PRICE_YUAN,
-      amountTotal: PRODUCT_PRICE_FEN,
+      priceYuan: order ? Number(order.listPriceFen || PRODUCT_PRICE_FEN) / 100 : PRODUCT_PRICE_YUAN,
+      payableYuan: order ? Number(order.amountTotal || 0) / 100 : PRODUCT_PRICE_YUAN,
+      amountTotal: order ? Number(order.amountTotal || 0) : PRODUCT_PRICE_FEN,
       currency: 'CNY'
     }
   };
@@ -259,7 +273,7 @@ async function syncCustomerPayment({ clientId, projectId }) {
     await projectPaymentProjection({ projectId, paymentStatus: order.status });
     return { ok: true, payment: publicPaymentView(order) };
   }
-  if (order.status === 'closed') return { ok: true, payment: publicPaymentView(order) };
+  if (order.status === 'closed' || order.status === 'free') return { ok: true, payment: publicPaymentView(order) };
   const previousStatus = order.status;
   const wasPaid = Boolean(order.paidAt || order.transactionId)
     || ['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(previousStatus);

@@ -11,7 +11,7 @@ const PAYMENT_ORDER_TTL_MINUTES = 30;
 const PAYMENT_ORDER_TTL_MS = PAYMENT_ORDER_TTL_MINUTES * 60 * 1000;
 
 const PAYMENT_STATUSES = new Set([
-  'unpaid', 'paying', 'paid', 'payment_failed', 'closed',
+  'unpaid', 'paying', 'paid', 'free', 'payment_failed', 'closed',
   'refund_processing', 'partially_refunded', 'refunded'
 ]);
 
@@ -30,7 +30,10 @@ function orderPath(outTradeNo) {
 function canonicalOrder(order) {
   const row = { ...order };
   if (!PAYMENT_STATUSES.has(row.status)) throw new Error('PAYMENT_STATUS_INVALID');
-  if (Number(row.amountTotal) !== PRODUCT_PRICE_FEN) throw new Error('PAYMENT_AMOUNT_INVALID');
+  const amountTotal = Number(row.amountTotal);
+  if (!Number.isInteger(amountTotal) || amountTotal < 0 || amountTotal > PRODUCT_PRICE_FEN) throw new Error('PAYMENT_AMOUNT_INVALID');
+  row.listPriceFen = Number.isInteger(Number(row.listPriceFen)) ? Number(row.listPriceFen) : PRODUCT_PRICE_FEN;
+  if (row.listPriceFen !== PRODUCT_PRICE_FEN) throw new Error('PAYMENT_LIST_PRICE_INVALID');
   if (row.currency !== CURRENCY) throw new Error('PAYMENT_CURRENCY_INVALID');
   if (row.productCode !== PRODUCT_CODE) throw new Error('PAYMENT_PRODUCT_INVALID');
   if (!row.projectId || !row.clientId || !row.outTradeNo) throw new Error('PAYMENT_SCOPE_REQUIRED');
@@ -129,19 +132,27 @@ async function createOrGetPaymentOrder(input) {
     phoneNumber: String(input.phoneNumber || '').trim().slice(0, 40),
     productCode: PRODUCT_CODE,
     productName: PRODUCT_NAME,
-    amountTotal: PRODUCT_PRICE_FEN,
-    amountYuan: PRODUCT_PRICE_YUAN,
+    listPriceFen: PRODUCT_PRICE_FEN,
+    amountTotal: Number.isInteger(Number(input.amountTotal)) ? Number(input.amountTotal) : PRODUCT_PRICE_FEN,
+    amountYuan: (Number.isInteger(Number(input.amountTotal)) ? Number(input.amountTotal) : PRODUCT_PRICE_FEN) / 100,
     currency: CURRENCY,
-    provider: 'wechat_pay',
-    status: 'unpaid',
+    provider: Number(input.amountTotal) === 0 ? 'channel_redemption' : 'wechat_pay',
+    status: Number(input.amountTotal) === 0 ? 'free' : 'unpaid',
     providerTradeState: '',
     transactionId: '',
     prepayId: '',
     payerOpenidHash: '',
+    promotionCode: String(input.promotionCode || '').trim().slice(0, 40),
+    channelId: String(input.channelId || '').trim().slice(0, 120),
+    channelName: String(input.channelName || '').trim().slice(0, 120),
+    discountType: String(input.discountType || '').trim().slice(0, 20),
+    discountRateBps: Number(input.discountRateBps || 0),
+    discountFen: Math.max(0, PRODUCT_PRICE_FEN - (Number.isInteger(Number(input.amountTotal)) ? Number(input.amountTotal) : PRODUCT_PRICE_FEN)),
+    commissionRateBps: Number(input.commissionRateBps || 0),
     createdAt: now,
     updatedAt: now,
     expiresAt: new Date(nowMs + PAYMENT_ORDER_TTL_MS).toISOString(),
-    paidAt: '',
+    paidAt: Number(input.amountTotal) === 0 ? now : '',
     closedAt: '',
     closedReason: '',
     refundableAmount: 0,
@@ -162,7 +173,15 @@ async function updatePaymentOrder(outTradeNo, patch) {
     clientId: existing.clientId,
     projectId: existing.projectId,
     productCode: existing.productCode,
+    listPriceFen: existing.listPriceFen,
     amountTotal: existing.amountTotal,
+    promotionCode: existing.promotionCode,
+    channelId: existing.channelId,
+    channelName: existing.channelName,
+    discountType: existing.discountType,
+    discountRateBps: existing.discountRateBps,
+    discountFen: existing.discountFen,
+    commissionRateBps: existing.commissionRateBps,
     currency: existing.currency,
     updatedAt: new Date().toISOString()
   });
@@ -189,8 +208,18 @@ function publicPaymentView(order) {
     customerContactMasked: maskContact(order.phoneNumber),
     productCode: order.productCode,
     productName: order.productName,
+    listPriceFen: order.listPriceFen || PRODUCT_PRICE_FEN,
+    listPriceYuan: Number(order.listPriceFen || PRODUCT_PRICE_FEN) / 100,
     amountTotal: order.amountTotal,
-    amountYuan: order.amountYuan,
+    amountYuan: Number(order.amountTotal || 0) / 100,
+    discountFen: Number(order.discountFen || 0),
+    discountYuan: Number(order.discountFen || 0) / 100,
+    redemptionCode: order.promotionCode || '',
+    channelId: order.channelId || '',
+    channelName: order.channelName || '',
+    discountType: order.discountType || '',
+    discountRateBps: Number(order.discountRateBps || 0),
+    commissionRateBps: Number(order.commissionRateBps || 0),
     currency: order.currency,
     provider: order.provider,
     status: order.status,
@@ -230,19 +259,20 @@ function paymentSummary(orders) {
     if (!latestByProject.has(row.projectId)) latestByProject.set(row.projectId, row);
   }
   const latestRows = [...latestByProject.values()];
-  const paidRows = rows.filter((row) => ['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(row.status));
+  const paidRows = rows.filter((row) => ['paid', 'free', 'refund_processing', 'partially_refunded', 'refunded'].includes(row.status));
   const gross = paidRows.reduce((sum, row) => sum + Number(row.amountTotal || 0), 0);
   const refunded = rows.reduce((sum, row) => sum + Number(row.refundedAmount || 0), 0);
   const paidProjectIds = new Set(rows.filter((row) => (
     Boolean(row.paidAt || row.transactionId)
-    || ['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(row.status)
+    || ['paid', 'free', 'refund_processing', 'partially_refunded', 'refunded'].includes(row.status)
   )).map((row) => row.projectId));
   const paymentConversionRate = latestRows.length ? paidProjectIds.size / latestRows.length : 0;
   return {
     orderCount: latestRows.length,
     paymentAttemptCount: rows.length,
     unpaidCount: latestRows.filter((row) => ['unpaid', 'paying', 'payment_failed'].includes(row.status)).length,
-    paidCount: latestRows.filter((row) => row.status === 'paid').length,
+    paidCount: latestRows.filter((row) => ['paid', 'free'].includes(row.status)).length,
+    freeCount: latestRows.filter((row) => row.status === 'free').length,
     paidEverCount: paidProjectIds.size,
     paymentConversionRate,
     refundProcessingCount: latestRows.filter((row) => row.status === 'refund_processing').length,
