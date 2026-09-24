@@ -25,15 +25,15 @@
     <text class="payment-copy">品牌 GEO 诊断标准价 199 元。只有在提交前填写并验证有效兑换码时，订单才会按兑换后的金额结算；报告完成并审核后会出现在「我的」页面。</text>
     <view wx:if="{{payment && (payment.sourceName || payment.channelName)}}" class="payment-expiry">
       <text>来源</text>
-      <strong>{{payment.channelName || payment.sourceName}}</strong>
+      <text class="payment-expiry-value">{{payment.channelName || payment.sourceName}}</text>
     </view>
     <view wx:if="{{payment && payment.discountYuan > 0}}" class="payment-expiry">
       <text>兑换码优惠</text>
-      <strong>-¥{{payment.discountYuan}}</strong>
+      <text class="payment-expiry-value">-¥{{payment.discountYuan}}</text>
     </view>
     <view wx:if="{{!paid && expiresAtText}}" class="payment-expiry">
       <text>订单有效期</text>
-      <strong>至 {{expiresAtText}}</strong>
+      <text class="payment-expiry-value">至 {{expiresAtText}}</text>
     </view>
     <view class="payment-points">
       <text>品牌企业画像与公开资料研究</text>
