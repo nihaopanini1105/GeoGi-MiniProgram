@@ -2,7 +2,7 @@
   <view class="privacy-card card">
     <text class="eyebrow">PRIVACY</text>
     <text class="h1">GeoGi 隐私说明</text>
-    <text class="lead">我们只会把你提交的信息用于本次 199 元品牌 GEO 诊断、正式报告制作、必要的服务沟通，以及你另行确认的后续服务。</text>
+    <text class="lead">我们只会把你提交的信息用于本次品牌 GEO 诊断、正式报告制作、必要的服务沟通，以及你另行确认的后续服务。</text>
   </view>
 
   <view class="section privacy-card card">
