@@ -52,11 +52,17 @@ function normalizePhones(value) {
   return [...new Set(rows.map((item) => cleanText(item, 40)).filter(Boolean))].slice(0, 20);
 }
 
+function channelError(code) {
+  const error = new Error(code);
+  error.code = code;
+  return error;
+}
+
 function normalizeIso(value) {
   const text = cleanText(value, 80);
   if (!text) return '';
   const ms = Date.parse(text);
-  if (!Number.isFinite(ms)) throw new Error('CHANNEL_DATE_INVALID');
+  if (!Number.isFinite(ms)) throw channelError('CHANNEL_DATE_INVALID');
   return new Date(ms).toISOString();
 }
 
@@ -84,10 +90,10 @@ async function listChannels() {
 }
 
 function validateDiscount({ discountType, discountRateBps }) {
-  if (!['percent', 'free'].includes(discountType)) throw new Error('CHANNEL_DISCOUNT_TYPE_INVALID');
+  if (!['percent', 'free'].includes(discountType)) throw channelError('CHANNEL_DISCOUNT_TYPE_INVALID');
   if (discountType === 'free') return 0;
   const bps = Number(discountRateBps);
-  if (!Number.isInteger(bps) || bps < 0 || bps > 10000) throw new Error('CHANNEL_DISCOUNT_RATE_INVALID');
+  if (!Number.isInteger(bps) || bps < 0 || bps > 10000) throw channelError('CHANNEL_DISCOUNT_RATE_INVALID');
   return bps;
 }
 
@@ -106,16 +112,16 @@ async function upsertChannel(input = {}) {
   });
   const commissionRateBps = Number(input.commissionRateBps !== undefined ? input.commissionRateBps : existing && existing.commissionRateBps || 0);
   if (!Number.isInteger(commissionRateBps) || commissionRateBps < 0 || commissionRateBps > 10000) {
-    throw new Error('CHANNEL_COMMISSION_RATE_INVALID');
+    throw channelError('CHANNEL_COMMISSION_RATE_INVALID');
   }
-  if (!name) throw new Error('CHANNEL_NAME_REQUIRED');
-  if (!code || !/^[A-Z0-9_-]{2,40}$/.test(code)) throw new Error('CHANNEL_CODE_INVALID');
+  if (!name) throw channelError('CHANNEL_NAME_REQUIRED');
+  if (!code || !/^[A-Z0-9_-]{2,40}$/.test(code)) throw channelError('CHANNEL_CODE_INVALID');
   const duplicate = rows.find((item) => item.code === code && item.channelId !== channelId);
-  if (duplicate) throw new Error('CHANNEL_CODE_DUPLICATE');
+  if (duplicate) throw channelError('CHANNEL_CODE_DUPLICATE');
 
   const startsAt = normalizeIso(input.startsAt !== undefined ? input.startsAt : existing && existing.startsAt);
   const endsAt = normalizeIso(input.endsAt !== undefined ? input.endsAt : existing && existing.endsAt);
-  if (startsAt && endsAt && Date.parse(startsAt) >= Date.parse(endsAt)) throw new Error('CHANNEL_EFFECTIVE_PERIOD_INVALID');
+  if (startsAt && endsAt && Date.parse(startsAt) >= Date.parse(endsAt)) throw channelError('CHANNEL_EFFECTIVE_PERIOD_INVALID');
 
   const row = {
     channelId,
@@ -233,7 +239,9 @@ async function reconcileCommission({ order, releasedAt = '' }) {
     overpaidFen,
     reportReleasedAt: effectiveReleasedAt,
     period: String(effectiveReleasedAt).slice(0, 7),
-    payoutStatus: earnedFen <= 0 ? 'not_applicable' : (dueFen > 0 ? 'pending' : 'paid'),
+    payoutStatus: overpaidFen > 0
+      ? 'adjustment_required'
+      : (earnedFen <= 0 ? 'not_applicable' : (dueFen > 0 ? 'pending' : 'paid')),
     payoutAt: existing && existing.payoutAt || '',
     payoutReference: existing && existing.payoutReference || '',
     payoutOperatorId: existing && existing.payoutOperatorId || '',
@@ -247,12 +255,18 @@ async function reconcileCommission({ order, releasedAt = '' }) {
 }
 
 async function settleChannelPeriod({ channelId, period, operatorId = '', payoutReference = '' }) {
+  const cleanChannelId = cleanText(channelId, 120);
+  const cleanPeriod = cleanText(period, 20);
+  if (!cleanChannelId) throw channelError('CHANNEL_ID_REQUIRED');
+  if (!/^\d{4}-\d{2}$/.test(cleanPeriod)) throw channelError('CHANNEL_SETTLEMENT_PERIOD_INVALID');
+  const channels = await listChannels();
+  if (!channels.some((item) => item.channelId === cleanChannelId)) throw channelError('CHANNEL_NOT_FOUND');
   const rows = await listCommissionRecords();
   let changed = 0;
   let payoutFen = 0;
   const now = new Date().toISOString();
   for (const row of rows) {
-    if (row.channelId !== channelId || row.period !== period) continue;
+    if (row.channelId !== cleanChannelId || row.period !== cleanPeriod) continue;
     const due = Number(row.dueFen || 0);
     if (due <= 0) continue;
     row.payoutFen = Number(row.payoutFen || 0) + due;
@@ -266,12 +280,14 @@ async function settleChannelPeriod({ channelId, period, operatorId = '', payoutR
     changed += 1;
     payoutFen += due;
   }
+  if (changed === 0) throw channelError('CHANNEL_SETTLEMENT_NOTHING_DUE');
   await writeJson(commissionsPath(), rows);
-  return { ok: true, channelId, period, settledRecords: changed, payoutFen, payoutYuan: payoutFen / 100, payoutAt: now };
+  return { ok: true, channelId: cleanChannelId, period: cleanPeriod, settledRecords: changed, payoutFen, payoutYuan: payoutFen / 100, payoutAt: now };
 }
 
 module.exports = {
   BASE_PRICE_FEN,
+  channelError,
   normalizeCode,
   listChannels,
   upsertChannel,
