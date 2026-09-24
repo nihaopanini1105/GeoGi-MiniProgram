@@ -33,12 +33,14 @@ function run() {
     assert(source.includes('199'), name + ' must state the 199 yuan product truth');
   }
   assert(diagnosis.includes('提交并支付'));
-  assert(diagnosis.includes('提交资料后将直接拉起微信支付'));
+  assert(diagnosis.includes('标准价 199 元'));
+  assert(diagnosis.includes('兑换码'));
   assert(diagnosisJs.includes('wx.requestPayment'));
   assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment'"));
   assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment/sync'"));
   assert(diagnosis.includes('30 分钟内有效'));
-  assert(success.includes('支付订单创建后 30 分钟内有效'));
+  assert(success.includes('标准价 199 元'));
+  assert(success.includes('兑换码'));
   assert(success.includes('取消订单'));
   assert(successJs.includes('cancelOrder()'));
   assert(successJs.includes("'/payment/cancel'"));
@@ -74,7 +76,7 @@ function run() {
   }
   assert(servicesJs.includes('不包含在 199 元诊断报告中'));
   assert(mine.includes('付款状态'));
-  assert(report.includes('付款成功后开始处理'));
+  assert(report.includes('订单确认后开始处理'));
   assert(privacy.includes('本次 199 元品牌 GEO 诊断'));
   assert(contact.includes('付款成功后 GeoGi 才会开始本次诊断'));
   assert(sample.includes('开始填写资料'));
