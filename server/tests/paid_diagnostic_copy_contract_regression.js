@@ -51,6 +51,8 @@ function run() {
   assert(diagnosis.includes('30 分钟内有效'));
   assert(success.includes('标准价 199 元'));
   assert(success.includes('兑换码'));
+  assert(!success.includes('若提交前已验证兑换码'));
+  assert(!success.includes('只有在提交前填写并验证有效兑换码时'));
   assert(success.includes('取消订单'));
   assert(successJs.includes('cancelOrder()'));
   assert(successJs.includes("'/payment/cancel'"));
@@ -86,14 +88,14 @@ function run() {
     }
   }
   assert(servicesJs.includes('不包含在本次诊断报告中'));
-  assert(servicesJs.includes('提交订单前如有兑换码可主动填写并验证'));
+  assert(!servicesJs.includes('兑换码'));
   assert(mine.includes('订单优惠与付款状态'));
   assert(report.includes('订单确认后开始处理'));
   assert(report.includes('兑换码优惠'));
   assert(privacy.includes('本次品牌 GEO 诊断'));
   assert(contact.includes('标准价 199 元'));
   assert(!contact.includes('渠道优惠'));
-  assert(sample.includes('如持有兑换码，可在提交订单前填写并验证'));
+  assert(!sample.includes('兑换码'));
   assert(sample.includes('开始填写资料'));
   assert(config.includes("priceYuan: 199"));
   assert(config.includes("paymentRequiredBeforeProcessing: true"));
