@@ -10,6 +10,7 @@ const {
   publicPaymentView
 } = require('./payment-store');
 const { notifyIntakeSubmitted } = require('./ops-notifications');
+const { quoteChannelCode } = require('./channel-store');
 
 const REQUIRED_ENV = [
   'FEISHU_APP_ID',
@@ -29,6 +30,19 @@ async function submitIntake(input = {}) {
     if (validationError) return fail(validationError);
 
     const submittedAt = form.submittedAt || new Date().toISOString();
+    let channelQuote = null;
+    try {
+      channelQuote = await quoteChannelCode(form.redemptionCode);
+    } catch (error) {
+      const code = String(error && (error.code || error.message) || '');
+      const messages = {
+        CHANNEL_CODE_NOT_FOUND: '兑换码不存在，请检查后重试',
+        CHANNEL_CODE_INACTIVE: '该兑换码当前不可使用',
+        CHANNEL_CODE_NOT_STARTED: '该兑换码尚未生效',
+        CHANNEL_CODE_EXPIRED: '该兑换码已过期'
+      };
+      return fail(messages[code] || '兑换码暂时无法使用，请稍后重试');
+    }
     const tenantToken = await getTenantAccessToken();
     const existing = await findExistingSubmission({ tenantToken, submissionId: form.submissionId });
     if (existing) {
@@ -40,7 +54,14 @@ async function submitIntake(input = {}) {
         projectId,
         submissionId: form.submissionId,
         brandName: text(fields.品牌名称) || form.brandName,
-        phoneNumber: form.contactMethod
+        phoneNumber: form.contactMethod,
+        amountTotal: channelQuote.payableFen,
+        promotionCode: channelQuote.promotionCode,
+        channelId: channelQuote.channelId,
+        channelName: channelQuote.channelName,
+        discountType: channelQuote.discountType,
+        discountRateBps: channelQuote.discountRateBps,
+        commissionRateBps: channelQuote.commissionRateBps
       });
       return {
         ok: true,
@@ -52,9 +73,12 @@ async function submitIntake(input = {}) {
         paymentRequired: true,
         payment: publicPaymentView(paymentResult.order),
         productName: 'GeoGi 品牌 GEO 诊断报告',
-        amountYuan: 199,
+        amountYuan: Number(paymentResult.order.amountTotal || 0) / 100,
+        listPriceYuan: 199,
+        redemptionCode: paymentResult.order.promotionCode || '',
+        channelName: paymentResult.order.channelName || '',
         currency: 'CNY',
-        workbenchStatus: '等待客户支付'
+        workbenchStatus: paymentResult.order.status === 'free' ? '兑换成功 / 待 OS 处理' : '等待客户支付'
       };
     }
 
@@ -81,7 +105,14 @@ async function submitIntake(input = {}) {
       projectId,
       submissionId: form.submissionId,
       brandName: form.brandName,
-      phoneNumber: form.contactMethod
+      phoneNumber: form.contactMethod,
+      amountTotal: channelQuote.payableFen,
+      promotionCode: channelQuote.promotionCode,
+      channelId: channelQuote.channelId,
+      channelName: channelQuote.channelName,
+      discountType: channelQuote.discountType,
+      discountRateBps: channelQuote.discountRateBps,
+      commissionRateBps: channelQuote.commissionRateBps
     });
 
     notifyIntakeSubmitted({
@@ -101,9 +132,12 @@ async function submitIntake(input = {}) {
       paymentRequired: true,
       payment: publicPaymentView(paymentResult.order),
       productName: 'GeoGi 品牌 GEO 诊断报告',
-      amountYuan: 199,
+      amountYuan: Number(paymentResult.order.amountTotal || 0) / 100,
+      listPriceYuan: 199,
+      redemptionCode: paymentResult.order.promotionCode || '',
+      channelName: paymentResult.order.channelName || '',
       currency: 'CNY',
-      workbenchStatus: '等待客户支付'
+      workbenchStatus: paymentResult.order.status === 'free' ? '兑换成功 / 待 OS 处理' : '等待客户支付'
     };
   } catch (error) {
     console.error('submitIntake failed', error);
@@ -130,6 +164,7 @@ function sanitizeForm(form) {
     advantages: cleanText(form.advantages, 500),
     competitors: cleanText(form.competitors, 5000),
     goals: cleanList(form.goals, 3, 120),
+    redemptionCode: cleanText(form.redemptionCode, 40).replace(/\s+/g, '').toUpperCase(),
     uploads: normalizeUploads(form.uploads),
     contactName: cleanText(form.contactName, 80),
     contactMethod: cleanText(form.contactMethod, 120),
