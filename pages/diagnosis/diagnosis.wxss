@@ -172,7 +172,7 @@ textarea { min-height:110rpx; padding:22rpx; line-height:1.55; }
   line-height: 1.8;
 }
 
-.redemption-result > view strong {
+.redemption-value {
   color: #20324F;
   font-weight: 650;
 }
@@ -185,7 +185,7 @@ textarea { min-height:110rpx; padding:22rpx; line-height:1.55; }
   font-weight: 600;
 }
 
-.redemption-result > view.payable strong {
+.redemption-payable-value {
   color: #176BFF;
   font-size: 28rpx;
 }
@@ -196,4 +196,23 @@ textarea { min-height:110rpx; padding:22rpx; line-height:1.55; }
   color: #2D8A5C;
   font-size: 21rpx;
   font-weight: 600;
+}
+
+.phone-auth-inline {
+  width: 100%;
+  padding: 22rpx;
+  border: 1rpx solid #DCE5F1;
+  border-radius: 20rpx;
+  background: #FBFCFE;
+}
+
+.phone-auth-inline .field-help {
+  display: block;
+  margin-top: 0;
+}
+
+.phone-auth-button {
+  width: 100%;
+  min-height: 82rpx;
+  margin-top: 18rpx;
 }
