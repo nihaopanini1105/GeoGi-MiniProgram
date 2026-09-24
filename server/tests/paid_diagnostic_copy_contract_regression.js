@@ -105,9 +105,9 @@ function run() {
   assert(intake.includes('paymentRequired: !free'));
   assert(intake.includes('payment: publicPaymentView(order)'));
   assert(operationsBridge.includes("PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z'"));
-  assert(operationsBridge.includes("freeChannelOffer ? 'channel_offer'"));
+  assert(operationsBridge.includes("freeRedeemCode ? 'redeem_code'"));
   assert(operationsBridge.includes("legacyEligible ? 'legacy_pre_payment' : 'payment_required'"));
-  assert(operationsBridge.includes('paymentEligibleForProcessing: paid || freeChannelOffer || legacyEligible'));
+  assert(operationsBridge.includes('paymentEligibleForProcessing: paid || freeRedeemCode || legacyEligible'));
 
   for (const forbidden of [
     '免费诊断', '免费报告', '初步诊断会', '提交后立即开始诊断',
