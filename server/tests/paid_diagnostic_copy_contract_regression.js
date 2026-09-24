@@ -34,13 +34,13 @@ function run() {
   }
   assert(diagnosis.includes('提交并支付'));
   assert(diagnosis.includes('标准价 199 元'));
-  assert(diagnosis.includes('兑换码'));
+  assert(!diagnosis.includes('兑换码'));
   assert(diagnosisJs.includes('wx.requestPayment'));
   assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment'"));
   assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment/sync'"));
   assert(diagnosis.includes('30 分钟内有效'));
   assert(success.includes('标准价 199 元'));
-  assert(success.includes('兑换码'));
+  assert(!success.includes('兑换码'));
   assert(success.includes('取消订单'));
   assert(successJs.includes('cancelOrder()'));
   assert(successJs.includes("'/payment/cancel'"));
@@ -86,16 +86,16 @@ function run() {
   assert(server.includes('/api/payments/wechat/notify'));
   assert(server.includes('/internal/os/payments/:outTradeNo/refund'));
   assert(intake.includes('createOrGetPaymentOrder'));
-  assert(intake.includes("paymentResult.order.status === 'free' ? '已兑换' : '待付款'"));
-  assert(intake.includes("paymentRequired: paymentResult.order.status !== 'free'"));
-  assert(intake.includes('payment: publicPaymentView(paymentResult.order)'));
+  assert(intake.includes("status: free ? '已优惠至免费' : '待付款'"));
+  assert(intake.includes('paymentRequired: !free'));
+  assert(intake.includes('payment: publicPaymentView(order)'));
   assert(operationsBridge.includes("PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z'"));
-  assert(operationsBridge.includes("freeRedemption ? 'channel_redemption'"));
+  assert(operationsBridge.includes("freeChannelOffer ? 'channel_offer'"));
   assert(operationsBridge.includes("legacyEligible ? 'legacy_pre_payment' : 'payment_required'"));
-  assert(operationsBridge.includes('paymentEligibleForProcessing: paid || freeRedemption || legacyEligible'));
+  assert(operationsBridge.includes('paymentEligibleForProcessing: paid || freeChannelOffer || legacyEligible'));
 
   for (const forbidden of [
-    '免费诊断', '免费报告', '初步诊断会', '提交后立即开始诊断'
+    '免费诊断', '免费报告', '初步诊断会', '提交后立即开始诊断', '兑换码'
   ]) {
     assert(!diagnosis.includes(forbidden), 'diagnosis copy must not imply unpaid/free delivery: ' + forbidden);
   }
