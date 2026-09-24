@@ -27,6 +27,14 @@ const {
 const { requireCustomerSession, resolveOwnedClientId } = require('./services/customer-session');
 const { trackEvent } = require('./services/events');
 const { notificationConfigured } = require('./services/ops-notifications');
+const {
+  quoteRedemptionCode,
+  channelDashboardForPhone,
+  channelAdminDashboard,
+  upsertChannel,
+  settleChannelPeriod,
+  reconcileCommission
+} = require('./services/channel-service');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
 const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
@@ -68,6 +76,24 @@ app.get('/health', (_req, res) => {
 });
 
 app.get('/api/config', (_req, res) => res.json(getConfig()));
+
+app.post('/api/redemption/quote', requireCustomerSession, async (req, res, next) => {
+  try {
+    const result = await quoteRedemptionCode(req.body && req.body.code);
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get('/api/customer/channel-dashboard', requireCustomerSession, async (req, res, next) => {
+  try {
+    const result = await channelDashboardForPhone(req.customerSession.phoneNumber);
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
 
 app.get(['/api/articles', '/api/research/articles'], async (req, res) => {
   const result = await getResearchArticles(req.query || {});
@@ -209,6 +235,7 @@ app.post('/api/payments/wechat/refund-notify', async (req, res, next) => {
     const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody.toString('utf8') : JSON.stringify(req.body || {});
     const order = await handleRefundNotification(req.headers, rawBody);
     await projectPaymentProjection({ projectId: order.projectId, paymentStatus: order.status });
+    await reconcileCommission({ order });
     return res.status(200).json({ code: 'SUCCESS', message: '成功' });
   } catch (error) {
     return next(error);
@@ -240,6 +267,38 @@ app.post('/api/uploads', requireCustomerSession, (req, res) => {
 app.post('/api/events', (req, res) => res.json(trackEvent(req.body || {})));
 
 // Internal OS boundary: never exposed as customer business authority.
+app.get('/internal/os/channels', requireOsBridge, async (_req, res, next) => {
+  try {
+    const result = await channelAdminDashboard();
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/internal/os/channels', requireOsBridge, async (req, res, next) => {
+  try {
+    const channel = await upsertChannel(req.body || {});
+    return res.json({ ok: true, channel });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/internal/os/channels/:channelId/settlements/:period', requireOsBridge, async (req, res, next) => {
+  try {
+    const result = await settleChannelPeriod({
+      channelId: req.params.channelId,
+      period: req.params.period,
+      operatorId: req.body && req.body.operatorId,
+      payoutReference: req.body && req.body.payoutReference
+    });
+    return res.json({ ok: true, result });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.get('/internal/os/payments', requireOsBridge, async (_req, res, next) => {
   try {
     const result = await listPaymentsForOs();
@@ -332,6 +391,20 @@ app.use((error, _req, res, _next) => {
       userMessage: unavailable
         ? '微信支付暂未完成配置，请稍后再试'
         : (paymentMessages[code] || '支付处理失败，请稍后重试')
+    });
+  }
+  if (error && typeof error.code === 'string' && error.code.startsWith('CHANNEL_')) {
+    const messages = {
+      CHANNEL_CODE_NOT_FOUND: '兑换码不存在，请检查后重试',
+      CHANNEL_CODE_INACTIVE: '该兑换码当前不可使用',
+      CHANNEL_CODE_NOT_STARTED: '该兑换码尚未生效',
+      CHANNEL_CODE_EXPIRED: '该兑换码已过期',
+      CHANNEL_CODE_INVALID: '兑换码格式不正确'
+    };
+    return res.status(400).json({
+      ok: false,
+      error: error.code,
+      userMessage: messages[error.code] || '兑换码处理失败，请稍后重试'
     });
   }
   if (error instanceof OsArtifactIngressError) {
