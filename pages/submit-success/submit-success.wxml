@@ -3,7 +3,7 @@
     <view class="success-mark">{{paid ? '✓' : '¥'}}</view>
     <text class="success-kicker">{{paid ? (payment && payment.status === 'free' ? 'CODE REDEEMED' : 'PAYMENT CONFIRMED') : 'PAYMENT REQUIRED'}}</text>
     <text class="success-title">{{paid ? (payment && payment.status === 'free' ? '兑换码已生效，诊断已进入处理' : '付款成功，诊断已进入处理') : (closed ? (closedReason === 'expired' ? '支付订单已失效' : (closedReason === 'customer_cancelled' ? '订单已取消' : '支付订单已关闭')) : '资料已提交，请完成付款')}}</text>
-    <text class="success-copy">{{paid ? (payment && payment.status === 'free' ? '兑换码验证成功，本次订单应付 0 元。GeoGi 将开始品牌研究、AI 平台检测与诊断。' : '订单已完成付款，GeoGi 将开始品牌研究、AI 平台检测与诊断。') : (closed ? '本次支付订单已经关闭。诊断资料仍会保留，如仍需诊断可重新发起支付。' : '品牌 GEO 诊断标准价 199 元。若提交前已验证兑换码，当前订单将按兑换后的实际金额结算；完成付款后 GeoGi 开始诊断并交付正式报告。')}}</text>
+    <text class="success-copy">{{paid ? (payment && payment.status === 'free' ? '兑换码验证成功，本次订单应付 0 元。GeoGi 将开始品牌研究、AI 平台检测与诊断。' : '订单已完成付款，GeoGi 将开始品牌研究、AI 平台检测与诊断。') : (closed ? '本次支付订单已经关闭。诊断资料仍会保留，如仍需诊断可重新发起支付。' : '品牌 GEO 诊断标准价 199 元。完成付款后 GeoGi 开始诊断并交付正式报告。')}}</text>
 
     <view class="status-row">
       <view>
@@ -22,10 +22,10 @@
       </view>
       <text class="payment-price">¥{{payment && payment.amountYuan !== undefined ? payment.amountYuan : (submission.amountYuan !== undefined ? submission.amountYuan : 199)}}</text>
     </view>
-    <text class="payment-copy">品牌 GEO 诊断标准价 199 元。只有在提交前填写并验证有效兑换码时，订单才会按兑换后的金额结算；报告完成并审核后会出现在「我的」页面。</text>
-    <view wx:if="{{payment && (payment.sourceName || payment.channelName)}}" class="payment-expiry">
+    <text class="payment-copy">品牌 GEO 诊断标准价 199 元。报告完成并审核后会出现在「我的」页面。</text>
+    <view wx:if="{{payment && payment.sourceName}}" class="payment-expiry">
       <text>来源</text>
-      <text class="payment-expiry-value">{{payment.channelName || payment.sourceName}}</text>
+      <text class="payment-expiry-value">{{payment.sourceName}}</text>
     </view>
     <view wx:if="{{payment && payment.discountYuan > 0}}" class="payment-expiry">
       <text>兑换码优惠</text>
