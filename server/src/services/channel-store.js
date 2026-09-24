@@ -125,6 +125,38 @@ async function ensureDefaultOfficialSources() {
   return created;
 }
 
+async function ensureOfficialDistributionSources() {
+  const official = await ensureDefaultOfficialSources();
+  const rows = await listSources();
+  const personalDefaults = [
+    {
+      sourceId: 'source_business_card_liaohuafeng',
+      name: 'GeoGi · 廖华锋名片',
+      sourceType: 'business_card',
+      notes: 'official_business_card:liaohuafeng'
+    },
+    {
+      sourceId: 'source_business_card_lishasha',
+      name: 'GeoGi · 李沙沙名片',
+      sourceType: 'business_card',
+      notes: 'official_business_card:lishasha'
+    }
+  ];
+  const personal = [];
+  for (const item of personalDefaults) {
+    let existing = rows.find((row) => row.notes === item.notes);
+    if (!existing) existing = await upsertSource({ ...item, active: true });
+    personal.push(existing);
+  }
+  return {
+    website: official.find((item) => item.sourceType === 'website') || null,
+    officialAccount: official.find((item) => item.sourceType === 'official_account') || null,
+    officialBusinessCard: official.find((item) => item.sourceType === 'business_card') || null,
+    liaoHuafengBusinessCard: personal.find((item) => item.notes === 'official_business_card:liaohuafeng') || null,
+    liShashaBusinessCard: personal.find((item) => item.notes === 'official_business_card:lishasha') || null
+  };
+}
+
 function validateDiscount({ discountType, discountRateBps }) {
   if (!['percent', 'free'].includes(discountType)) throw channelError('CHANNEL_DISCOUNT_TYPE_INVALID');
   if (discountType === 'free') return 0;
@@ -420,6 +452,7 @@ module.exports = {
   listChannels,
   listSources,
   ensureDefaultOfficialSources,
+  ensureOfficialDistributionSources,
   upsertChannel,
   upsertSource,
   resolveSourceToken,
