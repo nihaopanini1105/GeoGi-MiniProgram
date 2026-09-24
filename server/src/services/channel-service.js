@@ -9,6 +9,7 @@ const {
   upsertChannel,
   upsertSource,
   resolveSourceToken,
+  quoteRedeemCode,
   recordSourceVisit,
   listSourceVisits,
   listCommissionRecords,
@@ -64,6 +65,23 @@ async function resolveAttribution(token, visitorId = '') {
     payableYuan: yuan(attribution.payableFen),
     discountType: attribution.discountType,
     discountRateBps: attribution.discountRateBps
+  };
+}
+
+async function quoteCustomerRedeemCode(code) {
+  const quote = await quoteRedeemCode(code);
+  return {
+    ok: true,
+    applied: true,
+    redeemCode: quote.redeemCode,
+    listPriceFen: quote.listPriceFen,
+    listPriceYuan: yuan(quote.listPriceFen),
+    discountFen: quote.discountFen,
+    discountYuan: yuan(quote.discountFen),
+    payableFen: quote.payableFen,
+    payableYuan: yuan(quote.payableFen),
+    discountType: quote.discountType,
+    discountRateBps: quote.discountRateBps
   };
 }
 
@@ -382,6 +400,7 @@ async function generateSourceMiniProgramCode(sourceId, options = {}) {
 
 module.exports = {
   resolveAttribution,
+  quoteCustomerRedeemCode,
   channelDashboardForPhone,
   channelAdminDashboard,
   upsertChannel,
