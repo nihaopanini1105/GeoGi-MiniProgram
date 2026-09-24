@@ -136,7 +136,7 @@ async function createOrGetPaymentOrder(input) {
     amountTotal: Number.isInteger(Number(input.amountTotal)) ? Number(input.amountTotal) : PRODUCT_PRICE_FEN,
     amountYuan: (Number.isInteger(Number(input.amountTotal)) ? Number(input.amountTotal) : PRODUCT_PRICE_FEN) / 100,
     currency: CURRENCY,
-    provider: 'wechat_pay',
+    provider: Number(input.amountTotal) === 0 ? 'channel_redemption' : 'wechat_pay',
     status: Number(input.amountTotal) === 0 ? 'free' : 'unpaid',
     providerTradeState: '',
     transactionId: '',
