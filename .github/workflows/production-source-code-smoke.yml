@@ -1,0 +1,52 @@
+name: Production Source Code Smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/production-source-code-smoke.yml"
+      - "server/src/scripts/bootstrap-official-source-codes.js"
+      - "server/src/services/channel-service.js"
+      - "server/src/services/channel-store.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-source-codes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch production source MiniProgram codes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source-codes
+          base="https://api.geogi.cn/source-codes"
+          for name in official-website official-account business-card-liaohuafeng business-card-lishasha; do
+            curl --fail --silent --show-error --location --retry 3 --retry-delay 2               "$base/$name.png" -o "source-codes/$name.png"
+          done
+
+      - name: Verify PNG files
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const names=['official-website','official-account','business-card-liaohuafeng','business-card-lishasha'];
+          const sig=Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]);
+          for (const name of names) {
+            const p='source-codes/'+name+'.png';
+            const b=fs.readFileSync(p);
+            if (b.length < 1024) throw new Error(name+' PNG too small: '+b.length);
+            if (!b.subarray(0,8).equals(sig)) throw new Error(name+' is not PNG');
+            console.log(name+'_png=PASS bytes='+b.length);
+          }
+          NODE
+
+      - name: Upload verified production codes
+        uses: actions/upload-artifact@v4
+        with:
+          name: geogi-production-source-codes
+          path: source-codes/*.png
+          retention-days: 30
