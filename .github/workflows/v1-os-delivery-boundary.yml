@@ -6,6 +6,12 @@ on:
     paths:
       - ".github/workflows/v1-os-delivery-boundary.yml"
       - "server/**"
+      - "utils/**"
+      - "config/**"
+      - "pages/**"
+      - "app.js"
+      - "app.json"
+      - "app.wxss"
   workflow_dispatch:
 
 permissions:
@@ -57,6 +63,25 @@ jobs:
           node tests/customer_session_regression.js
           node tests/customer_supplement_regression.js
           node tests/customer_experience_details_regression.js
+
+      - name: Validate exact production staging package
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          tar -czf "$tmp/release.tar.gz" \
+            server/package.json server/src server/tests server/scripts \
+            pages utils config app.js app.json app.wxss
+          mkdir -p "$tmp/stage"
+          tar -xzf "$tmp/release.tar.gz" -C "$tmp/stage"
+          test -f "$tmp/stage/config/api.js"
+          test -f "$tmp/stage/utils/attribution.js"
+          test -f "$tmp/stage/app.js"
+          (
+            cd "$tmp/stage/server"
+            npm test
+          )
 
       - name: OS bridge notification and production regressions
         run: |
