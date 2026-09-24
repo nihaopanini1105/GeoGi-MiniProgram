@@ -1,9 +1,13 @@
 const { platforms } = require('../../config/platforms');
 const { assets } = require('../../config/assets');
+const { get, getCustomerToken, isApiConfigured } = require('../../utils/request');
+const { captureAttribution } = require('../../utils/attribution');
 
 Page({
   data: {
     assets,
+    channelShareToken: '',
+    channelShareName: '',
     platforms: platforms.filter((item) => item.enabled),
     services: [
       {
@@ -41,8 +45,30 @@ Page({
     ]
   },
 
+  onLoad(options) {
+    void captureAttribution(options || {});
+  },
+
   onShow() {
     this.safeTrack('home_view');
+    void this.loadChannelShareContext();
+  },
+
+  async loadChannelShareContext() {
+    if (!isApiConfigured() || !getCustomerToken()) {
+      this.setData({ channelShareToken: '', channelShareName: '' });
+      return;
+    }
+    try {
+      const result = await get('/api/customer/channel-dashboard', {});
+      const channel = result && result.isChannel && result.channels && result.channels[0];
+      this.setData({
+        channelShareToken: channel && channel.shareSourceToken || '',
+        channelShareName: channel && channel.name || ''
+      });
+    } catch (_error) {
+      this.setData({ channelShareToken: '', channelShareName: '' });
+    }
   },
 
   safeTrack(eventName, params) {
@@ -55,13 +81,18 @@ Page({
   },
 
   onShareAppMessage() {
+    const sourceToken = String(this.data.channelShareToken || '');
     this.safeTrack('share_app_message', {
-      page: 'home'
+      page: 'home',
+      channel_share: Boolean(sourceToken)
     });
-
     return {
-      title: 'GeoGi｜199 元品牌 GEO 诊断报告',
-      path: '/pages/index/index'
+      title: sourceToken && this.data.channelShareName
+        ? this.data.channelShareName + ' 推荐｜GeoGi 品牌 GEO 诊断'
+        : 'GeoGi｜199 元品牌 GEO 诊断报告',
+      path: sourceToken
+        ? '/pages/index/index?src=' + encodeURIComponent(sourceToken)
+        : '/pages/index/index'
     };
   },
 
@@ -70,9 +101,10 @@ Page({
       page: 'home'
     });
 
+    const sourceToken = String(this.data.channelShareToken || '');
     return {
       title: 'GeoGi｜让品牌在 AI 时代被看见、被理解、被选择',
-      query: ''
+      query: sourceToken ? 'src=' + encodeURIComponent(sourceToken) : ''
     };
   },
 

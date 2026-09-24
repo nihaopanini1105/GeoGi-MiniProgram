@@ -18,6 +18,9 @@ function run() {
   const home = read('pages/index/index.wxml');
   const mine = read('pages/mine/mine.wxml');
   const report = read('pages/report-detail/report-detail.wxml');
+  const appJs = read('app.js');
+  const attributionJs = read('utils/attribution.js');
+  const success = read('pages/submit-success/submit-success.wxml');
 
   assert(diagnosisJs.includes("'金融与保险'"));
   assert(diagnosisJs.includes("'保险公司'"));
@@ -41,6 +44,16 @@ function run() {
   assert(mine.includes('结果提醒'));
   assert(mine.includes('退款结果、诊断报告完成等重要状态会在这里更新'));
   assert(report.includes('wx:if="{{order.canSupplement}}"'));
+  assert(appJs.includes('captureAttribution'));
+  assert(attributionJs.includes("ATTRIBUTION_KEY = 'geogi_source_attribution'"));
+  assert(attributionJs.includes('/api/attribution/resolve'));
+  assert(attributionJs.includes('tokenFromScene'));
+  for (const source of [diagnosis, mine, report, success]) {
+    assert(!source.includes('兑换码'), 'customer UI must not ask for redemption codes');
+  }
+  assert(mine.includes('分享专属入口'));
+  assert(mine.includes('我的推广与返佣'));
+  assert(diagnosis.includes('渠道专享优惠'));
 
   assert.strictEqual(canCustomerSupplement({ status: 'paid' }, false), true);
   assert.strictEqual(canCustomerSupplement({ status: 'refund_processing' }, false), false);

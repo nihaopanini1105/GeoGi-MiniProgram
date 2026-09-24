@@ -1,15 +1,19 @@
 const {
   get,
+  post,
   getCustomerToken,
   isApiConfigured
 } = require('../../utils/request');
 
-const PUBLIC_STATUSES = ['待付款', '付款确认中', '已付款', '已兑换', '退款处理中', '部分退款', '已退款', '已提交', '资料待补充', '诊断处理中', '报告审核中', '报告已完成'];
+const PUBLIC_STATUSES = ['待付款', '付款确认中', '已付款', '已优惠至免费', '退款处理中', '部分退款', '已退款', '已提交', '资料待补充', '诊断处理中', '报告审核中', '报告已完成'];
 
 Page({
   data: {
     loading: false,
     error: '',
+    authLoading: false,
+    authError: '',
+    phoneAuthorized: Boolean(getCustomerToken()),
     clientId: '',
     orders: [],
     notifications: [],
@@ -17,7 +21,44 @@ Page({
   },
 
   onShow() {
+    this.setData({ phoneAuthorized: Boolean(getCustomerToken()) });
     this.loadOrders();
+  },
+
+  async onGetPhoneNumber(event) {
+    const detail = event.detail || {};
+    if (!/ok/i.test(detail.errMsg || '') || !detail.code) {
+      this.setData({ authError: '需要授权手机号才能查看你的订单和渠道数据。' });
+      return;
+    }
+    if (!isApiConfigured()) {
+      this.setData({ authError: '服务暂时不可用，请稍后再试。' });
+      return;
+    }
+    this.setData({ authLoading: true, authError: '' });
+    try {
+      const result = await post('/api/wechat/phone', { code: detail.code });
+      if (!result || !result.ok || !result.customerToken) {
+        throw new Error(result && result.userMessage ? result.userMessage : '手机号授权失败');
+      }
+      wx.setStorageSync('geogi_phone_auth', {
+        phoneNumber: result.phoneNumber || '',
+        purePhoneNumber: result.purePhoneNumber || result.phoneNumber || '',
+        countryCode: result.countryCode || '',
+        customerTokenExpiresAt: result.customerTokenExpiresAt || '',
+        authorizedAt: new Date().toISOString()
+      });
+      wx.setStorageSync('geogi_customer_token', result.customerToken);
+      if (result.customerTokenExpiresAt) {
+        wx.setStorageSync('geogi_customer_token_expires_at', result.customerTokenExpiresAt);
+      }
+      this.setData({ phoneAuthorized: true, authError: '' });
+      await this.loadOrders();
+    } catch (error) {
+      this.setData({ authError: error && error.message ? error.message : '手机号授权失败，请稍后再试' });
+    } finally {
+      this.setData({ authLoading: false });
+    }
   },
 
   async loadOrders() {
@@ -37,30 +78,23 @@ Page({
 
     this.setData({ loading: true });
     try {
-      const result = await get(
-        '/api/customer/projects',
-        {}
-      );
-
-      if (!result || !result.ok) {
-        throw new Error(
-          result && result.userMessage
-            ? result.userMessage
-            : '报告状态读取失败'
-        );
+      let result = null;
+      let orders = normalizedLocal;
+      let notifications = this.buildLocalNotifications(normalizedLocal);
+      let recoveredClientId = clientId || '';
+      try {
+        result = await get('/api/customer/projects', {});
+        if (result && result.ok) {
+          orders = (result.orders || []).map((item) => this.normalizeOrder(item));
+          notifications = (result.notifications || []).map((item) => this.normalizeNotification(item));
+          recoveredClientId = result.clientId || (orders[0] && orders[0].clientId) || recoveredClientId;
+        }
+      } catch (projectError) {
+        if (!/没有找到该手机号名下的诊断记录/.test(String(projectError && projectError.message || ''))) {
+          console.warn('customer projects unavailable', projectError);
+        }
       }
 
-      const orders = (result.orders || []).map(
-        (item) => this.normalizeOrder(item)
-      );
-
-      const recoveredClientId =
-        result.clientId
-        || (orders[0] && orders[0].clientId)
-        || clientId
-        || '';
-
-      const notifications = (result.notifications || []).map((item) => this.normalizeNotification(item));
       let channelDashboard = null;
       try {
         const channelResult = await get('/api/customer/channel-dashboard', {});
@@ -76,6 +110,7 @@ Page({
         orders,
         notifications,
         channelDashboard,
+        phoneAuthorized: true,
         error: ''
       });
 
@@ -125,7 +160,7 @@ Page({
     if (/已退款/.test(value)) return '已退款';
     if (/付款确认/.test(value)) return '付款确认中';
     if (/待付款/.test(value)) return '待付款';
-    if (/已兑换/.test(value)) return '已兑换';
+    if (/已兑换|优惠至免费/.test(value)) return '已优惠至免费';
     if (/已付款/.test(value)) return '已付款';
     if (/待补充|补充材料|资料不全/.test(value)) return '资料待补充';
     if (/审核|复核|初稿|质检/.test(value)) return '报告审核中';
@@ -137,20 +172,43 @@ Page({
     const result = data || {};
     return {
       ...result,
-      channels: (result.channels || []).map((item) => ({
-        ...item,
-        discountText: item.discountType === 'free'
-          ? '免费兑换'
-          : (Number(item.discountRateBps || 0) / 100).toFixed(0) + '% 支付价',
-        commissionText: Number(item.commissionRateBps || 0) > 0
-          ? (Number(item.commissionRateBps || 0) / 100).toFixed(0) + '%'
-          : '无返佣'
-      })),
+      channels: (result.channels || []).map((item) => {
+        const payRate = Number(item.discountRateBps || 0) / 1000;
+        return {
+          ...item,
+          discountText: item.discountType === 'free'
+            ? '本次诊断免费'
+            : String(Number.isInteger(payRate) ? payRate : payRate.toFixed(1)) + '折',
+          commissionText: Number(item.commissionRateBps || 0) > 0
+            ? (Number(item.commissionRateBps || 0) / 100).toFixed(0) + '%'
+            : '无返佣',
+          startsAtText: this.formatDisplayTime(item.startsAt),
+          endsAtText: this.formatDisplayTime(item.endsAt)
+        };
+      }),
       monthly: (result.monthly || []).map((item) => ({
         ...item,
         periodText: String(item.period || '').replace('-', '年') + '月'
+      })),
+      recentOrders: (result.recentOrders || []).map((item) => ({
+        ...item,
+        statusText: this.channelOrderStatusText(item.status),
+        createdAtText: this.formatDisplayTime(item.createdAt)
       }))
     };
+  },
+
+  channelOrderStatusText(status) {
+    return {
+      unpaid: '待付款',
+      paying: '付款确认中',
+      paid: '已付款',
+      free: '优惠免付',
+      refund_processing: '退款处理中',
+      partially_refunded: '部分退款',
+      refunded: '已退款',
+      closed: '已关闭'
+    }[String(status || '')] || String(status || '—');
   },
 
   normalizeNotification(notification) {
@@ -229,5 +287,21 @@ Page({
     wx.navigateTo({
       url: `/pages/report-detail/report-detail?projectId=${encodeURIComponent(projectId)}&clientId=${encodeURIComponent(clientId)}`
     });
+  },
+
+  onShareAppMessage(event) {
+    const dataset = event && event.target && event.target.dataset || {};
+    const sourceToken = String(dataset.sourceToken || '');
+    const channelName = String(dataset.channelName || '');
+    if (!sourceToken) {
+      return {
+        title: 'GeoGi｜199 元品牌 GEO 诊断报告',
+        path: '/pages/index/index'
+      };
+    }
+    return {
+      title: channelName ? channelName + ' 推荐｜GeoGi 品牌 GEO 诊断' : 'GeoGi 品牌 GEO 诊断',
+      path: '/pages/index/index?src=' + encodeURIComponent(sourceToken)
+    };
   },
 });

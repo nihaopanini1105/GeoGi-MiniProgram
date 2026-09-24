@@ -34,13 +34,17 @@ jobs:
           bash -n server/scripts/deploy-production-release.sh
           bash -n server/scripts/activate-production-os-bridge.sh
 
-      - name: Payment and redemption regressions
-        run: |
-          cd server
-          node tests/payment_store_regression.js
-          node tests/wechat_pay_security_regression.js
-          node tests/paid_diagnostic_copy_contract_regression.js
-          node tests/channel_redemption_commission_regression.js
+      - name: Payment store regression
+        run: cd server && node tests/payment_store_regression.js
+
+      - name: WeChat Pay regression
+        run: cd server && node tests/wechat_pay_security_regression.js
+
+      - name: Paid diagnostic copy regression
+        run: cd server && node tests/paid_diagnostic_copy_contract_regression.js
+
+      - name: Source attribution and commission regression
+        run: cd server && node tests/channel_redemption_commission_regression.js
 
       - name: Customer portal regressions
         run: |

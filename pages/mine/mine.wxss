@@ -450,7 +450,7 @@
 
 .channel-metrics {
   display: grid;
-  grid-template-columns: repeat(3,minmax(0,1fr));
+  grid-template-columns: repeat(4,minmax(0,1fr));
   gap: 10rpx;
   margin-top: 18rpx;
 }
@@ -515,4 +515,49 @@
   color: #8A97A9;
   font-size: 19rpx;
   font-weight: 600;
+}
+
+
+.channel-share-button {
+  margin-top: 18rpx;
+}
+
+.channel-order-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+  padding: 18rpx 0;
+  border-top: 1rpx solid #EDF1F7;
+}
+
+.channel-order-brand {
+  display: block;
+  color: #20324F;
+  font-size: 25rpx;
+  font-weight: 600;
+}
+
+.channel-order-meta {
+  display: block;
+  margin-top: 7rpx;
+  color: #8A97A9;
+  font-size: 20rpx;
+}
+
+.channel-order-side {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.channel-order-side text {
+  display: block;
+  color: #20324F;
+  font-size: 22rpx;
+}
+
+.channel-order-side text + text {
+  margin-top: 5rpx;
+  color: #66789A;
+  font-size: 19rpx;
 }

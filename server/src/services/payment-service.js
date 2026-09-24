@@ -12,6 +12,7 @@ const {
   findPaymentByOutTradeNo,
   listPaymentOrders,
   publicPaymentView,
+  operationsPaymentView,
   paymentSummary,
   isPaymentOrderExpired
 } = require('./payment-store');
@@ -22,6 +23,7 @@ const {
   requestRefund
 } = require('./wechat-pay');
 const { notifyPaymentPaid } = require('./ops-notifications');
+const { reconcileCommission } = require('./channel-service');
 
 function text(value) {
   if (Array.isArray(value)) return value.map(text).filter(Boolean).join('');
@@ -69,7 +71,7 @@ function paymentProjectionState(paymentStatus) {
   return {
     serviceEligible,
     currentStatus: free
-      ? '已兑换'
+      ? '已优惠至免费'
       : (paid
       ? '已付款'
       : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : (closed ? '支付订单已关闭' : '待付款'))))),
@@ -79,7 +81,7 @@ function paymentProjectionState(paymentStatus) {
           ? '等待微信支付退款结果确认'
           : (refunded ? '订单已退款，如需诊断请重新提交' : (closed ? '支付订单已关闭，可重新发起支付' : '支付 199 元后开始品牌 GEO 诊断'))),
     auditStatus: free
-      ? '兑换完成 / 待 OS 处理'
+      ? '渠道优惠已生效 / 待 OS 处理'
       : (paid
       ? '待 OS 处理'
       : (partiallyRefunded ? '部分退款' : (refundProcessing ? '退款处理中' : (refunded ? '已退款' : (closed ? '支付订单已关闭' : '待付款'))))),
@@ -211,7 +213,11 @@ async function ensureOrder({ clientId, projectId, phoneNumber }) {
     brandName: text(fields.品牌名称),
     phoneNumber,
     amountTotal: existing ? Number(existing.amountTotal) : PRODUCT_PRICE_FEN,
-    promotionCode: existing && existing.promotionCode,
+    sourceId: existing && existing.sourceId,
+    sourceToken: existing && existing.sourceToken,
+    sourceName: existing && existing.sourceName,
+    sourceType: existing && existing.sourceType,
+    sourceCapturedAt: existing && existing.sourceCapturedAt,
     channelId: existing && existing.channelId,
     channelName: existing && existing.channelName,
     discountType: existing && existing.discountType,
@@ -321,7 +327,7 @@ async function listPaymentsForOs() {
   refreshed.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
   return {
     summary: paymentSummary(refreshed),
-    items: refreshed.map(publicPaymentView)
+    items: refreshed.map(operationsPaymentView)
   };
 }
 
@@ -342,6 +348,7 @@ async function refundPaymentForOs({ outTradeNo, amountFen, reason, operatorId })
     operatorId
   });
   await projectPaymentProjection({ projectId: refunded.projectId, paymentStatus: refunded.status });
+  await reconcileCommission({ order: refunded });
   return publicPaymentView(refunded);
 }
 

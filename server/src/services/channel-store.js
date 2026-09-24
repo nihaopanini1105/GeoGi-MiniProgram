@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const BASE_PRICE_FEN = 19900;
+const SOURCE_TYPES = new Set(['website', 'official_account', 'business_card', 'channel']);
 
 function dataRoot() {
   if (process.env.GEOGI_CHANNEL_DATA_ROOT) return process.env.GEOGI_CHANNEL_DATA_ROOT;
@@ -12,13 +13,10 @@ function dataRoot() {
   return path.join(__dirname, '../../data/channels');
 }
 
-function channelsPath() {
-  return path.join(dataRoot(), 'channels.json');
-}
-
-function commissionsPath() {
-  return path.join(dataRoot(), 'commissions.json');
-}
+function channelsPath() { return path.join(dataRoot(), 'channels.json'); }
+function sourcesPath() { return path.join(dataRoot(), 'sources.json'); }
+function visitsPath() { return path.join(dataRoot(), 'source-visits.json'); }
+function commissionsPath() { return path.join(dataRoot(), 'commissions.json'); }
 
 async function ensureRoot() {
   await fs.promises.mkdir(dataRoot(), { recursive: true, mode: 0o700 });
@@ -47,10 +45,6 @@ function cleanText(value, max = 200) {
   return String(value || '').trim().slice(0, max);
 }
 
-function normalizeCode(value) {
-  return cleanText(value, 40).replace(/\s+/g, '').toUpperCase();
-}
-
 function normalizePhones(value) {
   const rows = Array.isArray(value) ? value : String(value || '').split(/[、,，;；\s]+/);
   return [...new Set(rows.map((item) => cleanText(item, 40)).filter(Boolean))].slice(0, 20);
@@ -74,23 +68,61 @@ function publicChannel(channel) {
   return {
     channelId: channel.channelId,
     name: channel.name,
-    code: channel.code,
     discountType: channel.discountType,
-    discountRateBps: channel.discountRateBps,
-    commissionRateBps: channel.commissionRateBps,
-    active: channel.active,
-    startsAt: channel.startsAt,
-    endsAt: channel.endsAt,
-    ownerPhones: [...channel.ownerPhones],
+    discountRateBps: Number(channel.discountRateBps || 0),
+    commissionRateBps: Number(channel.commissionRateBps || 0),
+    active: Boolean(channel.active),
+    startsAt: channel.startsAt || '',
+    endsAt: channel.endsAt || '',
+    ownerPhones: [...(channel.ownerPhones || [])],
     notes: channel.notes || '',
     createdAt: channel.createdAt,
     updatedAt: channel.updatedAt
   };
 }
 
+function publicSource(source) {
+  return {
+    sourceId: source.sourceId,
+    token: source.token,
+    name: source.name,
+    sourceType: source.sourceType,
+    channelId: source.channelId || '',
+    active: Boolean(source.active),
+    startsAt: source.startsAt || '',
+    endsAt: source.endsAt || '',
+    notes: source.notes || '',
+    createdAt: source.createdAt,
+    updatedAt: source.updatedAt
+  };
+}
+
 async function listChannels() {
   const rows = await readJson(channelsPath(), []);
   return Array.isArray(rows) ? rows.map(publicChannel) : [];
+}
+
+async function listSources() {
+  const rows = await readJson(sourcesPath(), []);
+  return Array.isArray(rows) ? rows.map(publicSource) : [];
+}
+
+async function ensureDefaultOfficialSources() {
+  const defaults = [
+    { name: 'GeoGi 官网', sourceType: 'website', notes: 'auto_official_source:website' },
+    { name: 'GeoGi 公众号', sourceType: 'official_account', notes: 'auto_official_source:official_account' },
+    { name: 'GeoGi 官方名片', sourceType: 'business_card', notes: 'auto_official_source:business_card' }
+  ];
+  const rows = await listSources();
+  const created = [];
+  for (const item of defaults) {
+    let existing = rows.find((row) => row.notes === item.notes);
+    if (!existing) {
+      existing = await upsertSource({ ...item, active: true });
+    }
+    created.push(existing);
+  }
+  return created;
 }
 
 function validateDiscount({ discountType, discountRateBps }) {
@@ -101,14 +133,75 @@ function validateDiscount({ discountType, discountRateBps }) {
   return bps;
 }
 
+function generateSourceToken() {
+  return 's_' + crypto.randomBytes(8).toString('hex');
+}
+
+function effectiveAt(record, nowMs) {
+  if (!record || record.active === false) return false;
+  if (record.startsAt && nowMs < Date.parse(record.startsAt)) return false;
+  if (record.endsAt && nowMs >= Date.parse(record.endsAt)) return false;
+  return true;
+}
+
+async function upsertSource(input = {}) {
+  const now = new Date().toISOString();
+  const rows = await listSources();
+  const sourceId = cleanText(input.sourceId, 120) || 'source_' + crypto.randomUUID();
+  const index = rows.findIndex((item) => item.sourceId === sourceId);
+  const existing = index >= 0 ? rows[index] : null;
+  const name = cleanText(input.name !== undefined ? input.name : existing && existing.name, 160);
+  const sourceType = cleanText(input.sourceType !== undefined ? input.sourceType : existing && existing.sourceType, 40);
+  const channelId = cleanText(input.channelId !== undefined ? input.channelId : existing && existing.channelId, 120);
+  if (!name) throw channelError('SOURCE_NAME_REQUIRED');
+  if (!SOURCE_TYPES.has(sourceType)) throw channelError('SOURCE_TYPE_INVALID');
+  if (sourceType === 'channel' && !channelId) throw channelError('SOURCE_CHANNEL_REQUIRED');
+  if (channelId) {
+    const channels = await listChannels();
+    if (!channels.some((item) => item.channelId === channelId)) throw channelError('CHANNEL_NOT_FOUND');
+  }
+  const startsAt = normalizeIso(input.startsAt !== undefined ? input.startsAt : existing && existing.startsAt);
+  const endsAt = normalizeIso(input.endsAt !== undefined ? input.endsAt : existing && existing.endsAt);
+  if (startsAt && endsAt && Date.parse(startsAt) >= Date.parse(endsAt)) throw channelError('SOURCE_EFFECTIVE_PERIOD_INVALID');
+  const row = {
+    sourceId,
+    token: existing && existing.token || generateSourceToken(),
+    name,
+    sourceType,
+    channelId,
+    active: input.active !== undefined ? Boolean(input.active) : (existing ? Boolean(existing.active) : true),
+    startsAt,
+    endsAt,
+    notes: cleanText(input.notes !== undefined ? input.notes : existing && existing.notes, 1000),
+    createdAt: existing && existing.createdAt || now,
+    updatedAt: now
+  };
+  if (index >= 0) rows[index] = row;
+  else rows.push(row);
+  await writeJson(sourcesPath(), rows);
+  return publicSource(row);
+}
+
+async function ensureChannelShareSource(channel) {
+  const sources = await listSources();
+  const existing = sources.find((item) => item.sourceType === 'channel' && item.channelId === channel.channelId && item.notes === 'auto_channel_share');
+  if (existing) return existing;
+  return upsertSource({
+    name: channel.name + ' · 微信分享',
+    sourceType: 'channel',
+    channelId: channel.channelId,
+    active: true,
+    notes: 'auto_channel_share'
+  });
+}
+
 async function upsertChannel(input = {}) {
   const now = new Date().toISOString();
   const rows = await listChannels();
   const channelId = cleanText(input.channelId, 120) || 'channel_' + crypto.randomUUID();
-  const existingIndex = rows.findIndex((item) => item.channelId === channelId);
-  const existing = existingIndex >= 0 ? rows[existingIndex] : null;
+  const index = rows.findIndex((item) => item.channelId === channelId);
+  const existing = index >= 0 ? rows[index] : null;
   const name = cleanText(input.name !== undefined ? input.name : existing && existing.name, 120);
-  const code = normalizeCode(input.code !== undefined ? input.code : existing && existing.code);
   const discountType = cleanText(input.discountType !== undefined ? input.discountType : existing && existing.discountType, 20) || 'percent';
   const discountRateBps = validateDiscount({
     discountType,
@@ -119,10 +212,6 @@ async function upsertChannel(input = {}) {
     throw channelError('CHANNEL_COMMISSION_RATE_INVALID');
   }
   if (!name) throw channelError('CHANNEL_NAME_REQUIRED');
-  if (!code || !/^[A-Z0-9_-]{2,40}$/.test(code)) throw channelError('CHANNEL_CODE_INVALID');
-  const duplicate = rows.find((item) => item.code === code && item.channelId !== channelId);
-  if (duplicate) throw channelError('CHANNEL_CODE_DUPLICATE');
-
   const startsAt = normalizeIso(input.startsAt !== undefined ? input.startsAt : existing && existing.startsAt);
   const endsAt = normalizeIso(input.endsAt !== undefined ? input.endsAt : existing && existing.endsAt);
   if (startsAt && endsAt && Date.parse(startsAt) >= Date.parse(endsAt)) throw channelError('CHANNEL_EFFECTIVE_PERIOD_INVALID');
@@ -130,7 +219,6 @@ async function upsertChannel(input = {}) {
   const row = {
     channelId,
     name,
-    code,
     discountType,
     discountRateBps,
     commissionRateBps,
@@ -142,66 +230,101 @@ async function upsertChannel(input = {}) {
     createdAt: existing && existing.createdAt || now,
     updatedAt: now
   };
-  if (existingIndex >= 0) rows[existingIndex] = row;
+  if (index >= 0) rows[index] = row;
   else rows.push(row);
   await writeJson(channelsPath(), rows);
-  return publicChannel(row);
+  const shareSource = await ensureChannelShareSource(row);
+  return { ...publicChannel(row), shareSource };
 }
 
-async function quoteChannelCode(code, now = new Date()) {
-  const normalized = normalizeCode(code);
-  if (!normalized) {
-    return {
-      applied: false,
-      listPriceFen: BASE_PRICE_FEN,
-      payableFen: BASE_PRICE_FEN,
-      discountFen: 0,
-      discountType: '',
-      discountRateBps: 10000,
-      promotionCode: '',
-      channelId: '',
-      channelName: '',
-      commissionRateBps: 0
-    };
-  }
-  const rows = await listChannels();
-  const channel = rows.find((item) => item.code === normalized);
-  if (!channel) {
-    const error = new Error('CHANNEL_CODE_NOT_FOUND');
-    error.code = 'CHANNEL_CODE_NOT_FOUND';
-    throw error;
-  }
+async function resolveSourceToken(token, now = new Date()) {
+  const cleanToken = cleanText(token, 40);
+  if (!cleanToken) return {
+    applied: false,
+    sourceId: '',
+    sourceToken: '',
+    sourceName: '直接访问',
+    sourceType: 'direct',
+    sourceActive: true,
+    channelId: '',
+    channelName: '',
+    channelBenefitActive: false,
+    listPriceFen: BASE_PRICE_FEN,
+    payableFen: BASE_PRICE_FEN,
+    discountFen: 0,
+    discountType: '',
+    discountRateBps: 10000,
+    commissionRateBps: 0
+  };
+  const sources = await listSources();
+  const source = sources.find((item) => item.token === cleanToken);
+  if (!source) throw channelError('SOURCE_TOKEN_NOT_FOUND');
   const nowMs = now instanceof Date ? now.getTime() : Date.parse(String(now));
-  if (!channel.active) {
-    const error = new Error('CHANNEL_CODE_INACTIVE');
-    error.code = 'CHANNEL_CODE_INACTIVE';
-    throw error;
+  const sourceActive = effectiveAt(source, nowMs);
+  let channel = null;
+  let channelBenefitActive = false;
+  if (source.channelId) {
+    const channels = await listChannels();
+    channel = channels.find((item) => item.channelId === source.channelId) || null;
+    channelBenefitActive = sourceActive && Boolean(channel) && effectiveAt(channel, nowMs);
   }
-  if (channel.startsAt && nowMs < Date.parse(channel.startsAt)) {
-    const error = new Error('CHANNEL_CODE_NOT_STARTED');
-    error.code = 'CHANNEL_CODE_NOT_STARTED';
-    throw error;
-  }
-  if (channel.endsAt && nowMs >= Date.parse(channel.endsAt)) {
-    const error = new Error('CHANNEL_CODE_EXPIRED');
-    error.code = 'CHANNEL_CODE_EXPIRED';
-    throw error;
-  }
-  const payableFen = channel.discountType === 'free'
-    ? 0
-    : Math.max(0, Math.min(BASE_PRICE_FEN, Math.round(BASE_PRICE_FEN * Number(channel.discountRateBps) / 10000)));
+  const discountType = channelBenefitActive ? channel.discountType : '';
+  const discountRateBps = channelBenefitActive
+    ? (channel.discountType === 'free' ? 0 : Number(channel.discountRateBps))
+    : 10000;
+  const payableFen = channelBenefitActive
+    ? (channel.discountType === 'free'
+      ? 0
+      : Math.max(0, Math.min(BASE_PRICE_FEN, Math.round(BASE_PRICE_FEN * Number(channel.discountRateBps) / 10000))))
+    : BASE_PRICE_FEN;
   return {
     applied: true,
+    sourceId: source.sourceId,
+    sourceToken: source.token,
+    sourceName: source.name,
+    sourceType: source.sourceType,
+    sourceActive,
+    channelId: channel && channel.channelId || '',
+    channelName: channel && channel.name || '',
+    channelBenefitActive,
     listPriceFen: BASE_PRICE_FEN,
     payableFen,
     discountFen: BASE_PRICE_FEN - payableFen,
-    discountType: channel.discountType,
-    discountRateBps: channel.discountType === 'free' ? 0 : Number(channel.discountRateBps),
-    promotionCode: channel.code,
-    channelId: channel.channelId,
-    channelName: channel.name,
-    commissionRateBps: Number(channel.commissionRateBps || 0)
+    discountType,
+    discountRateBps,
+    commissionRateBps: channelBenefitActive ? Number(channel.commissionRateBps || 0) : 0
   };
+}
+
+async function recordSourceVisit({ attribution, visitorId = '', capturedAt = '' }) {
+  if (!attribution || !attribution.sourceId) return null;
+  const rows = await readJson(visitsPath(), []);
+  const now = capturedAt || new Date().toISOString();
+  const cleanVisitorId = cleanText(visitorId, 120);
+  const last = Array.isArray(rows) ? rows.findLast && rows.findLast((item) => (
+    item.sourceId === attribution.sourceId
+    && item.visitorId === cleanVisitorId
+    && Date.parse(now) - Date.parse(item.capturedAt || '') < 30 * 60 * 1000
+  )) : null;
+  if (last) return last;
+  const record = {
+    visitId: 'visit_' + crypto.randomUUID(),
+    sourceId: attribution.sourceId,
+    sourceToken: attribution.sourceToken,
+    sourceName: attribution.sourceName,
+    sourceType: attribution.sourceType,
+    channelId: attribution.channelId || '',
+    visitorId: cleanVisitorId,
+    capturedAt: now
+  };
+  const next = Array.isArray(rows) ? rows.concat(record).slice(-20000) : [record];
+  await writeJson(visitsPath(), next);
+  return record;
+}
+
+async function listSourceVisits() {
+  const rows = await readJson(visitsPath(), []);
+  return Array.isArray(rows) ? rows : [];
 }
 
 async function listCommissionRecords() {
@@ -214,7 +337,7 @@ async function reconcileCommission({ order, releasedAt = '' }) {
   const rows = await listCommissionRecords();
   const index = rows.findIndex((item) => item.projectId === order.projectId);
   const existing = index >= 0 ? rows[index] : null;
-  const effectiveReleasedAt = releasedAt || existing && existing.reportReleasedAt || '';
+  const effectiveReleasedAt = releasedAt || order.reportReleasedAt || existing && existing.reportReleasedAt || '';
   if (!effectiveReleasedAt) return existing || null;
   const now = new Date().toISOString();
   const rateBps = Number(order.commissionRateBps || 0);
@@ -227,7 +350,9 @@ async function reconcileCommission({ order, releasedAt = '' }) {
     commissionId: existing && existing.commissionId || 'commission_' + crypto.randomUUID(),
     channelId: order.channelId,
     channelName: order.channelName || '',
-    promotionCode: order.promotionCode || '',
+    sourceId: order.sourceId || '',
+    sourceName: order.sourceName || '',
+    sourceType: order.sourceType || '',
     projectId: order.projectId,
     clientId: order.clientId,
     outTradeNo: order.outTradeNo,
@@ -284,18 +409,22 @@ async function settleChannelPeriod({ channelId, period, operatorId = '', payoutR
     changed += 1;
     payoutFen += due;
   }
-  if (changed === 0) throw channelError('CHANNEL_SETTLEMENT_NOTHING_DUE');
+  if (!changed) throw channelError('CHANNEL_SETTLEMENT_NOTHING_DUE');
   await writeJson(commissionsPath(), rows);
   return { ok: true, channelId: cleanChannelId, period: cleanPeriod, settledRecords: changed, payoutFen, payoutYuan: payoutFen / 100, payoutAt: now };
 }
 
 module.exports = {
   BASE_PRICE_FEN,
-  channelError,
-  normalizeCode,
+  SOURCE_TYPES,
   listChannels,
+  listSources,
+  ensureDefaultOfficialSources,
   upsertChannel,
-  quoteChannelCode,
+  upsertSource,
+  resolveSourceToken,
+  recordSourceVisit,
+  listSourceVisits,
   listCommissionRecords,
   reconcileCommission,
   settleChannelPeriod

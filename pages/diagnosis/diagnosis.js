@@ -2,6 +2,7 @@ const { platforms } = require('../../config/platforms');
 const { assets } = require('../../config/assets');
 const { post, uploadFile, getCustomerToken, isApiConfigured } = require('../../utils/request');
 const { track } = require('../../utils/analytics');
+const { getAttribution, captureAttribution, refreshAttribution, clearAttributionAfterOrder } = require('../../utils/attribution');
 
 const draftKey = 'geogi_diagnosis_draft';
 
@@ -18,7 +19,6 @@ const initialForm = {
   advantages: '',
   competitors: '',
   goals: [],
-  redemptionCode: '',
   uploads: [],
   contactName: '',
   contactMethod: '',
@@ -35,8 +35,7 @@ Page({
     phoneDisplay: '',
     step: 1,
     submitting: false,
-    redemptionChecking: false,
-    redemptionQuote: null,
+    attribution: null,
     fieldErrors: {},
     form: { ...initialForm },
     industryIndex: 0,
@@ -94,6 +93,7 @@ Page({
   },
 
   onLoad(options) {
+    void this.loadAttribution(options || {});
     const phoneAuth = this.readValidPhoneAuth();
     const shouldStartNew = wx.getStorageSync('geogi_start_new_diagnosis') || options.start === '1';
     this.setData({
@@ -129,6 +129,7 @@ Page({
   },
 
   onShow() {
+    this.setData({ attribution: getAttribution() });
     const phoneAuth = this.readValidPhoneAuth();
     this.setData({
       phoneAuthorized: Boolean(phoneAuth.phoneNumber),
@@ -140,6 +141,12 @@ Page({
     wx.removeStorageSync(draftKey);
     wx.removeStorageSync('geogi_last_submission');
     this.startForm({ forceNew: true });
+  },
+
+  async loadAttribution(options = {}) {
+    await captureAttribution(options);
+    const attribution = await refreshAttribution();
+    this.setData({ attribution: attribution || getAttribution() });
   },
 
   readValidPhoneAuth() {
@@ -231,45 +238,7 @@ Page({
 
   updateField(event) {
     const key = event.currentTarget.dataset.key;
-    const value = key === 'redemptionCode'
-      ? String(event.detail.value || '').replace(/\s+/g, '').toUpperCase()
-      : event.detail.value;
-    if (key === 'redemptionCode') this.setData({ redemptionQuote: null });
-    this.setFormValue(key, value);
-  },
-
-  async validateRedemptionCode() {
-    const code = String(this.data.form.redemptionCode || '').trim();
-    if (!code) {
-      this.setData({ redemptionQuote: null });
-      return null;
-    }
-    if (!isApiConfigured()) {
-      this.setData({ fieldErrors: { ...this.data.fieldErrors, redemptionCode: '兑换码服务暂不可用，请稍后再试。' } });
-      return null;
-    }
-    this.setData({ redemptionChecking: true });
-    try {
-      const result = await post('/api/redemption/quote', { code });
-      if (!result || !result.ok || !result.applied) {
-        throw new Error(result && result.userMessage ? result.userMessage : '兑换码暂时无法使用');
-      }
-      const fieldErrors = { ...this.data.fieldErrors };
-      delete fieldErrors.redemptionCode;
-      this.setData({ redemptionQuote: result, fieldErrors });
-      return result;
-    } catch (error) {
-      this.setData({
-        redemptionQuote: null,
-        fieldErrors: {
-          ...this.data.fieldErrors,
-          redemptionCode: error && error.message ? error.message : '兑换码暂时无法使用'
-        }
-      });
-      return null;
-    } finally {
-      this.setData({ redemptionChecking: false });
-    }
+    this.setFormValue(key, event.detail.value);
   },
 
   chooseIndustry(event) {
@@ -414,17 +383,19 @@ Page({
       this.setData({ fieldErrors: { submit: '诊断服务暂未连接，请稍后再试。' } });
       return;
     }
-    if (String(this.data.form.redemptionCode || '').trim()) {
-      const quote = await this.validateRedemptionCode();
-      if (!quote) return;
-    }
-
     this.setData({ submitting: true, fieldErrors: {} });
     const submittedAt = new Date().toISOString();
     let submissionCreated = false;
     try {
       const uploadedFiles = await this.uploadAttachments();
-      const form = { ...this.data.form, uploads: uploadedFiles, submittedAt };
+      const attribution = getAttribution();
+      const form = {
+        ...this.data.form,
+        uploads: uploadedFiles,
+        submittedAt,
+        sourceToken: attribution && attribution.sourceToken || '',
+        sourceCapturedAt: attribution && attribution.capturedAt || ''
+      };
       const result = await post('/api/leads', { form, source: 'wechat_miniprogram' });
       if (!result || !result.ok) {
         throw new Error(result && result.userMessage ? result.userMessage : '提交失败，请稍后重试');
@@ -441,7 +412,10 @@ Page({
         paymentStatus: result.payment && result.payment.status ? result.payment.status : 'unpaid',
         amountYuan: Number(result.amountYuan !== undefined ? result.amountYuan : 199),
         listPriceYuan: Number(result.listPriceYuan || 199),
-        redemptionCode: result.redemptionCode || '',
+        sourceId: result.sourceId || '',
+        sourceName: result.sourceName || '',
+        sourceType: result.sourceType || '',
+        channelId: result.channelId || '',
         channelName: result.channelName || '',
         payment: result.payment || null
       };
@@ -457,10 +431,16 @@ Page({
       });
       wx.removeStorageSync(draftKey);
       wx.removeStorageSync('geogi_payment_attempt_error');
+      clearAttributionAfterOrder();
+      this.setData({ attribution: null });
       track('form_submit_success', { industry: form.industry });
 
       try {
-        await this.paySubmission(submission);
+        if (submission.paymentStatus === 'free') {
+          this.persistPaidSubmission(submission, submission.payment);
+        } else {
+          await this.paySubmission(submission);
+        }
       } catch (paymentError) {
         const message = paymentError && paymentError.errMsg
           ? paymentError.errMsg
@@ -527,7 +507,7 @@ Page({
       { clientId: submission.clientId }
     );
     const payment = synced && synced.payment ? synced.payment : result.payment;
-    const paid = Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status));
+    const paid = Boolean(payment && ['paid', 'free', 'partially_refunded'].includes(payment.status));
     if (!paid) throw new Error('付款结果正在确认，请稍后刷新');
 
     this.persistPaidSubmission(submission, payment);
@@ -560,7 +540,7 @@ Page({
   persistPaidSubmission(submission, payment) {
     const paidSubmission = {
       ...submission,
-      status: payment && payment.status === 'free' ? '已兑换' : '已付款',
+      status: payment && payment.status === 'free' ? '已优惠至免费' : '已付款',
       paymentStatus: payment && payment.status ? payment.status : 'paid',
       paidAt: payment && payment.paidAt ? payment.paidAt : '',
       payment: payment || submission.payment || null
@@ -573,7 +553,7 @@ Page({
       orders.map((item) => item.projectId === paidSubmission.projectId
         ? {
             ...item,
-            status: payment && payment.status === 'free' ? '已兑换' : '已付款',
+            status: payment && payment.status === 'free' ? '已优惠至免费' : '已付款',
             paymentStatus: paidSubmission.paymentStatus,
             paidAt: paidSubmission.paidAt,
             payment: paidSubmission.payment,
@@ -639,8 +619,6 @@ Page({
       submitting: false,
       fieldErrors: {},
       form: { ...initialForm, contactMethod: phoneAuth.phoneNumber || '' },
-      redemptionQuote: null,
-      redemptionChecking: false,
       industryIndex: 0,
       segmentIndex: 0,
       segmentOptions: this.getSegmentOptions(this.data.industries[0]),

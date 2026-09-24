@@ -215,7 +215,7 @@ Page({
       }
       await this.loadReport();
       if (!this.paymentPaid()) throw new Error('付款结果正在确认，请稍后刷新');
-      wx.showToast({ title: this.data.order && this.data.order.paymentStatus === 'free' ? '兑换成功' : '付款成功', icon: 'success' });
+      wx.showToast({ title: this.data.order && this.data.order.paymentStatus === 'free' ? '优惠已生效' : '付款成功', icon: 'success' });
     } catch (error) {
       const message = error && error.errMsg
         ? error.errMsg

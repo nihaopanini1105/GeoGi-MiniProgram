@@ -39,6 +39,17 @@ function canonicalOrder(order) {
   if (!row.projectId || !row.clientId || !row.outTradeNo) throw new Error('PAYMENT_SCOPE_REQUIRED');
   row.refunds = Array.isArray(row.refunds) ? row.refunds : [];
   row.closedReason = String(row.closedReason || '');
+  row.sourceId = String(row.sourceId || '').trim().slice(0, 120);
+  row.sourceToken = String(row.sourceToken || '').trim().slice(0, 40);
+  row.sourceName = String(row.sourceName || '').trim().slice(0, 160);
+  row.sourceType = String(row.sourceType || '').trim().slice(0, 40);
+  row.sourceCapturedAt = String(row.sourceCapturedAt || '').trim().slice(0, 80);
+  row.channelId = String(row.channelId || '').trim().slice(0, 120);
+  row.channelName = String(row.channelName || '').trim().slice(0, 120);
+  row.discountType = String(row.discountType || '').trim().slice(0, 20);
+  row.discountRateBps = Number(row.discountRateBps || 0);
+  row.commissionRateBps = Number(row.commissionRateBps || 0);
+  row.reportReleasedAt = String(row.reportReleasedAt || '').trim().slice(0, 80);
   if (!row.expiresAt) {
     const createdMs = Date.parse(row.createdAt || '');
     row.expiresAt = new Date((Number.isFinite(createdMs) ? createdMs : Date.now()) + PAYMENT_ORDER_TTL_MS).toISOString();
@@ -58,11 +69,7 @@ async function writeOrder(order) {
   await fs.promises.chmod(paymentRoot(), 0o700);
   const target = orderPath(normalized.outTradeNo);
   const temp = target + '.' + process.pid + '.' + Date.now() + '.tmp';
-  await fs.promises.writeFile(
-    temp,
-    JSON.stringify(normalized, null, 2) + '\n',
-    { encoding: 'utf8', mode: 0o600 }
-  );
+  await fs.promises.writeFile(temp, JSON.stringify(normalized, null, 2) + '\n', { encoding: 'utf8', mode: 0o600 });
   await fs.promises.rename(temp, target);
   await fs.promises.chmod(target, 0o600);
   return normalized;
@@ -112,8 +119,7 @@ async function findPaymentByOutTradeNo(outTradeNo) {
 function makeOutTradeNo(projectId) {
   const project = String(projectId || '').trim();
   if (!project) throw new Error('PAYMENT_PROJECT_REQUIRED');
-  const attemptToken = crypto.randomUUID();
-  const digest = crypto.createHash('sha256').update(project + ':' + attemptToken).digest('hex').toUpperCase();
+  const digest = crypto.createHash('sha256').update(project + ':' + crypto.randomUUID()).digest('hex').toUpperCase();
   return ('GG199' + digest.slice(0, 27)).slice(0, 32);
 }
 
@@ -122,6 +128,7 @@ async function createOrGetPaymentOrder(input) {
   if (existing && existing.status !== 'closed') return { created: false, order: existing };
   const nowMs = Date.now();
   const now = new Date(nowMs).toISOString();
+  const amountTotal = Number.isInteger(Number(input.amountTotal)) ? Number(input.amountTotal) : PRODUCT_PRICE_FEN;
   const order = canonicalOrder({
     paymentOrderId: 'payment_' + crypto.randomUUID(),
     outTradeNo: makeOutTradeNo(input.projectId),
@@ -133,31 +140,36 @@ async function createOrGetPaymentOrder(input) {
     productCode: PRODUCT_CODE,
     productName: PRODUCT_NAME,
     listPriceFen: PRODUCT_PRICE_FEN,
-    amountTotal: Number.isInteger(Number(input.amountTotal)) ? Number(input.amountTotal) : PRODUCT_PRICE_FEN,
-    amountYuan: (Number.isInteger(Number(input.amountTotal)) ? Number(input.amountTotal) : PRODUCT_PRICE_FEN) / 100,
+    amountTotal,
+    amountYuan: amountTotal / 100,
     currency: CURRENCY,
-    provider: Number(input.amountTotal) === 0 ? 'channel_redemption' : 'wechat_pay',
-    status: Number(input.amountTotal) === 0 ? 'free' : 'unpaid',
+    provider: amountTotal === 0 ? 'channel_offer' : 'wechat_pay',
+    status: amountTotal === 0 ? 'free' : 'unpaid',
     providerTradeState: '',
     transactionId: '',
     prepayId: '',
     payerOpenidHash: '',
-    promotionCode: String(input.promotionCode || '').trim().slice(0, 40),
-    channelId: String(input.channelId || '').trim().slice(0, 120),
-    channelName: String(input.channelName || '').trim().slice(0, 120),
-    discountType: String(input.discountType || '').trim().slice(0, 20),
+    sourceId: input.sourceId,
+    sourceToken: input.sourceToken,
+    sourceName: input.sourceName,
+    sourceType: input.sourceType,
+    sourceCapturedAt: input.sourceCapturedAt,
+    channelId: input.channelId,
+    channelName: input.channelName,
+    discountType: input.discountType,
     discountRateBps: Number(input.discountRateBps || 0),
-    discountFen: Math.max(0, PRODUCT_PRICE_FEN - (Number.isInteger(Number(input.amountTotal)) ? Number(input.amountTotal) : PRODUCT_PRICE_FEN)),
+    discountFen: Math.max(0, PRODUCT_PRICE_FEN - amountTotal),
     commissionRateBps: Number(input.commissionRateBps || 0),
     createdAt: now,
     updatedAt: now,
     expiresAt: new Date(nowMs + PAYMENT_ORDER_TTL_MS).toISOString(),
-    paidAt: Number(input.amountTotal) === 0 ? now : '',
+    paidAt: amountTotal === 0 ? now : '',
     closedAt: '',
     closedReason: '',
     refundableAmount: 0,
     refundedAmount: 0,
-    refunds: []
+    refunds: [],
+    reportReleasedAt: ''
   });
   await writeOrder(order);
   return { created: true, order };
@@ -166,27 +178,43 @@ async function createOrGetPaymentOrder(input) {
 async function updatePaymentOrder(outTradeNo, patch) {
   const existing = await findPaymentByOutTradeNo(outTradeNo);
   if (!existing) throw new Error('PAYMENT_ORDER_NOT_FOUND');
-  const next = canonicalOrder({
-    ...existing,
-    ...(patch || {}),
+  const immutable = {
     outTradeNo: existing.outTradeNo,
     clientId: existing.clientId,
     projectId: existing.projectId,
     productCode: existing.productCode,
     listPriceFen: existing.listPriceFen,
     amountTotal: existing.amountTotal,
-    promotionCode: existing.promotionCode,
+    sourceId: existing.sourceId,
+    sourceToken: existing.sourceToken,
+    sourceName: existing.sourceName,
+    sourceType: existing.sourceType,
+    sourceCapturedAt: existing.sourceCapturedAt,
     channelId: existing.channelId,
     channelName: existing.channelName,
     discountType: existing.discountType,
     discountRateBps: existing.discountRateBps,
     discountFen: existing.discountFen,
     commissionRateBps: existing.commissionRateBps,
-    currency: existing.currency,
+    currency: existing.currency
+  };
+  const next = canonicalOrder({
+    ...existing,
+    ...(patch || {}),
+    ...immutable,
     updatedAt: new Date().toISOString()
   });
   await writeOrder(next);
   return next;
+}
+
+async function markProjectReportReleased(projectId, releasedAt) {
+  const order = await findPaymentByProject(projectId);
+  if (!order) return null;
+  if (order.reportReleasedAt) return order;
+  return updatePaymentOrder(order.outTradeNo, {
+    reportReleasedAt: String(releasedAt || new Date().toISOString())
+  });
 }
 
 function maskContact(value) {
@@ -214,12 +242,13 @@ function publicPaymentView(order) {
     amountYuan: Number(order.amountTotal || 0) / 100,
     discountFen: Number(order.discountFen || 0),
     discountYuan: Number(order.discountFen || 0) / 100,
-    redemptionCode: order.promotionCode || '',
+    sourceId: order.sourceId || '',
+    sourceName: order.sourceName || '',
+    sourceType: order.sourceType || '',
     channelId: order.channelId || '',
     channelName: order.channelName || '',
     discountType: order.discountType || '',
     discountRateBps: Number(order.discountRateBps || 0),
-    commissionRateBps: Number(order.commissionRateBps || 0),
     currency: order.currency,
     provider: order.provider,
     status: order.status,
@@ -231,6 +260,7 @@ function publicPaymentView(order) {
     expiresAt: order.expiresAt || '',
     closedAt: order.closedAt || '',
     closedReason: order.closedReason || '',
+    reportReleasedAt: order.reportReleasedAt || '',
     orderValidityMinutes: PAYMENT_ORDER_TTL_MINUTES,
     canCancel: ['unpaid', 'paying', 'payment_failed'].includes(order.status) && !isPaymentOrderExpired(order),
     refundableAmount: ['paid', 'refund_processing', 'partially_refunded'].includes(order.status)
@@ -252,6 +282,17 @@ function publicPaymentView(order) {
   };
 }
 
+function operationsPaymentView(order) {
+  const view = publicPaymentView(order);
+  if (!view) return null;
+  return {
+    ...view,
+    sourceToken: order.sourceToken || '',
+    sourceCapturedAt: order.sourceCapturedAt || '',
+    commissionRateBps: Number(order.commissionRateBps || 0)
+  };
+}
+
 function paymentSummary(orders) {
   const rows = Array.isArray(orders) ? orders : [];
   const latestByProject = new Map();
@@ -266,7 +307,6 @@ function paymentSummary(orders) {
     Boolean(row.paidAt || row.transactionId)
     || ['paid', 'free', 'refund_processing', 'partially_refunded', 'refunded'].includes(row.status)
   )).map((row) => row.projectId));
-  const paymentConversionRate = latestRows.length ? paidProjectIds.size / latestRows.length : 0;
   return {
     orderCount: latestRows.length,
     paymentAttemptCount: rows.length,
@@ -274,7 +314,7 @@ function paymentSummary(orders) {
     paidCount: latestRows.filter((row) => ['paid', 'free'].includes(row.status)).length,
     freeCount: latestRows.filter((row) => row.status === 'free').length,
     paidEverCount: paidProjectIds.size,
-    paymentConversionRate,
+    paymentConversionRate: latestRows.length ? paidProjectIds.size / latestRows.length : 0,
     refundProcessingCount: latestRows.filter((row) => row.status === 'refund_processing').length,
     partiallyRefundedCount: latestRows.filter((row) => row.status === 'partially_refunded').length,
     refundedCount: latestRows.filter((row) => row.status === 'refunded').length,
@@ -304,6 +344,8 @@ module.exports = {
   findPaymentByOutTradeNo,
   listPaymentOrders,
   updatePaymentOrder,
+  markProjectReportReleased,
   publicPaymentView,
+  operationsPaymentView,
   paymentSummary
 };
