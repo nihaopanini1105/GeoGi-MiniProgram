@@ -282,6 +282,11 @@ async function upsertChannel(input = {}) {
     if (redeemCode && rows.some((item) => item.channelId !== channelId && normalizeRedeemCode(item.redeemCode) === redeemCode)) {
       throw channelError('CHANNEL_REDEEM_CODE_DUPLICATE');
     }
+    const hasCustomerBenefit = discountType === 'free' || Number(discountRateBps) < 10000;
+    const hasCommission = Number(commissionRateBps) > 0;
+    if ((hasCustomerBenefit || hasCommission) && !redeemCode) {
+      throw channelError('CHANNEL_REDEEM_CODE_REQUIRED');
+    }
     const startsAt = normalizeIso(input.startsAt !== undefined ? input.startsAt : existing && existing.startsAt);
     const endsAt = normalizeIso(input.endsAt !== undefined ? input.endsAt : existing && existing.endsAt);
     if (startsAt && endsAt && Date.parse(startsAt) >= Date.parse(endsAt)) throw channelError('CHANNEL_EFFECTIVE_PERIOD_INVALID');
