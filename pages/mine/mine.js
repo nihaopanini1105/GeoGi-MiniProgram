@@ -1,5 +1,6 @@
 const {
   get,
+  post,
   getCustomerToken,
   isApiConfigured
 } = require('../../utils/request');
@@ -10,6 +11,9 @@ Page({
   data: {
     loading: false,
     error: '',
+    authLoading: false,
+    authError: '',
+    phoneAuthorized: Boolean(getCustomerToken()),
     clientId: '',
     orders: [],
     notifications: [],
@@ -17,7 +21,44 @@ Page({
   },
 
   onShow() {
+    this.setData({ phoneAuthorized: Boolean(getCustomerToken()) });
     this.loadOrders();
+  },
+
+  async onGetPhoneNumber(event) {
+    const detail = event.detail || {};
+    if (!/ok/i.test(detail.errMsg || '') || !detail.code) {
+      this.setData({ authError: '需要授权手机号才能查看你的订单和渠道数据。' });
+      return;
+    }
+    if (!isApiConfigured()) {
+      this.setData({ authError: '服务暂时不可用，请稍后再试。' });
+      return;
+    }
+    this.setData({ authLoading: true, authError: '' });
+    try {
+      const result = await post('/api/wechat/phone', { code: detail.code });
+      if (!result || !result.ok || !result.customerToken) {
+        throw new Error(result && result.userMessage ? result.userMessage : '手机号授权失败');
+      }
+      wx.setStorageSync('geogi_phone_auth', {
+        phoneNumber: result.phoneNumber || '',
+        purePhoneNumber: result.purePhoneNumber || result.phoneNumber || '',
+        countryCode: result.countryCode || '',
+        customerTokenExpiresAt: result.customerTokenExpiresAt || '',
+        authorizedAt: new Date().toISOString()
+      });
+      wx.setStorageSync('geogi_customer_token', result.customerToken);
+      if (result.customerTokenExpiresAt) {
+        wx.setStorageSync('geogi_customer_token_expires_at', result.customerTokenExpiresAt);
+      }
+      this.setData({ phoneAuthorized: true, authError: '' });
+      await this.loadOrders();
+    } catch (error) {
+      this.setData({ authError: error && error.message ? error.message : '手机号授权失败，请稍后再试' });
+    } finally {
+      this.setData({ authLoading: false });
+    }
   },
 
   async loadOrders() {
@@ -37,30 +78,23 @@ Page({
 
     this.setData({ loading: true });
     try {
-      const result = await get(
-        '/api/customer/projects',
-        {}
-      );
-
-      if (!result || !result.ok) {
-        throw new Error(
-          result && result.userMessage
-            ? result.userMessage
-            : '报告状态读取失败'
-        );
+      let result = null;
+      let orders = normalizedLocal;
+      let notifications = this.buildLocalNotifications(normalizedLocal);
+      let recoveredClientId = clientId || '';
+      try {
+        result = await get('/api/customer/projects', {});
+        if (result && result.ok) {
+          orders = (result.orders || []).map((item) => this.normalizeOrder(item));
+          notifications = (result.notifications || []).map((item) => this.normalizeNotification(item));
+          recoveredClientId = result.clientId || (orders[0] && orders[0].clientId) || recoveredClientId;
+        }
+      } catch (projectError) {
+        if (!/没有找到该手机号名下的诊断记录/.test(String(projectError && projectError.message || ''))) {
+          console.warn('customer projects unavailable', projectError);
+        }
       }
 
-      const orders = (result.orders || []).map(
-        (item) => this.normalizeOrder(item)
-      );
-
-      const recoveredClientId =
-        result.clientId
-        || (orders[0] && orders[0].clientId)
-        || clientId
-        || '';
-
-      const notifications = (result.notifications || []).map((item) => this.normalizeNotification(item));
       let channelDashboard = null;
       try {
         const channelResult = await get('/api/customer/channel-dashboard', {});
@@ -76,6 +110,7 @@ Page({
         orders,
         notifications,
         channelDashboard,
+        phoneAuthorized: true,
         error: ''
       });
 
