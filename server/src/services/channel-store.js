@@ -5,7 +5,11 @@ const path = require('path');
 const BASE_PRICE_FEN = 19900;
 
 function dataRoot() {
-  return process.env.GEOGI_CHANNEL_DATA_ROOT || path.join(__dirname, '../../data/channels');
+  if (process.env.GEOGI_CHANNEL_DATA_ROOT) return process.env.GEOGI_CHANNEL_DATA_ROOT;
+  if (process.env.GEOGI_PAYMENT_DATA_ROOT) {
+    return path.join(path.dirname(process.env.GEOGI_PAYMENT_DATA_ROOT), 'channels');
+  }
+  return path.join(__dirname, '../../data/channels');
 }
 
 function channelsPath() {
