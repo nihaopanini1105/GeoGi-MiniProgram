@@ -26,7 +26,7 @@ Page({
         key: 'report',
         icon: assets.icons.research,
         title: '正式诊断报告',
-        desc: '报告完成并审核后，可在小程序报告页直接查看。'
+        desc: '报告完成并审核后，可在小程序「我的」页面直接查看。'
       }
     ],
     latestArticles: [
