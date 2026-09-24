@@ -89,7 +89,8 @@ function run() {
   }
   assert(servicesJs.includes('不包含在本次诊断报告中'));
   assert(!servicesJs.includes('兑换码'));
-  assert(mine.includes('订单优惠与付款状态'));
+  assert(mine.includes('订单与付款状态'));
+  assert(!mine.includes('订单优惠与付款状态'));
   assert(report.includes('订单确认后开始处理'));
   assert(report.includes('兑换码优惠'));
   assert(privacy.includes('本次品牌 GEO 诊断'));
