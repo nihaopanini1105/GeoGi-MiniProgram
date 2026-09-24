@@ -235,6 +235,37 @@ async function run() {
   const records = await listCommissionRecords();
   assert.strictEqual(records.length, 2);
 
+  const { shouldReplaceAttribution } = require('../../utils/attribution');
+  const officialAttribution = {
+    validated: true,
+    sourceId: 'source_official_website',
+    sourceType: 'website',
+    channelId: '',
+    channelBenefitActive: false
+  };
+  const channelAttribution = {
+    validated: true,
+    sourceId: 'source_channel_a',
+    sourceType: 'channel',
+    channelId: 'channel_a',
+    channelBenefitActive: true
+  };
+  const channelBAttribution = {
+    validated: true,
+    sourceId: 'source_channel_b',
+    sourceType: 'channel',
+    channelId: 'channel_b',
+    channelBenefitActive: true
+  };
+  assert.strictEqual(shouldReplaceAttribution(null, officialAttribution), true);
+  assert.strictEqual(shouldReplaceAttribution(officialAttribution, channelAttribution), true);
+  assert.strictEqual(shouldReplaceAttribution(channelAttribution, officialAttribution), false);
+  assert.strictEqual(shouldReplaceAttribution(channelAttribution, channelBAttribution), false);
+  assert.strictEqual(
+    shouldReplaceAttribution({ ...channelAttribution, channelBenefitActive: false }, channelBAttribution),
+    true
+  );
+
   const attributionSource = fs.readFileSync(path.join(__dirname, '../../utils/attribution.js'), 'utf8');
   assert(attributionSource.includes("tokenFromScene(query.scene || '')"));
   assert(!attributionSource.includes('options.scene'), 'WeChat numeric launch scene must never be used as source attribution');
