@@ -7,10 +7,9 @@
         <text class="intro-lead">GeoGi 会根据你提供的品牌与业务信息，检查主流 AI 平台是否认识你的品牌、是否会推荐你、信息是否准确，以及哪些竞品更容易进入答案，并交付一份正式 GEO 诊断报告。</text>
         <view class="intro-price-row">
           <text class="intro-price">标准价 199 元</text>
-          <text class="intro-price-note">合作渠道优惠会自动应用</text>
+          <text wx:if="{{attribution && attribution.channelBenefitActive && attribution.discountFen > 0}}" class="intro-price-note">渠道专属优惠</text>
         </view>
         <button class="primary-button intro-button" bindtap="startForm">开始填写品牌资料</button>
-        <text class="intro-auth-note">浏览服务和填写资料无需登录；提交订单前才需要授权手机号，用于绑定订单、同步进度和查看报告。</text>
       </view>
       <image class="intro-orbit" src="{{assets.hero.background}}" mode="aspectFit"></image>
     </view>
@@ -55,7 +54,7 @@
         <view class="flow-list">
           <view class="flow-row"><text class="flow-index">1</text><text>填写品牌、业务与客户信息，约 2–3 分钟</text></view>
           <view class="flow-row"><text class="flow-index">2</text><text>提交前授权手机号，用于绑定本次订单和后续报告</text></view>
-          <view class="flow-row"><text class="flow-index">3</text><text>系统自动计算渠道优惠；普通订单完成支付后开始诊断，免费渠道无需支付</text></view>
+          <view class="flow-row"><text class="flow-index">3</text><text>确认订单并完成支付，订单确认后开始正式诊断</text></view>
           <view class="flow-row"><text class="flow-index">4</text><text>诊断完成后，可在「我的」查看进度、退款状态和正式报告</text></view>
         </view>
         <text class="note-copy">没有官网、竞品或附件也可以提交，不影响开始诊断。如本次仍需支付，支付订单创建后 30 分钟内有效。</text>
@@ -67,7 +66,7 @@
     <view class="form-head">
       <text class="page-kicker">BRAND DIAGNOSIS</text>
       <text class="form-page-title">提交品牌 GEO 诊断资料</text>
-      <text class="form-page-copy">请用日常经营语言填写即可。我们会基于这些信息设计检测问题、核对品牌事实并比较竞品表现；渠道优惠会在提交时自动计算。</text>
+      <text class="form-page-copy">请用日常经营语言填写即可。我们会基于这些信息设计检测问题、核对品牌事实并比较竞品表现。</text>
     </view>
 
     <view class="step-card card">
@@ -247,7 +246,7 @@
         <input value="{{form.companyName}}" data-key="companyName" bindinput="updateField" placeholder="品牌名与公司名一致可不填" placeholder-class="placeholder" />
       </view>
 
-      <view wx:if="{{attribution && attribution.channelBenefitActive}}" class="field">
+      <view wx:if="{{attribution && attribution.channelBenefitActive && attribution.discountFen > 0}}" class="field">
         <view class="field-label-row">
           <text class="field-label">渠道专享优惠</text>
           <text class="optional-tag">已自动应用</text>
@@ -257,7 +256,7 @@
           <view><text>标准价</text><text class="redemption-value">¥{{attribution.listPriceYuan}}</text></view>
           <view><text>优惠</text><text class="redemption-value">-¥{{attribution.discountYuan}}</text></view>
           <view class="payable"><text>应付</text><text class="redemption-value redemption-payable-value">¥{{attribution.payableYuan}}</text></view>
-          <text class="redemption-success">{{attribution.payableFen === 0 ? '本次诊断免费，无需支付' : '渠道优惠已自动应用'}}</text>
+          <text class="redemption-success">{{attribution.payableFen === 0 ? '渠道专属优惠已生效，本次无需支付' : '渠道专属优惠已自动应用'}}</text>
         </view>
       </view>
 
