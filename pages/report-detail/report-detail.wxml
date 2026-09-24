@@ -17,12 +17,12 @@
     <view class="report-hero card">
       <text class="eyebrow">GEO DIAGNOSIS</text>
       <text class="h1">{{order.brandName || '品牌'}} GEO 诊断报告</text>
-      <text class="lead">品牌 GEO 诊断标准价 199 元。订单确认后开始处理，报告完成并审核后可在这里查看。</text>
+      <text class="lead">品牌 GEO 诊断标准价 199 元，订单确认后开始处理，报告完成并审核后可在这里查看。</text>
       <view class="report-meta">
         <text>项目编号：{{order.projectId}}</text>
         <text>订单金额：¥{{order.amountYuan !== undefined ? order.amountYuan : 199}}</text>
         <text wx:if="{{order.payment && (order.payment.channelName || order.payment.sourceName)}}">来源：{{order.payment.channelName || order.payment.sourceName}}</text>
-        <text wx:if="{{order.payment && order.payment.discountYuan > 0}}">渠道专属优惠：-¥{{order.payment.discountYuan}}</text>
+        <text wx:if="{{order.payment && order.payment.discountYuan > 0}}">兑换码优惠：-¥{{order.payment.discountYuan}}</text>
         <text>付款状态：{{order.paymentStatus === 'free' ? '优惠免付' : order.paymentStatus === 'paid' ? '已付款' : order.paymentStatus === 'partially_refunded' ? '部分退款' : order.paymentStatus === 'refunded' ? '已退款' : order.paymentStatus === 'refund_processing' ? '退款处理中' : order.paymentStatus === 'paying' ? '付款确认中' : '待付款'}}</text>
         <text>报告状态：{{report.status}}</text>
         <text wx:if="{{report.releasedAt}}">发布时间：{{report.releasedAt}}</text>

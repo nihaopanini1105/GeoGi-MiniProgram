@@ -220,6 +220,7 @@ async function ensureOrder({ clientId, projectId, phoneNumber }) {
     sourceCapturedAt: existing && existing.sourceCapturedAt,
     channelId: existing && existing.channelId,
     channelName: existing && existing.channelName,
+    redeemCode: existing && existing.redeemCode,
     discountType: existing && existing.discountType,
     discountRateBps: existing && existing.discountRateBps,
     commissionRateBps: existing && existing.commissionRateBps

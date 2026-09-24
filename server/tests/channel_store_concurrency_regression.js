@@ -35,6 +35,7 @@ async function run() {
     Array.from({ length: 20 }, () => upsertChannel({
       channelId: 'channel_concurrent',
       name: '并发渠道',
+      redeemCode: 'CONCURRENT80',
       discountType: 'percent',
       discountRateBps: 8000,
       commissionRateBps: 1000,

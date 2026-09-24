@@ -51,9 +51,9 @@ function persistAttribution(attribution) {
 function shouldReplaceAttribution(existing, candidate) {
   if (!candidate || candidate.validated !== true) return false;
   if (!existing || existing.validated !== true) return true;
-  const existingLockedChannel = Boolean(existing.channelId && existing.channelBenefitActive);
+  const existingLockedChannel = Boolean(existing.channelId);
   if (existingLockedChannel) return false;
-  return Boolean(candidate.channelId && candidate.channelBenefitActive);
+  return Boolean(candidate.channelId);
 }
 
 async function resolveToken(token, capturedAt = '', options = {}) {
@@ -76,7 +76,7 @@ async function captureAttribution(options = {}) {
   const launchToken = tokenFromLaunch(options);
   if (launchToken) wx.setStorageSync(PENDING_SOURCE_KEY, launchToken);
 
-  const existingLockedChannel = Boolean(existing && existing.channelId && existing.channelBenefitActive);
+  const existingLockedChannel = Boolean(existing && existing.channelId);
   if (existingLockedChannel) {
     wx.removeStorageSync(PENDING_SOURCE_KEY);
     return existing;

@@ -32,12 +32,12 @@
       <view class="channel-card-top">
         <view>
           <text class="channel-name">{{item.name}}</text>
-          <text class="channel-code">客户优惠：{{item.discountText}}</text>
+          <text class="channel-code">推广兑换码：{{item.redeemCode || '未设置'}}</text>
         </view>
         <text class="channel-status">{{item.active ? '生效中' : '已停用'}}</text>
       </view>
       <view class="channel-rule-row">
-        <view><text>客户优惠</text><text class="channel-value">{{item.discountText}}</text></view>
+        <view><text>推广兑换码</text><text class="channel-value">{{item.redeemCode || '未设置'}}</text></view>
         <view><text>返佣比例</text><text class="channel-value">{{item.commissionText}}</text></view>
       </view>
       <view class="channel-metrics">
