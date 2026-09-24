@@ -41,7 +41,22 @@ function getAttribution() {
   return value && value.validated === true ? value : null;
 }
 
-async function resolveToken(token, capturedAt = '') {
+function persistAttribution(attribution) {
+  if (!attribution) return null;
+  wx.setStorageSync(ATTRIBUTION_KEY, attribution);
+  wx.removeStorageSync(PENDING_SOURCE_KEY);
+  return attribution;
+}
+
+function shouldReplaceAttribution(existing, candidate) {
+  if (!candidate || candidate.validated !== true) return false;
+  if (!existing || existing.validated !== true) return true;
+  const existingLockedChannel = Boolean(existing.channelId && existing.channelBenefitActive);
+  if (existingLockedChannel) return false;
+  return Boolean(candidate.channelId && candidate.channelBenefitActive);
+}
+
+async function resolveToken(token, capturedAt = '', options = {}) {
   const result = await get('/api/attribution/resolve', {
     token,
     visitorId: visitorId()
@@ -52,25 +67,34 @@ async function resolveToken(token, capturedAt = '') {
     validated: true,
     capturedAt: capturedAt || new Date().toISOString()
   };
-  wx.setStorageSync(ATTRIBUTION_KEY, attribution);
-  wx.removeStorageSync(PENDING_SOURCE_KEY);
+  if (options.persist !== false) persistAttribution(attribution);
   return attribution;
 }
 
 async function captureAttribution(options = {}) {
   const existing = getAttribution();
-  if (existing) return existing;
-
   const launchToken = tokenFromLaunch(options);
   if (launchToken) wx.setStorageSync(PENDING_SOURCE_KEY, launchToken);
-  const token = launchToken || String(wx.getStorageSync(PENDING_SOURCE_KEY) || '').trim();
-  if (!token) return null;
+
+  const existingLockedChannel = Boolean(existing && existing.channelId && existing.channelBenefitActive);
+  if (existingLockedChannel) {
+    wx.removeStorageSync(PENDING_SOURCE_KEY);
+    return existing;
+  }
+
+  const token = launchToken || (!existing ? String(wx.getStorageSync(PENDING_SOURCE_KEY) || '').trim() : '');
+  if (!token) return existing || null;
 
   try {
-    return await resolveToken(token);
+    const candidate = await resolveToken(token, '', { persist: false });
+    if (shouldReplaceAttribution(existing, candidate)) {
+      return persistAttribution(candidate);
+    }
+    wx.removeStorageSync(PENDING_SOURCE_KEY);
+    return existing || candidate || null;
   } catch (error) {
     console.warn('source attribution unavailable', error);
-    return null;
+    return existing || null;
   }
 }
 
@@ -100,6 +124,7 @@ module.exports = {
   visitorId,
   tokenFromLaunch,
   getAttribution,
+  shouldReplaceAttribution,
   captureAttribution,
   refreshAttribution,
   clearAttributionAfterOrder
