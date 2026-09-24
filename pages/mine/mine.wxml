@@ -137,7 +137,7 @@
   <view wx:if="{{phoneAuthorized && !orders.length && !(channelDashboard && channelDashboard.isChannel)}}" class="empty-card card">
     <image class="empty-icon" src="/assets/icons/png/96/report.png" mode="aspectFit"></image>
     <text class="empty-title">还没有诊断记录</text>
-    <text class="body">提交品牌资料后，199 元付款状态、诊断进度和正式报告都会出现在这里。</text>
+    <text class="body">提交品牌资料后，订单优惠与付款状态、诊断进度和正式报告都会出现在这里。</text>
     <button class="primary-button full-button" bindtap="goDiagnosis">获取诊断报告</button>
   </view>
 </view>
