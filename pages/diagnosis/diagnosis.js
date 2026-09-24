@@ -105,7 +105,10 @@ Page({
       wx.removeStorageSync('geogi_start_new_diagnosis');
       wx.removeStorageSync(draftKey);
       wx.removeStorageSync('geogi_last_submission');
-      this.startForm({ forceNew: true });
+      this.setData({
+        started: false,
+        form: { ...initialForm, contactMethod: phoneAuth.phoneNumber || '' }
+      });
       return;
     }
 
@@ -114,7 +117,7 @@ Page({
       const form = this.normalizeForm({ ...initialForm, ...draft });
       const segmentOptions = this.getSegmentOptions(form.industry);
       this.setData({
-        started: Boolean(options.start) || this.hasDraftContent(form),
+        started: false,
         form: {
           ...form,
           contactMethod: phoneAuth.phoneNumber || form.contactMethod || ''
@@ -140,7 +143,12 @@ Page({
     wx.removeStorageSync('geogi_start_new_diagnosis');
     wx.removeStorageSync(draftKey);
     wx.removeStorageSync('geogi_last_submission');
-    this.startForm({ forceNew: true });
+    this.setData({
+      started: false,
+      step: 1,
+      fieldErrors: {},
+      form: { ...initialForm, contactMethod: phoneAuth.phoneNumber || '' }
+    });
   },
 
   async loadAttribution(options = {}) {
