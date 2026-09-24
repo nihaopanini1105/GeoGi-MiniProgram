@@ -22,6 +22,7 @@ const initialForm = {
   uploads: [],
   contactName: '',
   contactMethod: '',
+  redemptionCode: '',
   message: '',
   privacyAccepted: false
 };
@@ -36,6 +37,9 @@ Page({
     step: 1,
     submitting: false,
     attribution: null,
+    redemptionQuote: null,
+    redemptionLoading: false,
+    redemptionError: '',
     fieldErrors: {},
     form: { ...initialForm },
     industryIndex: 0,
@@ -249,6 +253,51 @@ Page({
     this.setFormValue(key, event.detail.value);
   },
 
+  updateRedemptionCode(event) {
+    const value = String(event.detail.value || '').replace(/\s+/g, '').toUpperCase().slice(0, 40);
+    const fieldErrors = { ...this.data.fieldErrors };
+    delete fieldErrors.redemptionCode;
+    this.setData({
+      form: { ...this.data.form, redemptionCode: value },
+      redemptionQuote: null,
+      redemptionError: '',
+      fieldErrors
+    });
+    wx.setStorageSync(draftKey, { ...this.data.form, redemptionCode: value });
+  },
+
+  async verifyRedemptionCode() {
+    const code = String(this.data.form.redemptionCode || '').replace(/\s+/g, '').toUpperCase();
+    if (!code) {
+      this.setData({ redemptionQuote: null, redemptionError: '请输入兑换码' });
+      return;
+    }
+    if (!isApiConfigured()) {
+      this.setData({ redemptionQuote: null, redemptionError: '兑换码服务暂未连接，请稍后再试。' });
+      return;
+    }
+    this.setData({ redemptionLoading: true, redemptionError: '' });
+    try {
+      const result = await post('/api/redeem-codes/quote', { code });
+      if (!result || result.ok !== true || result.applied !== true) {
+        throw new Error(result && result.userMessage ? result.userMessage : '兑换码无效，请检查后重试');
+      }
+      this.setData({
+        redemptionQuote: result,
+        redemptionError: '',
+        form: { ...this.data.form, redemptionCode: String(result.redeemCode || code) }
+      });
+      wx.setStorageSync(draftKey, { ...this.data.form, redemptionCode: String(result.redeemCode || code) });
+    } catch (error) {
+      this.setData({
+        redemptionQuote: null,
+        redemptionError: error && error.message ? error.message : '兑换码无效，请检查后重试'
+      });
+    } finally {
+      this.setData({ redemptionLoading: false });
+    }
+  },
+
   chooseIndustry(event) {
     const index = Number(event.detail.value);
     const industry = this.data.industries[index];
@@ -379,6 +428,13 @@ Page({
       const phoneAuth = this.readValidPhoneAuth();
       if (!form.contactName) errors.contactName = '请填写联系人';
       if (!phoneAuth.phoneNumber || form.contactMethod !== phoneAuth.phoneNumber) errors.contactMethod = '请先完成手机号授权';
+      if (form.redemptionCode) {
+        const quote = this.data.redemptionQuote;
+        const normalizedCode = String(form.redemptionCode || '').replace(/\s+/g, '').toUpperCase();
+        if (!quote || quote.applied !== true || String(quote.redeemCode || '').toUpperCase() !== normalizedCode) {
+          errors.redemptionCode = '请先验证兑换码';
+        }
+      }
       if (!form.privacyAccepted) errors.privacyAccepted = '提交前需要同意隐私说明';
     }
     this.setData({ fieldErrors: errors });
@@ -632,6 +688,9 @@ Page({
       segmentOptions: this.getSegmentOptions(this.data.industries[0]),
       marketIndex: 0,
       goalOptions: this.syncGoalOptions([]),
+      redemptionQuote: null,
+      redemptionLoading: false,
+      redemptionError: '',
       step: 1
     });
   },
