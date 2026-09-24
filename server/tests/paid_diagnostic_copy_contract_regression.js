@@ -56,7 +56,7 @@ function run() {
   assert(read('pages/index/index.js').includes("title: '品牌研究与问题诊断'"));
   assert(appWxss.includes('white-space: nowrap'));
   assert(appWxss.includes('word-break: keep-all'));
-  assert(deployScript.includes('pages app.json app.wxss'));
+  assert(deployScript.includes('pages utils app.js app.json app.wxss'));
   assert(deployScript.includes('"$REMOTE_TMP/app.wxss"'));
 
   for (const [name, source] of Object.entries({
