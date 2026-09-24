@@ -29,8 +29,8 @@ function run() {
   const wechatPay = read('server/src/services/wechat-pay.js');
   const deployScript = read('server/scripts/deploy-production-from-mac.sh');
 
-  for (const [name, source] of Object.entries({ diagnosis, success, home, services, servicesJs, mine, report, privacy, contact, sample, sampleApi, config })) {
-    assert(source.includes('199'), name + ' must state the 199 yuan product truth');
+  for (const [name, source] of Object.entries({ diagnosis, success, home, servicesJs, report, contact, sample, sampleApi, config })) {
+    assert(source.includes('199'), name + ' must preserve the 199 yuan standard-price truth');
   }
   assert(diagnosis.includes('提交并支付'));
   assert(diagnosis.includes('标准价 199 元'));
@@ -74,11 +74,16 @@ function run() {
       assert(!/199|¥199/.test(button), name + ' CTA button must not repeat product price: ' + button);
     }
   }
-  assert(servicesJs.includes('不包含在 199 元诊断报告中'));
-  assert(mine.includes('付款状态'));
+  assert(servicesJs.includes('不包含在本次诊断报告中'));
+  assert(servicesJs.includes('渠道优惠自动应用'));
+  assert(mine.includes('订单优惠与付款状态'));
   assert(report.includes('订单确认后开始处理'));
-  assert(privacy.includes('本次 199 元品牌 GEO 诊断'));
-  assert(contact.includes('付款成功后 GeoGi 才会开始本次诊断'));
+  assert(report.includes('渠道优惠'));
+  assert(privacy.includes('本次品牌 GEO 诊断'));
+  assert(contact.includes('标准价 199 元'));
+  assert(contact.includes('渠道优惠'));
+  assert(contact.includes('符合免费渠道条件'));
+  assert(sample.includes('渠道优惠以订单实际结算金额为准'));
   assert(sample.includes('开始填写资料'));
   assert(config.includes("priceYuan: 199"));
   assert(config.includes("paymentRequiredBeforeProcessing: true"));
