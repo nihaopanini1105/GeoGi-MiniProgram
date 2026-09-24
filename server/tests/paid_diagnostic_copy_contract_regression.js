@@ -36,18 +36,21 @@ function run() {
   assert(diagnosis.includes('标准价 199 元'));
   assert(diagnosis.includes('这份诊断报告会重点回答'));
   assert(diagnosis.includes('整个流程怎么完成？'));
-  assert(diagnosis.includes('渠道专享优惠'));
-  assert(diagnosis.includes('attribution.discountFen > 0'));
-  assert(!diagnosis.includes('合作渠道优惠会自动应用'));
-  assert(!diagnosis.includes('系统自动计算渠道优惠'));
   assert(diagnosis.includes('不获取你的头像或昵称'));
-  assert(!diagnosis.includes('兑换码'));
+  assert(diagnosis.includes('如有兑换码，请在支付前填写'));
+  assert(diagnosis.includes('兑换码已生效'));
+  assert(diagnosisJs.includes("'/api/redeem-codes/quote'"));
+  const diagnosisIntro = diagnosis.split('<block wx:else>')[0];
+  assert(!diagnosisIntro.includes('兑换码'));
+  assert(!diagnosisIntro.includes('渠道优惠'));
+  assert(!diagnosis.includes('合作渠道优惠会自动应用'));
+  assert(!diagnosis.includes('渠道优惠自动应用'));
   assert(diagnosisJs.includes('wx.requestPayment'));
   assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment'"));
   assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment/sync'"));
   assert(diagnosis.includes('30 分钟内有效'));
   assert(success.includes('标准价 199 元'));
-  assert(!success.includes('兑换码'));
+  assert(success.includes('兑换码'));
   assert(success.includes('取消订单'));
   assert(successJs.includes('cancelOrder()'));
   assert(successJs.includes("'/payment/cancel'"));
@@ -83,15 +86,14 @@ function run() {
     }
   }
   assert(servicesJs.includes('不包含在本次诊断报告中'));
-  assert(!servicesJs.includes('渠道优惠自动应用'));
-  assert(mine.includes('订单与付款状态'));
+  assert(servicesJs.includes('提交订单前如有兑换码可主动填写并验证'));
+  assert(mine.includes('订单优惠与付款状态'));
   assert(report.includes('订单确认后开始处理'));
-  assert(report.includes('渠道专属优惠'));
+  assert(report.includes('兑换码优惠'));
   assert(privacy.includes('本次品牌 GEO 诊断'));
   assert(contact.includes('标准价 199 元'));
   assert(!contact.includes('渠道优惠'));
-  assert(!contact.includes('免费渠道'));
-  assert(!sample.includes('渠道优惠'));
+  assert(sample.includes('如持有兑换码，可在提交订单前填写并验证'));
   assert(sample.includes('开始填写资料'));
   assert(config.includes("priceYuan: 199"));
   assert(config.includes("paymentRequiredBeforeProcessing: true"));
@@ -103,14 +105,15 @@ function run() {
   assert(intake.includes('paymentRequired: !free'));
   assert(intake.includes('payment: publicPaymentView(order)'));
   assert(operationsBridge.includes("PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z'"));
-  assert(operationsBridge.includes("freeChannelOffer ? 'channel_offer'"));
+  assert(operationsBridge.includes("freeRedeemCode ? 'redeem_code'"));
   assert(operationsBridge.includes("legacyEligible ? 'legacy_pre_payment' : 'payment_required'"));
-  assert(operationsBridge.includes('paymentEligibleForProcessing: paid || freeChannelOffer || legacyEligible'));
+  assert(operationsBridge.includes('paymentEligibleForProcessing: paid || freeRedeemCode || legacyEligible'));
 
   for (const forbidden of [
-    '免费诊断', '免费报告', '初步诊断会', '提交后立即开始诊断', '兑换码'
+    '免费诊断', '免费报告', '初步诊断会', '提交后立即开始诊断',
+    '渠道优惠自动应用', '合作渠道优惠会自动应用', '渠道专享优惠'
   ]) {
-    assert(!diagnosis.includes(forbidden), 'diagnosis copy must not imply unpaid/free delivery: ' + forbidden);
+    assert(!diagnosis.includes(forbidden), 'diagnosis copy must not imply automatic channel benefits: ' + forbidden);
   }
 
   console.log('paid-diagnostic-copy-contract-regression-ok');
