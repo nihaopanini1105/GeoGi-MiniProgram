@@ -1,38 +1,10 @@
 <view class="page diagnosis-page">
-  <block wx:if="{{!phoneAuthorized}}">
-    <view class="auth-card card">
-      <image class="auth-icon" src="{{assets.brand.appIcon}}" mode="aspectFit"></image>
-      <text class="page-kicker">BRAND DIAGNOSIS</text>
-      <text class="auth-title">开始前，先确认诊断报告归属</text>
-      <text class="auth-copy">手机号用于识别你的诊断订单、支付后同步处理进度并查看报告。</text>
-
-      <view class="auth-points">
-        <view class="auth-point">
-          <view class="point-dot"></view>
-          <text>创建唯一客户与诊断项目编号</text>
-        </view>
-        <view class="auth-point">
-          <view class="point-dot"></view>
-          <text>支付后开始诊断，报告完成后同步到“我的”页面</text>
-        </view>
-      </view>
-
-      <button class="primary-button auth-button" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{phoneAuthLoading}}">授权手机号并开始</button>
-      <text wx:if="{{phoneAuthError}}" class="submit-error">{{phoneAuthError}}</text>
-
-      <view class="privacy-link-wrap">
-        <button class="privacy-link" bindtap="goPrivacy">查看隐私说明</button>
-      </view>
-
-    </view>
-  </block>
-
-  <block wx:elif="{{!started}}">
+  <block wx:if="{{!started}}">
     <view class="intro-hero card">
       <view class="intro-copy">
         <text class="page-kicker">GEOGI DIAGNOSIS</text>
         <text class="intro-title">¥199 品牌 GEO 诊断报告</text>
-        <text class="intro-lead">品牌 GEO 诊断标准价 199 元。如从合作渠道进入，符合条件的专享优惠会自动应用，无需额外操作。</text>
+        <text class="intro-lead">品牌 GEO 诊断标准价 199 元。如从合作渠道进入，符合条件的专享优惠会自动应用，无需额外操作。你可以先浏览诊断内容并填写品牌资料，提交前再授权手机号用于订单归属和报告查看。</text>
         <button class="primary-button intro-button" bindtap="startForm">开始填写</button>
       </view>
       <image class="intro-orbit" src="{{assets.hero.background}}" mode="aspectFit"></image>
@@ -239,9 +211,19 @@
 
       <view class="field">
         <text class="field-label required">手机号</text>
-        <view class="phone-locked">
+        <view wx:if="{{phoneAuthorized}}" class="phone-locked">
           <text>{{form.contactMethod || phoneDisplay}}</text>
           <text class="phone-tag">已授权</text>
+        </view>
+        <view wx:else class="phone-auth-inline">
+          <text class="field-help">仅用于本次订单归属、支付结果、诊断进度和报告查看。你可以先完成资料填写，提交前再授权。</text>
+          <button
+            class="secondary-button phone-auth-button"
+            open-type="getPhoneNumber"
+            bindgetphonenumber="onGetPhoneNumber"
+            loading="{{phoneAuthLoading}}"
+          >授权手机号</button>
+          <text wx:if="{{phoneAuthError}}" class="submit-error">{{phoneAuthError}}</text>
         </view>
         <text wx:if="{{fieldErrors.contactMethod}}" class="field-error">{{fieldErrors.contactMethod}}</text>
       </view>
@@ -261,9 +243,9 @@
         </view>
         <view class="redemption-result">
           <text wx:if="{{attribution.channelName}}" class="redemption-success">来自 {{attribution.channelName}} 的专享权益</text>
-          <view><text>标准价</text><strong>¥{{attribution.listPriceYuan}}</strong></view>
-          <view><text>优惠</text><strong>-¥{{attribution.discountYuan}}</strong></view>
-          <view class="payable"><text>应付</text><strong>¥{{attribution.payableYuan}}</strong></view>
+          <view><text>标准价</text><text class="redemption-value">¥{{attribution.listPriceYuan}}</text></view>
+          <view><text>优惠</text><text class="redemption-value">-¥{{attribution.discountYuan}}</text></view>
+          <view class="payable"><text>应付</text><text class="redemption-value redemption-payable-value">¥{{attribution.payableYuan}}</text></view>
           <text class="redemption-success">{{attribution.payableFen === 0 ? '本次诊断免费，无需支付' : '渠道优惠已自动应用'}}</text>
         </view>
       </view>
@@ -288,7 +270,14 @@
     <view class="bottom-actions">
       <button wx:if="{{step > 1}}" class="secondary-button half-button" bindtap="prevStep" disabled="{{submitting}}">上一步</button>
       <button wx:if="{{step < 3}}" class="primary-button grow-button" bindtap="nextStep">下一步</button>
-      <button wx:if="{{step == 3}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">{{attribution && attribution.channelBenefitActive && attribution.payableFen === 0 ? '提交并开始诊断' : '提交并支付'}}</button>
+      <button
+        wx:if="{{step == 3 && !phoneAuthorized}}"
+        class="primary-button grow-button"
+        open-type="getPhoneNumber"
+        bindgetphonenumber="onGetPhoneNumber"
+        loading="{{phoneAuthLoading}}"
+      >授权手机号以继续提交</button>
+      <button wx:if="{{step == 3 && phoneAuthorized}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">{{attribution && attribution.channelBenefitActive && attribution.payableFen === 0 ? '提交并开始诊断' : '提交并支付'}}</button>
     </view>
   </block>
 
