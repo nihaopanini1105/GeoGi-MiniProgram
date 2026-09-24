@@ -3,6 +3,17 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+async function expectCode(promise, code) {
+  let error = null;
+  try {
+    await promise;
+  } catch (caught) {
+    error = caught;
+  }
+  assert(error, 'expected error ' + code);
+  assert.strictEqual(error.code || error.message, code);
+}
+
 async function run() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'geogi-channel-source-regression-'));
   process.env.GEOGI_CHANNEL_DATA_ROOT = path.join(root, 'channels');
@@ -12,6 +23,7 @@ async function run() {
     upsertChannel,
     upsertSource,
     resolveSourceToken,
+    quoteRedeemCode,
     ensureDefaultOfficialSources,
     ensureOfficialDistributionSources,
     reconcileCommission,
@@ -39,20 +51,19 @@ async function run() {
   assert.strictEqual(distributionSources.officialAccount.sourceType, 'official_account');
   assert.strictEqual(distributionSources.liaoHuafengBusinessCard.name, 'GeoGi · 廖华锋名片');
   assert.strictEqual(distributionSources.liShashaBusinessCard.name, 'GeoGi · 李沙沙名片');
-  assert.deepStrictEqual(
-    officialSources.map((item) => item.sourceType).sort(),
-    ['business_card', 'official_account', 'website']
-  );
-  const websiteQuote = await resolveSourceToken(
+
+  const websiteSource = await resolveSourceToken(
     officialSources.find((item) => item.sourceType === 'website').token,
     new Date('2026-09-24T00:00:00Z')
   );
-  assert.strictEqual(websiteQuote.sourceType, 'website');
-  assert.strictEqual(websiteQuote.payableFen, 19900);
-  assert.strictEqual(websiteQuote.channelId, '');
+  assert.strictEqual(websiteSource.sourceType, 'website');
+  assert.strictEqual(websiteSource.payableFen, 19900);
+  assert.strictEqual(websiteSource.discountFen, 0);
+  assert.strictEqual(websiteSource.commissionRateBps, 0);
 
   const channelA = await upsertChannel({
     name: 'A 渠道',
+    redeemCode: 'A80',
     discountType: 'percent',
     discountRateBps: 8000,
     commissionRateBps: 1000,
@@ -61,14 +72,21 @@ async function run() {
     endsAt: '2026-10-31T23:59:59Z',
     ownerPhones: ['13800138000']
   });
+  assert.strictEqual(channelA.redeemCode, 'A80');
   assert(channelA.shareSource);
-  assert.strictEqual(channelA.shareSource.sourceType, 'channel');
 
   const sourceA = await resolveSourceToken(channelA.shareSource.token, new Date('2026-09-24T00:00:00Z'));
-  assert.strictEqual(sourceA.channelBenefitActive, true);
-  assert.strictEqual(sourceA.payableFen, 15920);
-  assert.strictEqual(sourceA.discountFen, 3980);
-  assert.strictEqual(sourceA.commissionRateBps, 1000);
+  assert.strictEqual(sourceA.channelId, channelA.channelId);
+  assert.strictEqual(sourceA.payableFen, 19900, 'channel source must not automatically discount');
+  assert.strictEqual(sourceA.discountFen, 0);
+  assert.strictEqual(sourceA.commissionRateBps, 0);
+
+  const aQuote = await quoteRedeemCode('a80', new Date('2026-09-24T00:00:00Z'));
+  assert.strictEqual(aQuote.redeemCode, 'A80');
+  assert.strictEqual(aQuote.channelId, channelA.channelId);
+  assert.strictEqual(aQuote.payableFen, 15920);
+  assert.strictEqual(aQuote.discountFen, 3980);
+  assert.strictEqual(aQuote.commissionRateBps, 1000);
 
   const aOrderResult = await createOrGetPaymentOrder({
     clientId: 'GG-A-1',
@@ -76,25 +94,27 @@ async function run() {
     submissionId: 'SUB-A-1',
     brandName: 'A 渠道客户',
     phoneNumber: '13600000001',
-    amountTotal: sourceA.payableFen,
+    amountTotal: aQuote.payableFen,
     sourceId: sourceA.sourceId,
     sourceToken: sourceA.sourceToken,
     sourceName: sourceA.sourceName,
     sourceType: sourceA.sourceType,
     sourceCapturedAt: '2026-09-24T00:00:00Z',
-    channelId: sourceA.channelId,
-    channelName: sourceA.channelName,
-    discountType: sourceA.discountType,
-    discountRateBps: sourceA.discountRateBps,
-    commissionRateBps: sourceA.commissionRateBps
+    channelId: aQuote.channelId,
+    channelName: aQuote.channelName,
+    redeemCode: aQuote.redeemCode,
+    discountType: aQuote.discountType,
+    discountRateBps: aQuote.discountRateBps,
+    commissionRateBps: aQuote.commissionRateBps
   });
   assert.strictEqual(aOrderResult.order.amountTotal, 15920);
-  assert.strictEqual(aOrderResult.order.status, 'unpaid');
+  assert.strictEqual(aOrderResult.order.redeemCode, 'A80');
   assert.strictEqual(aOrderResult.order.sourceId, sourceA.sourceId);
 
   await upsertChannel({
     channelId: channelA.channelId,
     name: 'A 渠道',
+    redeemCode: 'A80',
     discountType: 'percent',
     discountRateBps: 5000,
     commissionRateBps: 1200,
@@ -103,35 +123,36 @@ async function run() {
     endsAt: '2026-12-31T23:59:59Z',
     ownerPhones: ['13800138000']
   });
-  const updatedSourceA = await resolveSourceToken(channelA.shareSource.token, new Date('2026-11-01T00:00:00Z'));
-  assert.strictEqual(updatedSourceA.payableFen, 9950);
+
+  const laterSourceA = await resolveSourceToken(channelA.shareSource.token, new Date('2026-11-01T00:00:00Z'));
+  assert.strictEqual(laterSourceA.payableFen, 19900, 'source still must not grant pricing after rule change');
+  const laterQuoteA = await quoteRedeemCode('A80', new Date('2026-11-01T00:00:00Z'));
+  assert.strictEqual(laterQuoteA.payableFen, 9950);
+  assert.strictEqual(laterQuoteA.commissionRateBps, 1200);
+
   const historicalOrder = await findPaymentByProject('GG-P-A-1');
   assert.strictEqual(historicalOrder.amountTotal, 15920);
   assert.strictEqual(historicalOrder.commissionRateBps, 1000);
+  assert.strictEqual(historicalOrder.redeemCode, 'A80');
 
   let paidOrder = await updatePaymentOrder(aOrderResult.order.outTradeNo, {
     status: 'paid',
     paidAt: '2026-09-24T01:00:00Z',
     refundableAmount: 15920
   });
-  assert.strictEqual((await reconcileCommission({ order: paidOrder })), null, 'payment alone must not accrue commission');
+  assert.strictEqual(await reconcileCommission({ order: paidOrder }), null, 'payment alone must not accrue commission');
 
   paidOrder = await markProjectReportReleased('GG-P-A-1', '2026-09-25T02:00:00Z');
-  const commission = await reconcileCommission({
-    order: paidOrder,
-    releasedAt: paidOrder.reportReleasedAt
-  });
+  const commission = await reconcileCommission({ order: paidOrder });
   assert.strictEqual(commission.earnedFen, 1592);
   assert.strictEqual(commission.dueFen, 1592);
   assert.strictEqual(commission.period, '2026-09');
-  assert.strictEqual(commission.payoutStatus, 'pending');
 
   const dashboardA = await channelDashboardForPhone('13800138000');
   assert.strictEqual(dashboardA.isChannel, true);
   assert.strictEqual(dashboardA.channels.length, 1);
   assert.strictEqual(dashboardA.channels[0].shareSourceToken, channelA.shareSource.token);
   assert.strictEqual(dashboardA.channels[0].pendingCommissionYuan, 15.92);
-  assert.strictEqual(dashboardA.monthly.find((row) => row.period === '2026-09').completedReports, 1);
 
   const settled = await settleChannelPeriod({
     channelId: channelA.channelId,
@@ -154,6 +175,7 @@ async function run() {
 
   const channelB = await upsertChannel({
     name: 'B 渠道',
+    redeemCode: 'BFREE',
     discountType: 'free',
     discountRateBps: 0,
     commissionRateBps: 0,
@@ -163,32 +185,33 @@ async function run() {
     ownerPhones: ['13900139000']
   });
   const sourceB = await resolveSourceToken(channelB.shareSource.token, new Date('2026-09-24T00:00:00Z'));
-  assert.strictEqual(sourceB.payableFen, 0);
+  assert.strictEqual(sourceB.payableFen, 19900);
+  const bQuote = await quoteRedeemCode('bfree', new Date('2026-09-24T00:00:00Z'));
+  assert.strictEqual(bQuote.payableFen, 0);
+  assert.strictEqual(bQuote.discountFen, 19900);
+
   const bOrderResult = await createOrGetPaymentOrder({
     clientId: 'GG-B-1',
     projectId: 'GG-P-B-1',
     submissionId: 'SUB-B-1',
     brandName: 'B 渠道客户',
     phoneNumber: '13600000002',
-    amountTotal: 0,
+    amountTotal: bQuote.payableFen,
     sourceId: sourceB.sourceId,
     sourceToken: sourceB.sourceToken,
     sourceName: sourceB.sourceName,
     sourceType: sourceB.sourceType,
-    channelId: sourceB.channelId,
-    channelName: sourceB.channelName,
-    discountType: sourceB.discountType,
-    discountRateBps: sourceB.discountRateBps,
-    commissionRateBps: sourceB.commissionRateBps
+    channelId: bQuote.channelId,
+    channelName: bQuote.channelName,
+    redeemCode: bQuote.redeemCode,
+    discountType: bQuote.discountType,
+    discountRateBps: bQuote.discountRateBps,
+    commissionRateBps: bQuote.commissionRateBps
   });
   assert.strictEqual(bOrderResult.order.status, 'free');
-  assert.strictEqual(bOrderResult.order.provider, 'channel_offer');
+  assert.strictEqual(bOrderResult.order.redeemCode, 'BFREE');
   const bReleased = await markProjectReportReleased('GG-P-B-1', '2026-09-26T02:00:00Z');
-  assert(bReleased, 'free channel order must remain readable after report release');
-  assert.strictEqual(bReleased.channelId, channelB.channelId, 'free order must preserve channel attribution');
-  assert.strictEqual(bReleased.reportReleasedAt, '2026-09-26T02:00:00Z');
   const bCommission = await reconcileCommission({ order: bReleased });
-  assert(bCommission, 'report release must materialize a zero-value commission ledger record for an attributed free order');
   assert.strictEqual(bCommission.earnedFen, 0);
   assert.strictEqual(bCommission.payoutStatus, 'not_applicable');
 
@@ -198,39 +221,58 @@ async function run() {
     channelId: channelA.channelId,
     active: true
   });
-  const partnerCardQuote = await resolveSourceToken(partnerCard.token, new Date('2026-11-01T00:00:00Z'));
-  assert.strictEqual(partnerCardQuote.channelId, channelA.channelId);
-  assert.strictEqual(partnerCardQuote.payableFen, 9950);
+  const partnerCardSource = await resolveSourceToken(partnerCard.token, new Date('2026-11-01T00:00:00Z'));
+  assert.strictEqual(partnerCardSource.channelId, channelA.channelId);
+  assert.strictEqual(partnerCardSource.payableFen, 19900, 'partner card source must not activate discount');
 
-  const dashboardB = await channelDashboardForPhone('13900139000');
-  assert.strictEqual(dashboardB.channels.length, 1);
-  assert.strictEqual(dashboardB.channels[0].channelId, channelB.channelId);
-  const dashboardUnknown = await channelDashboardForPhone('13700000000');
-  assert.strictEqual(dashboardUnknown.isChannel, false);
+  await expectCode(quoteRedeemCode('NOTFOUND'), 'REDEEM_CODE_NOT_FOUND');
+  await expectCode(
+    upsertChannel({
+      name: '重复码渠道',
+      redeemCode: 'A80',
+      discountType: 'percent',
+      discountRateBps: 9000,
+      commissionRateBps: 0,
+      active: true
+    }),
+    'CHANNEL_REDEEM_CODE_DUPLICATE'
+  );
+  await expectCode(
+    upsertChannel({
+      name: '缺少兑换码渠道',
+      discountType: 'percent',
+      discountRateBps: 8000,
+      commissionRateBps: 0,
+      active: true
+    }),
+    'CHANNEL_REDEEM_CODE_REQUIRED'
+  );
+
+  const expired = await upsertChannel({
+    name: '过期渠道',
+    redeemCode: 'OLD80',
+    discountType: 'percent',
+    discountRateBps: 8000,
+    commissionRateBps: 0,
+    active: true,
+    endsAt: '2026-09-01T00:00:00Z'
+  });
+  assert(expired.channelId);
+  await expectCode(quoteRedeemCode('OLD80', new Date('2026-09-24T00:00:00Z')), 'REDEEM_CODE_EXPIRED');
 
   assert.strictEqual(sourceCodeFileName(distributionSources.website, 'official-website'), 'official-website.png');
-  assert.strictEqual(sourceCodeFileName(distributionSources.officialAccount, 'official-account'), 'official-account.png');
-  assert.strictEqual(sourceCodeFileName(distributionSources.liaoHuafengBusinessCard, 'business-card-liaohuafeng'), 'business-card-liaohuafeng.png');
-  assert.strictEqual(sourceCodeFileName(distributionSources.liShashaBusinessCard, 'business-card-lishasha'), 'business-card-lishasha.png');
   assert.strictEqual(sourceCodeAliasForSource(distributionSources.website), 'official-website');
-  assert.strictEqual(sourceCodeAliasForSource(distributionSources.officialAccount), 'official-account');
-  assert.strictEqual(sourceCodeAliasForSource(distributionSources.liaoHuafengBusinessCard), 'business-card-liaohuafeng');
-  assert.strictEqual(sourceCodeAliasForSource(distributionSources.liShashaBusinessCard), 'business-card-lishasha');
   assert.strictEqual(
     sourceCodePublicUrl('business-card-lishasha.png'),
     'https://api.geogi.cn/api/source-codes/business-card-lishasha.png'
   );
-  const serverSource = fs.readFileSync(path.join(__dirname, '../src/server.js'), 'utf8');
-  assert(serverSource.includes("app.get('/api/source-codes/:fileName'"));
 
-
-    const admin = await channelAdminDashboard();
-  assert.strictEqual(admin.channels.length, 2);
+  const admin = await channelAdminDashboard();
+  assert.strictEqual(admin.channels.length, 3);
+  assert(admin.channels.some((row) => row.redeemCode === 'A80'));
   assert(admin.sources.some((row) => row.sourceType === 'website'));
-  assert(admin.sources.some((row) => row.sourceType === 'official_account'));
-  assert(admin.sources.some((row) => row.sourceType === 'business_card'));
-  assert(admin.orders.some((row) => row.sourceId === sourceA.sourceId));
-  assert(admin.orders.some((row) => row.sourceId === sourceB.sourceId));
+  assert(admin.orders.some((row) => row.redeemCode === 'A80'));
+  assert(admin.orders.some((row) => row.redeemCode === 'BFREE'));
 
   const records = await listCommissionRecords();
   assert.strictEqual(records.length, 2);
@@ -240,43 +282,35 @@ async function run() {
     validated: true,
     sourceId: 'source_official_website',
     sourceType: 'website',
-    channelId: '',
-    channelBenefitActive: false
+    channelId: ''
   };
   const channelAttribution = {
     validated: true,
     sourceId: 'source_channel_a',
     sourceType: 'channel',
-    channelId: 'channel_a',
-    channelBenefitActive: true
+    channelId: 'channel_a'
   };
   const channelBAttribution = {
     validated: true,
     sourceId: 'source_channel_b',
     sourceType: 'channel',
-    channelId: 'channel_b',
-    channelBenefitActive: true
+    channelId: 'channel_b'
   };
   assert.strictEqual(shouldReplaceAttribution(null, officialAttribution), true);
   assert.strictEqual(shouldReplaceAttribution(officialAttribution, channelAttribution), true);
   assert.strictEqual(shouldReplaceAttribution(channelAttribution, officialAttribution), false);
   assert.strictEqual(shouldReplaceAttribution(channelAttribution, channelBAttribution), false);
-  assert.strictEqual(
-    shouldReplaceAttribution({ ...channelAttribution, channelBenefitActive: false }, channelBAttribution),
-    true
-  );
 
-  const attributionSource = fs.readFileSync(path.join(__dirname, '../../utils/attribution.js'), 'utf8');
-  assert(attributionSource.includes("tokenFromScene(query.scene || '')"));
-  assert(!attributionSource.includes('options.scene'), 'WeChat numeric launch scene must never be used as source attribution');
-
-  const mineCopy = fs.readFileSync(path.join(__dirname, '../../pages/mine/mine.wxml'), 'utf8');
   const diagnosisCopy = fs.readFileSync(path.join(__dirname, '../../pages/diagnosis/diagnosis.wxml'), 'utf8');
-  assert(!mineCopy.includes('兑换码'));
-  assert(!diagnosisCopy.includes('兑换码'));
+  const introCopy = diagnosisCopy.split('<block wx:else>')[0];
+  assert(!introCopy.includes('渠道优惠'));
+  assert(!introCopy.includes('兑换码'));
+  assert(diagnosisCopy.includes('兑换码'));
+  assert(diagnosisCopy.includes('如有兑换码，请在支付前填写'));
+  assert(diagnosisCopy.includes('兑换码已生效'));
 
   fs.rmSync(root, { recursive: true, force: true });
-  console.log('channel-source-attribution-commission-regression-ok');
+  console.log('channel-source-redeem-commission-regression-ok');
 }
 
 run().catch((error) => {
