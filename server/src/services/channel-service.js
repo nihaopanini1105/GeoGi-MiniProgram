@@ -5,6 +5,7 @@ const {
   BASE_PRICE_FEN,
   listChannels,
   listSources,
+  ensureDefaultOfficialSources,
   upsertChannel,
   upsertSource,
   resolveSourceToken,
@@ -175,6 +176,7 @@ function sourceMetrics(source, visits, orders) {
 }
 
 async function channelAdminDashboard() {
+  await ensureDefaultOfficialSources();
   const [channels, sources, visits, orders, commissions] = await Promise.all([
     listChannels(),
     listSources(),
@@ -187,6 +189,9 @@ async function channelAdminDashboard() {
     sourceTypeLabel: sourceTypeLabel(source.sourceType),
     channelName: (channels.find((channel) => channel.channelId === source.channelId) || {}).name || '',
     miniProgramPath: '/pages/index/index?src=' + encodeURIComponent(source.token),
+    codeUrl: fs.existsSync(path.join(sourceCodeRoot(), source.sourceId.replace(/[^a-zA-Z0-9_.-]/g, '_') + '.png'))
+      ? String(process.env.GEOGI_PUBLIC_BASE_URL || 'https://api.geogi.cn').replace(/\/+$/, '') + '/source-codes/' + encodeURIComponent(source.sourceId.replace(/[^a-zA-Z0-9_.-]/g, '_') + '.png')
+      : '',
     ...sourceMetrics(source, visits, orders)
   }));
   const channelRows = channels.map((channel) => {
