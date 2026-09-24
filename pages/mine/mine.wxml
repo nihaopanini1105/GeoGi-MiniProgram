@@ -7,6 +7,13 @@
     </view>
 </view>
 
+  <view wx:if="{{!phoneAuthorized}}" class="client-card card">
+    <text class="client-label">查看我的订单与渠道数据</text>
+    <text class="channel-desc">授权手机号后，可查看诊断进度；如果该手机号已绑定为渠道负责人，还会显示渠道推广与返佣数据。</text>
+    <button class="primary-button full-button" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{authLoading}}">授权手机号查看</button>
+    <text wx:if="{{authError}}" class="error-tip">{{authError}}</text>
+  </view>
+
   <view wx:if="{{clientId}}" class="client-card card">
     <text class="client-label">客户编号</text>
     <text class="client-id">{{clientId}}</text>
@@ -127,7 +134,7 @@
     </view>
   </view>
 
-  <view wx:if="{{!orders.length}}" class="empty-card card">
+  <view wx:if="{{phoneAuthorized && !orders.length && !(channelDashboard && channelDashboard.isChannel)}}" class="empty-card card">
     <image class="empty-icon" src="/assets/icons/png/96/report.png" mode="aspectFit"></image>
     <text class="empty-title">还没有诊断记录</text>
     <text class="body">提交品牌资料后，199 元付款状态、诊断进度和正式报告都会出现在这里。</text>
