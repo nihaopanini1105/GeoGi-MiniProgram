@@ -22,7 +22,7 @@ Page({
     nextSteps: [
       {
         title: '确认订单',
-        desc: '完成付款或有效兑换后，GeoGi 将开始本次品牌 GEO 诊断。'
+        desc: '完成付款或渠道优惠确认后，GeoGi 将开始本次品牌 GEO 诊断。'
       },
       {
         title: '建立品牌企业画像',
@@ -135,7 +135,7 @@ Page({
           expiresAtText: this.formatDate(result.payment && result.payment.expiresAt)
         });
         this.persistPaidStatus(result.payment);
-        wx.showToast({ title: result.payment && result.payment.status === 'free' ? '兑换成功' : '已付款', icon: 'success' });
+        wx.showToast({ title: result.payment && result.payment.status === 'free' ? '优惠已生效' : '已付款', icon: 'success' });
         return;
       }
       if (!result.payParams) throw new Error('微信支付参数缺失');
@@ -164,7 +164,7 @@ Page({
       });
       if (!paid) throw new Error(closed ? '支付订单已关闭，请重新发起支付' : '付款结果正在确认，请稍后刷新');
       this.persistPaidStatus(payment);
-      wx.showToast({ title: payment && payment.status === 'free' ? '兑换成功' : '付款成功', icon: 'success' });
+      wx.showToast({ title: payment && payment.status === 'free' ? '优惠已生效' : '付款成功', icon: 'success' });
     } catch (error) {
       const message = error && error.errMsg
         ? error.errMsg
@@ -248,12 +248,15 @@ Page({
   persistPaidStatus(payment) {
     const submission = {
       ...(this.data.submission || {}),
-      status: payment && payment.status === 'free' ? '已兑换' : '已付款',
+      status: payment && payment.status === 'free' ? '已优惠至免费' : '已付款',
       paymentStatus: payment && payment.status ? payment.status : 'paid',
       paidAt: payment && payment.paidAt ? payment.paidAt : '',
       amountYuan: payment && payment.amountYuan !== undefined ? Number(payment.amountYuan) : Number((this.data.submission || {}).amountYuan || 199),
       listPriceYuan: payment && payment.listPriceYuan !== undefined ? Number(payment.listPriceYuan) : Number((this.data.submission || {}).listPriceYuan || 199),
-      redemptionCode: payment && payment.redemptionCode ? payment.redemptionCode : ((this.data.submission || {}).redemptionCode || ''),
+      sourceId: payment && payment.sourceId ? payment.sourceId : ((this.data.submission || {}).sourceId || ''),
+      sourceName: payment && payment.sourceName ? payment.sourceName : ((this.data.submission || {}).sourceName || ''),
+      sourceType: payment && payment.sourceType ? payment.sourceType : ((this.data.submission || {}).sourceType || ''),
+      channelId: payment && payment.channelId ? payment.channelId : ((this.data.submission || {}).channelId || ''),
       channelName: payment && payment.channelName ? payment.channelName : ((this.data.submission || {}).channelName || '')
     };
     wx.setStorageSync('geogi_last_submission', submission);
@@ -268,7 +271,10 @@ Page({
             paidAt: submission.paidAt,
             amountYuan: submission.amountYuan,
             listPriceYuan: submission.listPriceYuan,
-            redemptionCode: submission.redemptionCode,
+            sourceId: submission.sourceId,
+            sourceName: submission.sourceName,
+            sourceType: submission.sourceType,
+            channelId: submission.channelId,
             channelName: submission.channelName
           }
         : item)
