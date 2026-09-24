@@ -337,7 +337,7 @@ async function reconcileCommission({ order, releasedAt = '' }) {
   const rows = await listCommissionRecords();
   const index = rows.findIndex((item) => item.projectId === order.projectId);
   const existing = index >= 0 ? rows[index] : null;
-  const effectiveReleasedAt = releasedAt || existing && existing.reportReleasedAt || '';
+  const effectiveReleasedAt = releasedAt || order.reportReleasedAt || existing && existing.reportReleasedAt || '';
   if (!effectiveReleasedAt) return existing || null;
   const now = new Date().toISOString();
   const rateBps = Number(order.commissionRateBps || 0);
