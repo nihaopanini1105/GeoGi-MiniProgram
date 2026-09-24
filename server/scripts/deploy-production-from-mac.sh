@@ -73,7 +73,7 @@ ARCHIVE="$LOCAL_TMP/geogi-miniprogram-${EXPECTED_SHA}.tar.gz"
 # intentionally inspect MiniProgram page sources under ../../pages to guard against
 # reintroducing customer-side business authority. The production swap still deploys
 # only server files below SERVER_DIR.
-ARCHIVE_PATHS=(server/package.json server/src server/tests server/scripts pages utils app.js app.json app.wxss)
+ARCHIVE_PATHS=(server/package.json server/src server/tests server/scripts pages utils config app.js app.json app.wxss)
 if [ -f "$REPO_ROOT/server/package-lock.json" ]; then
   ARCHIVE_PATHS+=(server/package-lock.json)
 fi
@@ -160,6 +160,7 @@ for required in \
   "$REMOTE_TMP/pages/report-detail/report-detail.wxml" \
   "$REMOTE_TMP/pages/report-detail/report-detail.js" \
   "$REMOTE_TMP/utils/attribution.js" \
+  "$REMOTE_TMP/config/api.js" \
   "$REMOTE_TMP/app.js" \
   "$REMOTE_TMP/app.json" \
   "$REMOTE_TMP/app.wxss"; do
