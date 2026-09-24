@@ -206,6 +206,15 @@ async function run() {
   const records = await listCommissionRecords();
   assert.strictEqual(records.length, 2);
 
+  const attributionSource = fs.readFileSync(path.join(__dirname, '../../utils/attribution.js'), 'utf8');
+  assert(attributionSource.includes("tokenFromScene(query.scene || '')"));
+  assert(!attributionSource.includes('options.scene'), 'WeChat numeric launch scene must never be used as source attribution');
+
+  const mineCopy = fs.readFileSync(path.join(__dirname, '../../pages/mine/mine.wxml'), 'utf8');
+  const diagnosisCopy = fs.readFileSync(path.join(__dirname, '../../pages/diagnosis/diagnosis.wxml'), 'utf8');
+  assert(!mineCopy.includes('兑换码'));
+  assert(!diagnosisCopy.includes('兑换码'));
+
   fs.rmSync(root, { recursive: true, force: true });
   console.log('channel-source-attribution-commission-regression-ok');
 }
