@@ -15,7 +15,7 @@
 
   <view class="section card">
     <text class="block-title">数据权威边界</text>
-    <text class="body">品牌 GEO 诊断标准价为 199 元。本次订单对应一次品牌 GEO 诊断与正式报告；小程序不自行计算或拼接诊断结论，只展示 GeoGi OS 基于真实证据生成并审核发布的正式报告。</text>
+    <text class="body">品牌 GEO 诊断标准价为 199 元。如持有兑换码，可在提交订单前填写并验证，验证成功后以订单实际结算金额为准。本次订单对应一次品牌 GEO 诊断与正式报告；小程序不自行计算或拼接诊断结论，只展示 GeoGi OS 基于真实证据生成并审核发布的正式报告。</text>
   </view>
 
   <button class="primary-button full-button" bindtap="goDiagnosis">开始填写资料</button>
