@@ -262,6 +262,9 @@ function buildAdminMonthly(channels, orders, commissions) {
 
 function sourceCodeRoot() {
   if (process.env.GEOGI_SOURCE_CODE_ROOT) return process.env.GEOGI_SOURCE_CODE_ROOT;
+  if (process.env.GEOGI_PAYMENT_DATA_ROOT) {
+    return path.join(path.dirname(process.env.GEOGI_PAYMENT_DATA_ROOT), 'source-codes');
+  }
   return path.join(__dirname, '../../data/source-codes');
 }
 
