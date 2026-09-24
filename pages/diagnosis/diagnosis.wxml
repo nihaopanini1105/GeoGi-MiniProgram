@@ -6,7 +6,7 @@
         <text class="intro-title">看看你的品牌，在 AI 里是怎么被理解和推荐的</text>
         <text class="intro-lead">GeoGi 会根据你提供的品牌与业务信息，检查主流 AI 平台是否认识你的品牌、是否会推荐你、信息是否准确，以及哪些竞品更容易进入答案，并交付一份正式 GEO 诊断报告。</text>
         <view class="intro-price-row">
-          <text class="intro-price">标准价 ¥199</text>
+          <text class="intro-price">标准价 199 元</text>
           <text class="intro-price-note">合作渠道优惠会自动应用</text>
         </view>
         <button class="primary-button intro-button" bindtap="startForm">开始填写品牌资料</button>
@@ -58,7 +58,7 @@
           <view class="flow-row"><text class="flow-index">3</text><text>系统自动计算渠道优惠；普通订单完成支付后开始诊断，免费渠道无需支付</text></view>
           <view class="flow-row"><text class="flow-index">4</text><text>诊断完成后，可在「我的」查看进度、退款状态和正式报告</text></view>
         </view>
-        <text class="note-copy">没有官网、竞品或附件也可以提交，不影响开始诊断。</text>
+        <text class="note-copy">没有官网、竞品或附件也可以提交，不影响开始诊断。如本次仍需支付，支付订单创建后 30 分钟内有效。</text>
       </view>
     </view>
   </block>
