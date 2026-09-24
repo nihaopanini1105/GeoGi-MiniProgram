@@ -75,7 +75,7 @@
     <view class="section note-card card">
       <view>
         <text class="note-title">填写约 2–3 分钟</text>
-        <text class="note-copy">没有官网、竞品或附件也可以提交。普通订单付款成功后开始诊断；有效兑换码会在提交前显示优惠结果。</text>
+        <text class="note-copy">没有官网、竞品或附件也可以提交。普通订单付款成功后开始诊断；有效兑换码会在提交前显示优惠结果。如兑换后仍需支付，支付订单创建后 30 分钟内有效。</text>
       </view>
     </view>
   </block>
