@@ -131,3 +131,69 @@ textarea { min-height:110rpx; padding:22rpx; line-height:1.55; }
   line-height: 1.5;
   text-align: center;
 }
+
+
+.redemption-row {
+  display: flex;
+  gap: 12rpx;
+  align-items: stretch;
+}
+
+.redemption-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.redemption-check {
+  flex: 0 0 132rpx;
+  min-height: 90rpx;
+  border-radius: 20rpx;
+  border: 1rpx solid #AFC8F7;
+  background: #F4F8FF;
+  color: #176BFF;
+  font-size: 23rpx;
+  font-weight: 600;
+}
+
+.redemption-result {
+  margin-top: 14rpx;
+  padding: 18rpx 20rpx;
+  border: 1rpx solid #CFE0FF;
+  border-radius: 18rpx;
+  background: #F7FAFF;
+}
+
+.redemption-result > view {
+  display: flex;
+  justify-content: space-between;
+  gap: 16rpx;
+  color: #66789A;
+  font-size: 22rpx;
+  line-height: 1.8;
+}
+
+.redemption-result > view strong {
+  color: #20324F;
+  font-weight: 650;
+}
+
+.redemption-result > view.payable {
+  margin-top: 6rpx;
+  padding-top: 8rpx;
+  border-top: 1rpx solid #E1EAF7;
+  color: #20324F;
+  font-weight: 600;
+}
+
+.redemption-result > view.payable strong {
+  color: #176BFF;
+  font-size: 28rpx;
+}
+
+.redemption-success {
+  display: block;
+  margin-top: 8rpx;
+  color: #2D8A5C;
+  font-size: 21rpx;
+  font-weight: 600;
+}
