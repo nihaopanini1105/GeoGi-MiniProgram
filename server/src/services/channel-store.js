@@ -107,6 +107,24 @@ async function listSources() {
   return Array.isArray(rows) ? rows.map(publicSource) : [];
 }
 
+async function ensureDefaultOfficialSources() {
+  const defaults = [
+    { name: 'GeoGi 官网', sourceType: 'website', notes: 'auto_official_source:website' },
+    { name: 'GeoGi 公众号', sourceType: 'official_account', notes: 'auto_official_source:official_account' },
+    { name: 'GeoGi 官方名片', sourceType: 'business_card', notes: 'auto_official_source:business_card' }
+  ];
+  const rows = await listSources();
+  const created = [];
+  for (const item of defaults) {
+    let existing = rows.find((row) => row.notes === item.notes);
+    if (!existing) {
+      existing = await upsertSource({ ...item, active: true });
+    }
+    created.push(existing);
+  }
+  return created;
+}
+
 function validateDiscount({ discountType, discountRateBps }) {
   if (!['percent', 'free'].includes(discountType)) throw channelError('CHANNEL_DISCOUNT_TYPE_INVALID');
   if (discountType === 'free') return 0;
@@ -401,6 +419,7 @@ module.exports = {
   SOURCE_TYPES,
   listChannels,
   listSources,
+  ensureDefaultOfficialSources,
   upsertChannel,
   upsertSource,
   resolveSourceToken,
