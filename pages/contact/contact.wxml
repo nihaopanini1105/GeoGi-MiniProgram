@@ -29,7 +29,7 @@
 
   <view class="section info-card card">
     <text class="info-title">准备开始品牌诊断？</text>
-    <text class="info-hint action-hint">品牌 GEO 诊断标准价 199 元。提交资料并完成订单确认后，GeoGi 开始本次正式诊断。</text>
+    <text class="info-hint action-hint">品牌 GEO 诊断标准价 199 元。提交资料并完成订单付款后，GeoGi 开始本次正式诊断。</text>
     <button class="primary-button copy-button" bindtap="goDiagnosis">获取诊断报告</button>
   </view>
 </view>
