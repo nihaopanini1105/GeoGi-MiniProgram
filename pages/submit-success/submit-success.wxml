@@ -1,14 +1,14 @@
 <view class="page success-page">
   <view class="success-hero card">
     <view class="success-mark">{{paid ? '✓' : '¥'}}</view>
-    <text class="success-kicker">{{paid ? 'PAYMENT CONFIRMED' : 'PAYMENT REQUIRED'}}</text>
-    <text class="success-title">{{paid ? '付款成功，诊断已进入处理' : (closed ? (closedReason === 'expired' ? '支付订单已失效' : (closedReason === 'customer_cancelled' ? '订单已取消' : '支付订单已关闭')) : '资料已提交，请完成付款')}}</text>
-    <text class="success-copy">{{paid ? 'GeoGi 已确认本次 199 元品牌 GEO 诊断报告订单，将开始品牌研究、AI 平台检测与诊断。' : (closed ? '本次支付订单已经关闭。诊断资料仍会保留，如仍需诊断可重新发起支付。' : '本次品牌 GEO 诊断报告价格为 199 元。支付订单创建后 30 分钟内有效，完成付款后 GeoGi 才会开始诊断并交付正式报告。')}}</text>
+    <text class="success-kicker">{{paid ? (payment && payment.status === 'free' ? 'REDEMPTION CONFIRMED' : 'PAYMENT CONFIRMED') : 'PAYMENT REQUIRED'}}</text>
+    <text class="success-title">{{paid ? (payment && payment.status === 'free' ? '兑换成功，诊断已进入处理' : '付款成功，诊断已进入处理') : (closed ? (closedReason === 'expired' ? '支付订单已失效' : (closedReason === 'customer_cancelled' ? '订单已取消' : '支付订单已关闭')) : '资料已提交，请完成付款')}}</text>
+    <text class="success-copy">{{paid ? (payment && payment.status === 'free' ? '兑换码已生效，本次诊断无需付款。GeoGi 将开始品牌研究、AI 平台检测与诊断。' : '订单已完成付款，GeoGi 将开始品牌研究、AI 平台检测与诊断。') : (closed ? '本次支付订单已经关闭。诊断资料仍会保留，如仍需诊断可重新发起支付。' : '品牌 GEO 诊断标准价 199 元，当前订单将按兑换后的应付金额结算。完成付款后 GeoGi 开始诊断并交付正式报告。')}}</text>
 
     <view class="status-row">
       <view>
         <text class="status-label">当前状态</text>
-        <text class="status-value">{{paid ? '已付款' : (closed ? (closedReason === 'expired' ? '已失效' : (closedReason === 'customer_cancelled' ? '已取消' : '已关闭')) : '待付款')}}</text>
+        <text class="status-value">{{paid ? (payment && payment.status === 'free' ? '已兑换' : '已付款') : (closed ? (closedReason === 'expired' ? '已失效' : (closedReason === 'customer_cancelled' ? '已取消' : '已关闭')) : '待付款')}}</text>
       </view>
       <view class="status-dot {{paid ? 'paid' : 'pending'}}"></view>
     </view>
@@ -20,9 +20,17 @@
         <text class="section-kicker">DIAGNOSTIC REPORT</text>
         <text class="section-title">品牌 GEO 诊断报告</text>
       </view>
-      <text class="payment-price">¥199</text>
+      <text class="payment-price">¥{{payment && payment.amountYuan !== undefined ? payment.amountYuan : (submission.amountYuan !== undefined ? submission.amountYuan : 199)}}</text>
     </view>
-    <text class="payment-copy">一次支付，获得本次品牌 GEO 诊断及正式诊断报告。支付订单创建后 30 分钟内有效，报告完成并审核后会出现在「报告」页面。</text>
+    <text class="payment-copy">品牌 GEO 诊断标准价 199 元。若使用兑换码，按兑换后的订单金额结算；报告完成并审核后会出现在「我的」页面。</text>
+    <view wx:if="{{payment && payment.redemptionCode}}" class="payment-expiry">
+      <text>兑换码</text>
+      <strong>{{payment.redemptionCode}}</strong>
+    </view>
+    <view wx:if="{{payment && payment.discountYuan > 0}}" class="payment-expiry">
+      <text>优惠金额</text>
+      <strong>-¥{{payment.discountYuan}}</strong>
+    </view>
     <view wx:if="{{!paid && expiresAtText}}" class="payment-expiry">
       <text>订单有效期</text>
       <strong>至 {{expiresAtText}}</strong>
@@ -35,7 +43,7 @@
     </view>
     <button wx:if="{{!paid}}" class="primary-button full-button pay-button" loading="{{paymentLoading}}" disabled="{{paymentLoading || cancelLoading}}" bindtap="payNow">{{closed ? '重新支付' : '立即支付'}}</button>
     <button wx:if="{{!paid && canCancel}}" class="cancel-order-button full-button" loading="{{cancelLoading}}" disabled="{{paymentLoading || cancelLoading}}" bindtap="cancelOrder">取消订单</button>
-    <view wx:if="{{paid}}" class="paid-banner">已付款 · GeoGi 正在处理本次诊断</view>
+    <view wx:if="{{paid}}" class="paid-banner">{{payment && payment.status === 'free' ? '已兑换 · 本次无需付款' : '已付款'}} · GeoGi 正在处理本次诊断</view>
     <text wx:if="{{paymentError}}" class="payment-error">{{paymentError}}</text>
   </view>
 
@@ -53,7 +61,7 @@
       </view>
       <view class="identity-row">
         <text class="identity-label">订单金额</text>
-        <text class="identity-value">¥199</text>
+        <text class="identity-value">¥{{payment && payment.amountYuan !== undefined ? payment.amountYuan : (submission.amountYuan !== undefined ? submission.amountYuan : 199)}}</text>
       </view>
       <view class="identity-row" wx:if="{{expiresAtText}}">
         <text class="identity-label">支付有效期</text>
@@ -68,7 +76,7 @@
 
   <view class="section process-card card">
     <text class="section-kicker">WHAT HAPPENS NEXT</text>
-    <text class="section-title">从付款到报告交付</text>
+    <text class="section-title">从订单确认到报告交付</text>
     <view class="process-list">
       <view class="process-row" wx:for="{{nextSteps}}" wx:key="title">
         <view class="process-index">0{{index + 1}}</view>
@@ -81,7 +89,7 @@
   </view>
 
   <view class="section report-card card">
-    <text class="report-title">{{paid ? '可以在「报告」中查看处理进度' : '付款后才会开始诊断'}}</text>
+    <text class="report-title">{{paid ? '可以在「我的」中查看处理进度' : '完成付款后才会开始诊断'}}</text>
     <text class="report-copy">{{paid ? '正式诊断报告完成并通过审核后，会直接开放查看。' : '未付款的申请不会进入正式 GEO 诊断流程。'}}</text>
     <button class="secondary-button full-button secondary-action" bindtap="goReport">查看我的诊断</button>
     <button class="secondary-button full-button secondary-action" bindtap="goHome">返回首页</button>
