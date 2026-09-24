@@ -34,6 +34,10 @@ function run() {
   }
   assert(diagnosis.includes('提交并支付'));
   assert(diagnosis.includes('标准价 199 元'));
+  assert(diagnosis.includes('这份诊断报告会重点回答'));
+  assert(diagnosis.includes('整个流程怎么完成？'));
+  assert(diagnosis.includes('渠道优惠会自动应用'));
+  assert(diagnosis.includes('不获取你的头像或昵称'));
   assert(!diagnosis.includes('兑换码'));
   assert(diagnosisJs.includes('wx.requestPayment'));
   assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment'"));
