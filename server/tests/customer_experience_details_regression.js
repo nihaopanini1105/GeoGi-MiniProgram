@@ -17,6 +17,7 @@ function run() {
   const appConfig = read('app.json');
   const home = read('pages/index/index.wxml');
   const mine = read('pages/mine/mine.wxml');
+  const mineConfig = read('pages/mine/mine.json');
   const report = read('pages/report-detail/report-detail.wxml');
   const appJs = read('app.js');
   const attributionJs = read('utils/attribution.js');
@@ -41,6 +42,10 @@ function run() {
   assert(appConfig.includes('"text": "我的"'));
   assert(!appConfig.includes('"text": "报告"'));
   assert(home.includes('199元获取一次品牌 GEO诊断'));
+  assert(mineConfig.includes('"navigationBarTitleText": "我的"'));
+  assert(!mine.includes('<strong>'));
+  assert(!mine.includes('</strong>'));
+  assert(mine.includes('MY GEOGI'));
   assert(mine.includes('结果提醒'));
   assert(mine.includes('退款结果、诊断报告完成等重要状态会在这里更新'));
   assert(report.includes('wx:if="{{order.canSupplement}}"'));

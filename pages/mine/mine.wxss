@@ -436,15 +436,14 @@
   font-size: 21rpx;
 }
 
-.channel-rule-row strong,
-.channel-commission-row strong {
+.channel-value {
   display: block;
   margin-top: 8rpx;
   color: #20324F;
   font-size: 28rpx;
 }
 
-.channel-commission-row strong {
+.channel-value-primary {
   color: #176BFF;
 }
 
@@ -462,12 +461,11 @@
   text-align: center;
 }
 
-.channel-metrics strong,
 .channel-metrics text {
   display: block;
 }
 
-.channel-metrics strong {
+.channel-metric-value {
   color: #081B3A;
   font-size: 30rpx;
 }
