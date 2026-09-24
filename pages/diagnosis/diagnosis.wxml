@@ -3,9 +3,14 @@
     <view class="intro-hero card">
       <view class="intro-copy">
         <text class="page-kicker">GEOGI DIAGNOSIS</text>
-        <text class="intro-title">¥199 品牌 GEO 诊断报告</text>
-        <text class="intro-lead">品牌 GEO 诊断标准价 199 元。如从合作渠道进入，符合条件的专享优惠会自动应用，无需额外操作。你可以先浏览诊断内容并填写品牌资料，提交前再授权手机号用于订单归属和报告查看。</text>
-        <button class="primary-button intro-button" bindtap="startForm">开始填写</button>
+        <text class="intro-title">看看你的品牌，在 AI 里是怎么被理解和推荐的</text>
+        <text class="intro-lead">GeoGi 会根据你提供的品牌与业务信息，检查主流 AI 平台是否认识你的品牌、是否会推荐你、信息是否准确，以及哪些竞品更容易进入答案，并交付一份正式 GEO 诊断报告。</text>
+        <view class="intro-price-row">
+          <text class="intro-price">标准价 ¥199</text>
+          <text class="intro-price-note">合作渠道优惠会自动应用</text>
+        </view>
+        <button class="primary-button intro-button" bindtap="startForm">开始填写品牌资料</button>
+        <text class="intro-auth-note">浏览服务和填写资料无需登录；提交订单前才需要授权手机号，用于绑定订单、同步进度和查看报告。</text>
       </view>
       <image class="intro-orbit" src="{{assets.hero.background}}" mode="aspectFit"></image>
     </view>
@@ -27,7 +32,7 @@
 
     <view class="section outcome-card card">
       <text class="section-kicker">YOU WILL GET</text>
-      <text class="section-title">199 元诊断报告重点回答</text>
+      <text class="section-title">这份诊断报告会重点回答</text>
       <view class="outcome-list">
         <view class="outcome-row">
           <text class="outcome-num">01</text>
@@ -46,8 +51,14 @@
 
     <view class="section note-card card">
       <view>
-        <text class="note-title">填写约 2–3 分钟</text>
-        <text class="note-copy">没有官网、竞品或附件也可以提交。普通订单付款成功后开始诊断；合作渠道优惠会自动识别并显示。如仍需支付，支付订单创建后 30 分钟内有效。</text>
+        <text class="note-title">整个流程怎么完成？</text>
+        <view class="flow-list">
+          <view class="flow-row"><text class="flow-index">1</text><text>填写品牌、业务与客户信息，约 2–3 分钟</text></view>
+          <view class="flow-row"><text class="flow-index">2</text><text>提交前授权手机号，用于绑定本次订单和后续报告</text></view>
+          <view class="flow-row"><text class="flow-index">3</text><text>系统自动计算渠道优惠；普通订单完成支付后开始诊断，免费渠道无需支付</text></view>
+          <view class="flow-row"><text class="flow-index">4</text><text>诊断完成后，可在「我的」查看进度、退款状态和正式报告</text></view>
+        </view>
+        <text class="note-copy">没有官网、竞品或附件也可以提交，不影响开始诊断。</text>
       </view>
     </view>
   </block>
@@ -56,7 +67,7 @@
     <view class="form-head">
       <text class="page-kicker">BRAND DIAGNOSIS</text>
       <text class="form-page-title">提交品牌 GEO 诊断资料</text>
-      <text class="form-page-copy">请用日常经营语言填写。标准价 199 元；如当前来源享有渠道优惠，系统会自动计算本次应付金额。</text>
+      <text class="form-page-copy">请用日常经营语言填写即可。我们会基于这些信息设计检测问题、核对品牌事实并比较竞品表现；渠道优惠会在提交时自动计算。</text>
     </view>
 
     <view class="step-card card">
@@ -200,7 +211,7 @@
     <view class="form-card card" wx:if="{{step == 3}}">
       <view class="form-section-head">
         <text class="form-title">联系方式</text>
-        <text class="form-desc">用于付款订单归属、诊断资料补充、进度通知和报告查看。</text>
+        <text class="form-desc">最后确认本次诊断的联系人。手机号只用于绑定订单、支付/退款结果、资料补充、进度通知和报告查看，不用于公开展示。</text>
       </view>
 
       <view class="field">
@@ -216,13 +227,13 @@
           <text class="phone-tag">已授权</text>
         </view>
         <view wx:else class="phone-auth-inline">
-          <text class="field-help">仅用于本次订单归属、支付结果、诊断进度和报告查看。你可以先完成资料填写，提交前再授权。</text>
+          <text class="field-help">提交订单前需授权一次微信绑定手机号。GeoGi 仅用于识别本次订单和后续服务，不获取你的头像或昵称。</text>
           <button
             class="secondary-button phone-auth-button"
             open-type="getPhoneNumber"
             bindgetphonenumber="onGetPhoneNumber"
             loading="{{phoneAuthLoading}}"
-          >授权手机号</button>
+          >授权手机号并继续</button>
           <text wx:if="{{phoneAuthError}}" class="submit-error">{{phoneAuthError}}</text>
         </view>
         <text wx:if="{{fieldErrors.contactMethod}}" class="field-error">{{fieldErrors.contactMethod}}</text>
@@ -260,7 +271,7 @@
 
       <view class="privacy-row" bindtap="togglePrivacy">
         <view class="check {{form.privacyAccepted ? 'checked' : ''}}"></view>
-        <text>我同意 GeoGi 将上述信息用于本次 199 元品牌 GEO 诊断、报告生成与服务沟通</text>
+        <text>我同意 GeoGi 将上述信息用于本次品牌 GEO 诊断、订单处理、报告生成与必要的服务沟通</text>
       </view>
       <text wx:if="{{fieldErrors.privacyAccepted}}" class="field-error">{{fieldErrors.privacyAccepted}}</text>
       <button class="privacy-link" bindtap="goPrivacy">查看隐私说明</button>
@@ -276,7 +287,7 @@
         open-type="getPhoneNumber"
         bindgetphonenumber="onGetPhoneNumber"
         loading="{{phoneAuthLoading}}"
-      >授权手机号以继续提交</button>
+      >授权手机号并继续</button>
       <button wx:if="{{step == 3 && phoneAuthorized}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">{{attribution && attribution.channelBenefitActive && attribution.payableFen === 0 ? '提交并开始诊断' : '提交并支付'}}</button>
     </view>
   </block>
