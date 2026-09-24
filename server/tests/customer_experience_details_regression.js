@@ -56,16 +56,20 @@ function run() {
   assert(attributionJs.includes("ATTRIBUTION_KEY = 'geogi_source_attribution'"));
   assert(attributionJs.includes('/api/attribution/resolve'));
   assert(attributionJs.includes('tokenFromScene'));
-  for (const source of [diagnosis, mine, report, success]) {
-    assert(!source.includes('兑换码'), 'customer UI must not ask for redemption codes');
-  }
+  assert(diagnosis.includes('兑换码'));
+  assert(diagnosis.includes('如有兑换码，请在支付前填写'));
+  assert(diagnosis.includes('兑换码已生效'));
+  const diagnosisIntro = diagnosis.split('<block wx:else>')[0];
+  assert(!diagnosisIntro.includes('兑换码'));
+  assert(!diagnosisIntro.includes('渠道优惠'));
+  assert(!diagnosis.includes('渠道专享优惠'));
+  assert(!diagnosis.includes('渠道优惠自动应用'));
   assert(mine.includes('分享专属入口'));
   assert(mine.includes('我的推广与返佣'));
-  assert(diagnosis.includes('渠道专享优惠'));
+  assert(mine.includes('推广兑换码'));
 
   assert(!diagnosis.includes('wx:if="{{!phoneAuthorized}}"'), 'diagnosis first screen must not be blocked by phone authorization');
-  assert(diagnosis.includes('浏览服务和填写资料无需登录'));
-  assert(diagnosis.includes('提交订单前才需要授权手机号'));
+  assert(!diagnosisIntro.includes('授权手机号'));
   assert(diagnosis.includes('GeoGi 仅用于识别本次订单和后续服务，不获取你的头像或昵称'));
   assert(diagnosis.includes('step == 3 && !phoneAuthorized'));
   assert(diagnosis.includes('授权手机号并继续'));
