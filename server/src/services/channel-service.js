@@ -172,6 +172,7 @@ async function channelAdminDashboard() {
       .filter((order) => order.channelId)
       .map((order) => ({
         ...order,
+        redemptionCode: order.promotionCode || '',
         listPriceYuan: yuan(order.listPriceFen || BASE_PRICE_FEN),
         amountYuan: yuan(order.amountTotal || 0),
         refundedYuan: yuan(order.refundedAmount || 0)
