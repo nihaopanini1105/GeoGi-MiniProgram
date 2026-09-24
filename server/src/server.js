@@ -393,18 +393,25 @@ app.use((error, _req, res, _next) => {
         : (paymentMessages[code] || '支付处理失败，请稍后重试')
     });
   }
-  if (error && typeof error.code === 'string' && error.code.startsWith('CHANNEL_')) {
+  const channelErrorCode = error && String(error.code || error.message || '');
+  if (channelErrorCode.startsWith('CHANNEL_')) {
     const messages = {
       CHANNEL_CODE_NOT_FOUND: '兑换码不存在，请检查后重试',
       CHANNEL_CODE_INACTIVE: '该兑换码当前不可使用',
       CHANNEL_CODE_NOT_STARTED: '该兑换码尚未生效',
       CHANNEL_CODE_EXPIRED: '该兑换码已过期',
-      CHANNEL_CODE_INVALID: '兑换码格式不正确'
+      CHANNEL_CODE_INVALID: '兑换码格式不正确',
+      CHANNEL_CODE_DUPLICATE: '该兑换码已被其他渠道使用',
+      CHANNEL_NAME_REQUIRED: '请填写渠道名称',
+      CHANNEL_DISCOUNT_RATE_INVALID: '渠道折扣设置不正确',
+      CHANNEL_COMMISSION_RATE_INVALID: '返佣比例设置不正确',
+      CHANNEL_EFFECTIVE_PERIOD_INVALID: '兑换码有效期设置不正确',
+      CHANNEL_SETTLEMENT_NOTHING_DUE: '该渠道当月没有待结算返佣'
     };
     return res.status(400).json({
       ok: false,
-      error: error.code,
-      userMessage: messages[error.code] || '兑换码处理失败，请稍后重试'
+      error: channelErrorCode,
+      userMessage: messages[channelErrorCode] || '渠道规则处理失败，请检查设置'
     });
   }
   if (error instanceof OsArtifactIngressError) {
