@@ -173,12 +173,9 @@ Page({
     return {
       ...result,
       channels: (result.channels || []).map((item) => {
-        const payRate = Number(item.discountRateBps || 0) / 1000;
         return {
           ...item,
-          discountText: item.discountType === 'free'
-            ? '本次诊断免费'
-            : String(Number.isInteger(payRate) ? payRate : payRate.toFixed(1)) + '折',
+          redeemCode: String(item.redeemCode || ''),
           commissionText: Number(item.commissionRateBps || 0) > 0
             ? (Number(item.commissionRateBps || 0) / 100).toFixed(0) + '%'
             : '无返佣',
