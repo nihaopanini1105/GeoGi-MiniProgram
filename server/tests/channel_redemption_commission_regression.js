@@ -27,7 +27,9 @@ async function run() {
   const {
     channelDashboardForPhone,
     channelAdminDashboard,
-    sourceCodeFileName
+    sourceCodeFileName,
+    sourceCodeAliasForSource,
+    sourceCodePublicUrl
   } = require('../src/services/channel-service');
 
   const officialSources = await ensureDefaultOfficialSources();
@@ -210,6 +212,17 @@ async function run() {
   assert.strictEqual(sourceCodeFileName(distributionSources.officialAccount, 'official-account'), 'official-account.png');
   assert.strictEqual(sourceCodeFileName(distributionSources.liaoHuafengBusinessCard, 'business-card-liaohuafeng'), 'business-card-liaohuafeng.png');
   assert.strictEqual(sourceCodeFileName(distributionSources.liShashaBusinessCard, 'business-card-lishasha'), 'business-card-lishasha.png');
+  assert.strictEqual(sourceCodeAliasForSource(distributionSources.website), 'official-website');
+  assert.strictEqual(sourceCodeAliasForSource(distributionSources.officialAccount), 'official-account');
+  assert.strictEqual(sourceCodeAliasForSource(distributionSources.liaoHuafengBusinessCard), 'business-card-liaohuafeng');
+  assert.strictEqual(sourceCodeAliasForSource(distributionSources.liShashaBusinessCard), 'business-card-lishasha');
+  assert.strictEqual(
+    sourceCodePublicUrl('business-card-lishasha.png'),
+    'https://api.geogi.cn/api/source-codes/business-card-lishasha.png'
+  );
+  const serverSource = fs.readFileSync(path.join(__dirname, '../src/server.js'), 'utf8');
+  assert(serverSource.includes("app.get('/api/source-codes/:fileName'"));
+
 
     const admin = await channelAdminDashboard();
   assert.strictEqual(admin.channels.length, 2);
