@@ -17,13 +17,13 @@
     <view class="report-hero card">
       <text class="eyebrow">GEO DIAGNOSIS</text>
       <text class="h1">{{order.brandName || '品牌'}} GEO 诊断报告</text>
-      <text class="lead">品牌 GEO 诊断标准价 199 元；如使用兑换码，以订单实际结算金额为准。订单确认后开始处理，报告完成并审核后可在这里查看。</text>
+      <text class="lead">品牌 GEO 诊断标准价 199 元；如当前来源享有渠道优惠，以订单实际结算金额为准。订单确认后开始处理，报告完成并审核后可在这里查看。</text>
       <view class="report-meta">
         <text>项目编号：{{order.projectId}}</text>
         <text>订单金额：¥{{order.amountYuan !== undefined ? order.amountYuan : 199}}</text>
-        <text wx:if="{{order.payment && order.payment.redemptionCode}}">兑换码：{{order.payment.redemptionCode}}</text>
+        <text wx:if="{{order.payment && (order.payment.channelName || order.payment.sourceName)}}">来源：{{order.payment.channelName || order.payment.sourceName}}</text>
         <text wx:if="{{order.payment && order.payment.discountYuan > 0}}">优惠金额：-¥{{order.payment.discountYuan}}</text>
-        <text>付款状态：{{order.paymentStatus === 'free' ? '已兑换' : order.paymentStatus === 'paid' ? '已付款' : order.paymentStatus === 'partially_refunded' ? '部分退款' : order.paymentStatus === 'refunded' ? '已退款' : order.paymentStatus === 'refund_processing' ? '退款处理中' : order.paymentStatus === 'paying' ? '付款确认中' : '待付款'}}</text>
+        <text>付款状态：{{order.paymentStatus === 'free' ? '优惠免付' : order.paymentStatus === 'paid' ? '已付款' : order.paymentStatus === 'partially_refunded' ? '部分退款' : order.paymentStatus === 'refunded' ? '已退款' : order.paymentStatus === 'refund_processing' ? '退款处理中' : order.paymentStatus === 'paying' ? '付款确认中' : '待付款'}}</text>
         <text>报告状态：{{report.status}}</text>
         <text wx:if="{{report.releasedAt}}">发布时间：{{report.releasedAt}}</text>
         <text wx:if="{{report.reportVersion}}">报告版本：v{{report.reportVersion}}</text>
@@ -52,7 +52,7 @@
 
     <view wx:if="{{order.paymentStatus === 'refunded'}}" class="section card state-card compact">
       <text class="state-title">订单已退款</text>
-      <text class="body">本次 199 元诊断订单已退款，报告访问和后续诊断流程已停止。</text>
+      <text class="body">本次诊断订单已退款，报告访问和后续诊断流程已停止。</text>
     </view>
 
     <view wx:if="{{order.canSupplement}}" class="section card supplement-card">
