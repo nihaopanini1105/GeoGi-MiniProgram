@@ -13,6 +13,7 @@ async function run() {
     upsertSource,
     resolveSourceToken,
     ensureDefaultOfficialSources,
+    ensureOfficialDistributionSources,
     reconcileCommission,
     settleChannelPeriod,
     listCommissionRecords
@@ -25,11 +26,17 @@ async function run() {
   } = require('../src/services/payment-store');
   const {
     channelDashboardForPhone,
-    channelAdminDashboard
+    channelAdminDashboard,
+    sourceCodeFileName
   } = require('../src/services/channel-service');
 
   const officialSources = await ensureDefaultOfficialSources();
   assert.strictEqual(officialSources.length, 3);
+  const distributionSources = await ensureOfficialDistributionSources();
+  assert.strictEqual(distributionSources.website.sourceType, 'website');
+  assert.strictEqual(distributionSources.officialAccount.sourceType, 'official_account');
+  assert.strictEqual(distributionSources.liaoHuafengBusinessCard.name, 'GeoGi · 廖华锋名片');
+  assert.strictEqual(distributionSources.liShashaBusinessCard.name, 'GeoGi · 李沙沙名片');
   assert.deepStrictEqual(
     officialSources.map((item) => item.sourceType).sort(),
     ['business_card', 'official_account', 'website']
@@ -199,7 +206,12 @@ async function run() {
   const dashboardUnknown = await channelDashboardForPhone('13700000000');
   assert.strictEqual(dashboardUnknown.isChannel, false);
 
-  const admin = await channelAdminDashboard();
+  assert.strictEqual(sourceCodeFileName(distributionSources.website, 'official-website'), 'official-website.png');
+  assert.strictEqual(sourceCodeFileName(distributionSources.officialAccount, 'official-account'), 'official-account.png');
+  assert.strictEqual(sourceCodeFileName(distributionSources.liaoHuafengBusinessCard, 'business-card-liaohuafeng'), 'business-card-liaohuafeng.png');
+  assert.strictEqual(sourceCodeFileName(distributionSources.liShashaBusinessCard, 'business-card-lishasha'), 'business-card-lishasha.png');
+
+    const admin = await channelAdminDashboard();
   assert.strictEqual(admin.channels.length, 2);
   assert(admin.sources.some((row) => row.sourceType === 'website'));
   assert(admin.sources.some((row) => row.sourceType === 'official_account'));

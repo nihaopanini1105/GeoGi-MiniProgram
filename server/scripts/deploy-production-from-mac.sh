@@ -60,6 +60,7 @@ printf '%s\n' "============================================================"
   node --check src/server.js
   node --check src/services/os-operations-bridge.js
   node --check src/services/os-artifact-ingress.js
+  node --check src/scripts/bootstrap-official-source-codes.js
   npm test
 )
 
@@ -247,6 +248,23 @@ for (const [name,p] of [["local",local],["public",pub]]) {
 }
 ' "$LOCAL_HEALTH" "$PUBLIC_HEALTH"
 
+SOURCE_CODES_READY=0
+for attempt in 1 2 3; do
+  if (
+    cd "$SERVER_DIR"
+    GEOGI_PUBLIC_BASE_URL="$PUBLIC_BASE_URL" node src/scripts/bootstrap-official-source-codes.js
+  ); then
+    SOURCE_CODES_READY=1
+    echo "official_source_codes_ready_after_attempt=$attempt"
+    break
+  fi
+  [ "$attempt" -lt 3 ] && sleep "$((attempt * 2))"
+done
+[ "$SOURCE_CODES_READY" -eq 1 ] || {
+  echo "ERROR: failed to generate official website / official account / business-card MiniProgram codes" >&2
+  exit 2
+}
+
 for endpoint in "http://127.0.0.1:3107/internal/os/artifacts" "$PUBLIC_BASE_URL/internal/os/artifacts"; do
   STATUS="$(curl -sS --connect-timeout 5 --max-time 15 -o "$REMOTE_TMP/probe.json" -w '%{http_code}' -X POST -H 'Content-Type: application/octet-stream' "$endpoint")"
   if [ "$STATUS" != "401" ] || ! grep -q 'OS_BRIDGE_UNAUTHORIZED' "$REMOTE_TMP/probe.json"; then
@@ -263,5 +281,6 @@ printf '%s\n' "artifact_ingress_local=protected"
 printf '%s\n' "artifact_ingress_public=protected"
 printf '%s\n' "wechat_pay=ready"
 printf '%s\n' "feishu_notifications=ready"
+printf '%s\n' "official_source_codes=ready"
 printf '%s\n' "production_miniprogram_display_only_v3=SUCCESS"
 REMOTE

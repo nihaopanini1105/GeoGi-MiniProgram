@@ -314,7 +314,14 @@ async function wechatAccessToken() {
   return result.parsed.access_token;
 }
 
-async function generateSourceMiniProgramCode(sourceId) {
+function sourceCodeFileName(source, alias = '') {
+  const raw = String(alias || source && source.sourceId || '').trim();
+  const safe = raw.replace(/[^a-zA-Z0-9_.-]/g, '_').replace(/^\.+/, '');
+  if (!safe) throw new Error('SOURCE_CODE_ALIAS_INVALID');
+  return safe + '.png';
+}
+
+async function generateSourceMiniProgramCode(sourceId, options = {}) {
   const sources = await listSources();
   const source = sources.find((item) => item.sourceId === String(sourceId || '').trim());
   if (!source) throw new Error('SOURCE_NOT_FOUND');
@@ -336,7 +343,7 @@ async function generateSourceMiniProgramCode(sourceId) {
   }
   const root = sourceCodeRoot();
   await fs.promises.mkdir(root, { recursive: true, mode: 0o700 });
-  const fileName = source.sourceId.replace(/[^a-zA-Z0-9_.-]/g, '_') + '.png';
+  const fileName = sourceCodeFileName(source, options.alias || '');
   await fs.promises.writeFile(path.join(root, fileName), result.buffer, { mode: 0o600 });
   const base = String(process.env.GEOGI_PUBLIC_BASE_URL || 'https://api.geogi.cn').replace(/\/+$/, '');
   return {
@@ -361,5 +368,6 @@ module.exports = {
   settleChannelPeriod,
   generateSourceMiniProgramCode,
   sourceCodeRoot,
-  sourceTypeLabel
+  sourceTypeLabel,
+  sourceCodeFileName
 };
