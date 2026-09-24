@@ -86,7 +86,8 @@ function run() {
   assert(server.includes('/api/payments/wechat/notify'));
   assert(server.includes('/internal/os/payments/:outTradeNo/refund'));
   assert(intake.includes('createOrGetPaymentOrder'));
-  assert(intake.includes("status: '待付款'"));
+  assert(intake.includes("paymentResult.order.status === 'free' ? '已兑换' : '待付款'"));
+  assert(intake.includes("paymentRequired: paymentResult.order.status !== 'free'"));
   assert(intake.includes('payment: publicPaymentView(paymentResult.order)'));
   assert(operationsBridge.includes("PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z'"));
   assert(operationsBridge.includes("paymentAdmissionMode: paid ? 'paid' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required')"));
