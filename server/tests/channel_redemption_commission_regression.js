@@ -152,6 +152,22 @@ async function run() {
   assert.strictEqual(adjusted.overpaidFen, 1592);
   assert.strictEqual(adjusted.payoutStatus, 'adjustment_required');
 
+  const channelC = await upsertChannel({
+    name: 'C 渠道',
+    discountType: 'percent',
+    discountRateBps: 10000,
+    commissionRateBps: 500,
+    active: true,
+    startsAt: '2026-09-01T00:00:00Z',
+    endsAt: '2026-12-31T23:59:59Z',
+    ownerPhones: ['13700137000']
+  });
+  const sourceC = await resolveSourceToken(channelC.shareSource.token, new Date('2026-09-24T00:00:00Z'));
+  assert.strictEqual(sourceC.channelBenefitActive, true);
+  assert.strictEqual(sourceC.payableFen, 19900);
+  assert.strictEqual(sourceC.discountFen, 0);
+  assert.strictEqual(sourceC.commissionRateBps, 500);
+
   const channelB = await upsertChannel({
     name: 'B 渠道',
     discountType: 'free',
@@ -225,7 +241,7 @@ async function run() {
 
 
     const admin = await channelAdminDashboard();
-  assert.strictEqual(admin.channels.length, 2);
+  assert.strictEqual(admin.channels.length, 3);
   assert(admin.sources.some((row) => row.sourceType === 'website'));
   assert(admin.sources.some((row) => row.sourceType === 'official_account'));
   assert(admin.sources.some((row) => row.sourceType === 'business_card'));
@@ -274,6 +290,8 @@ async function run() {
   const diagnosisCopy = fs.readFileSync(path.join(__dirname, '../../pages/diagnosis/diagnosis.wxml'), 'utf8');
   assert(!mineCopy.includes('兑换码'));
   assert(!diagnosisCopy.includes('兑换码'));
+  assert(diagnosisCopy.includes('attribution.discountFen > 0'), 'discount prompt must only render for channels with a real customer discount');
+  assert(!diagnosisCopy.includes('合作渠道优惠会自动应用'));
 
   fs.rmSync(root, { recursive: true, force: true });
   console.log('channel-source-attribution-commission-regression-ok');
