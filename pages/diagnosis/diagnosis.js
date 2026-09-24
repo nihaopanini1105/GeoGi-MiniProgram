@@ -2,7 +2,7 @@ const { platforms } = require('../../config/platforms');
 const { assets } = require('../../config/assets');
 const { post, uploadFile, getCustomerToken, isApiConfigured } = require('../../utils/request');
 const { track } = require('../../utils/analytics');
-const { getAttribution, captureAttribution, clearAttributionAfterOrder } = require('../../utils/attribution');
+const { getAttribution, captureAttribution, refreshAttribution, clearAttributionAfterOrder } = require('../../utils/attribution');
 
 const draftKey = 'geogi_diagnosis_draft';
 
@@ -144,7 +144,8 @@ Page({
   },
 
   async loadAttribution(options = {}) {
-    const attribution = await captureAttribution(options);
+    await captureAttribution(options);
+    const attribution = await refreshAttribution();
     this.setData({ attribution: attribution || getAttribution() });
   },
 
