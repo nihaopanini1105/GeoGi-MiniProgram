@@ -4,7 +4,7 @@ const {
   isApiConfigured
 } = require('../../utils/request');
 
-const PUBLIC_STATUSES = ['待付款', '付款确认中', '已付款', '已兑换', '退款处理中', '部分退款', '已退款', '已提交', '资料待补充', '诊断处理中', '报告审核中', '报告已完成'];
+const PUBLIC_STATUSES = ['待付款', '付款确认中', '已付款', '已优惠至免费', '退款处理中', '部分退款', '已退款', '已提交', '资料待补充', '诊断处理中', '报告审核中', '报告已完成'];
 
 Page({
   data: {
@@ -125,7 +125,7 @@ Page({
     if (/已退款/.test(value)) return '已退款';
     if (/付款确认/.test(value)) return '付款确认中';
     if (/待付款/.test(value)) return '待付款';
-    if (/已兑换/.test(value)) return '已兑换';
+    if (/已兑换|优惠至免费/.test(value)) return '已优惠至免费';
     if (/已付款/.test(value)) return '已付款';
     if (/待补充|补充材料|资料不全/.test(value)) return '资料待补充';
     if (/审核|复核|初稿|质检/.test(value)) return '报告审核中';
@@ -137,20 +137,43 @@ Page({
     const result = data || {};
     return {
       ...result,
-      channels: (result.channels || []).map((item) => ({
-        ...item,
-        discountText: item.discountType === 'free'
-          ? '免费兑换'
-          : (Number(item.discountRateBps || 0) / 100).toFixed(0) + '% 支付价',
-        commissionText: Number(item.commissionRateBps || 0) > 0
-          ? (Number(item.commissionRateBps || 0) / 100).toFixed(0) + '%'
-          : '无返佣'
-      })),
+      channels: (result.channels || []).map((item) => {
+        const payRate = Number(item.discountRateBps || 0) / 1000;
+        return {
+          ...item,
+          discountText: item.discountType === 'free'
+            ? '本次诊断免费'
+            : String(Number.isInteger(payRate) ? payRate : payRate.toFixed(1)) + '折',
+          commissionText: Number(item.commissionRateBps || 0) > 0
+            ? (Number(item.commissionRateBps || 0) / 100).toFixed(0) + '%'
+            : '无返佣',
+          startsAtText: this.formatDisplayTime(item.startsAt),
+          endsAtText: this.formatDisplayTime(item.endsAt)
+        };
+      }),
       monthly: (result.monthly || []).map((item) => ({
         ...item,
         periodText: String(item.period || '').replace('-', '年') + '月'
+      })),
+      recentOrders: (result.recentOrders || []).map((item) => ({
+        ...item,
+        statusText: this.channelOrderStatusText(item.status),
+        createdAtText: this.formatDisplayTime(item.createdAt)
       }))
     };
+  },
+
+  channelOrderStatusText(status) {
+    return {
+      unpaid: '待付款',
+      paying: '付款确认中',
+      paid: '已付款',
+      free: '优惠免付',
+      refund_processing: '退款处理中',
+      partially_refunded: '部分退款',
+      refunded: '已退款',
+      closed: '已关闭'
+    }[String(status || '')] || String(status || '—');
   },
 
   normalizeNotification(notification) {
@@ -229,5 +252,21 @@ Page({
     wx.navigateTo({
       url: `/pages/report-detail/report-detail?projectId=${encodeURIComponent(projectId)}&clientId=${encodeURIComponent(clientId)}`
     });
+  },
+
+  onShareAppMessage(event) {
+    const dataset = event && event.target && event.target.dataset || {};
+    const sourceToken = String(dataset.sourceToken || '');
+    const channelName = String(dataset.channelName || '');
+    if (!sourceToken) {
+      return {
+        title: 'GeoGi｜199 元品牌 GEO 诊断报告',
+        path: '/pages/index/index'
+      };
+    }
+    return {
+      title: channelName ? channelName + ' 推荐｜GeoGi 品牌 GEO 诊断' : 'GeoGi 品牌 GEO 诊断',
+      path: '/pages/index/index?src=' + encodeURIComponent(sourceToken)
+    };
   },
 });
