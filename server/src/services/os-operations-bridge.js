@@ -137,16 +137,16 @@ async function listOsIntakes() {
     const payment = await findPaymentByProject(lead.projectId);
     const paymentView = publicPaymentView(payment);
     const paid = Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status));
-    const freeRedeemCode = Boolean(payment && payment.status === 'free' && payment.redeemCode);
+    const freeChannelOffer = Boolean(payment && payment.status === 'free' && payment.channelId && payment.sourceId);
     const legacyExemption = legacyPaymentExemption(lead.submittedAt);
     const legacyEligible = legacyExemption.eligible && !paid;
     return {
       ...lead,
       project: projects.get(lead.projectId) || null,
       payment: paymentView,
-      paymentRequired: !legacyEligible && !freeRedeemCode,
-      paymentEligibleForProcessing: paid || freeRedeemCode || legacyEligible,
-      paymentAdmissionMode: paid ? 'paid' : (freeRedeemCode ? 'redeem_code' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required')),
+      paymentRequired: !legacyEligible && !freeChannelOffer,
+      paymentEligibleForProcessing: paid || freeChannelOffer || legacyEligible,
+      paymentAdmissionMode: paid ? 'paid' : (freeChannelOffer ? 'channel_offer' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required')),
       legacyPaymentExemption: legacyExemption
     };
   }));
