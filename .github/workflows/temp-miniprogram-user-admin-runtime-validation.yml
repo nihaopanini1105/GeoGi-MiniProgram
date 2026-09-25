@@ -1,0 +1,44 @@
+name: Temporary MiniProgram User Admin Runtime Validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: JavaScript syntax
+        run: |
+          node --check os-validation/app.js
+          node --check os-validation/operations_business_ui.js
+          node --check os-validation/pipeline_ui_v1_3_3.js
+      - name: Python syntax
+        run: |
+          python -m py_compile os-validation/miniprogram_bridge.py os-validation/integrated_service.py os-validation/integrated_handler.py
+      - name: Product contract checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'data-subview="miniprogram-users">小程序用户' os-validation/index.html
+          grep -F "'/clients/miniprogram-users':'miniprogram-users'" os-validation/app.js
+          grep -F "'miniprogram-users'" os-validation/pipeline_ui_v1_3_3.js
+          grep -F '小程序用户管理' os-validation/operations_business_ui.js
+          grep -F '用户只来自微信手机号授权' os-validation/operations_business_ui.js
+          grep -F 'filterMiniProgramUsers' os-validation/operations_business_ui.js
+          grep -F '全部订单状态' os-validation/operations_business_ui.js
+          grep -F 'filterChannelManagementRows' os-validation/operations_business_ui.js
+          grep -F 'filterSourceManagementRows' os-validation/operations_business_ui.js
+          grep -F '渠道负责人只能从已完成微信手机号授权的小程序用户中选择' os-validation/operations_business_ui.js
+          grep -F '来源归属人只能选择已验证小程序用户' os-validation/operations_business_ui.js
+          grep -F 'def miniprogram_users' os-validation/miniprogram_bridge.py
+          grep -F 'def update_miniprogram_user' os-validation/miniprogram_bridge.py
+          grep -F 'def miniprogram_user_dashboard' os-validation/integrated_service.py
+          grep -F '"/api/miniprogram-users"' os-validation/integrated_handler.py
