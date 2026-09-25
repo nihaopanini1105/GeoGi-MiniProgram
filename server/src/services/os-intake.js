@@ -10,7 +10,7 @@ const {
   publicPaymentView
 } = require('./payment-store');
 const { notifyIntakeSubmitted } = require('./ops-notifications');
-const { BASE_PRICE_FEN, resolveSourceToken, quoteRedeemCode } = require('./channel-store');
+const { resolveSourceToken } = require('./channel-store');
 
 const REQUIRED_ENV = [
   'FEISHU_APP_ID',
@@ -38,35 +38,6 @@ async function resolveIntakeAttribution(form) {
   }
 }
 
-async function resolveIntakeRedemption(form) {
-  if (!form.redemptionCode) {
-    return {
-      applied: false,
-      redeemCode: '',
-      channelId: '',
-      channelName: '',
-      listPriceFen: BASE_PRICE_FEN,
-      payableFen: BASE_PRICE_FEN,
-      discountFen: 0,
-      discountType: '',
-      discountRateBps: 10000,
-      commissionRateBps: 0
-    };
-  }
-  return quoteRedeemCode(form.redemptionCode);
-}
-
-function redemptionErrorMessage(error) {
-  const code = String(error && (error.code || error.message) || '');
-  return {
-    REDEEM_CODE_REQUIRED: '请输入兑换码',
-    REDEEM_CODE_NOT_FOUND: '兑换码无效，请检查后重试',
-    REDEEM_CODE_NOT_STARTED: '兑换码尚未生效',
-    REDEEM_CODE_EXPIRED: '兑换码已过期',
-    REDEEM_CODE_INACTIVE: '兑换码当前不可用'
-  }[code] || '兑换码暂不可用，请稍后重试';
-}
-
 async function submitIntake(input = {}) {
   try {
     const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
@@ -78,12 +49,6 @@ async function submitIntake(input = {}) {
 
     const submittedAt = form.submittedAt || new Date().toISOString();
     const attribution = await resolveIntakeAttribution(form);
-    let redemption;
-    try {
-      redemption = await resolveIntakeRedemption(form);
-    } catch (error) {
-      return fail(redemptionErrorMessage(error));
-    }
     const tenantToken = await getTenantAccessToken();
     const existing = await findExistingSubmission({ tenantToken, submissionId: form.submissionId });
     if (existing) {
@@ -96,18 +61,17 @@ async function submitIntake(input = {}) {
         submissionId: form.submissionId,
         brandName: text(fields.品牌名称) || form.brandName,
         phoneNumber: form.contactMethod,
-        amountTotal: redemption.payableFen,
+        amountTotal: attribution.payableFen,
         sourceId: attribution.sourceId,
         sourceToken: attribution.sourceToken,
         sourceName: attribution.sourceName,
         sourceType: attribution.sourceType,
         sourceCapturedAt: form.sourceCapturedAt,
-        channelId: redemption.channelId,
-        channelName: redemption.channelName,
-        discountType: redemption.discountType,
-        discountRateBps: redemption.discountRateBps,
-        commissionRateBps: redemption.commissionRateBps,
-        redeemCode: redemption.redeemCode
+        channelId: attribution.channelId,
+        channelName: attribution.channelName,
+        discountType: attribution.discountType,
+        discountRateBps: attribution.discountRateBps,
+        commissionRateBps: attribution.commissionRateBps,
       });
       return intakeResponse({
         duplicated: true,
@@ -115,8 +79,7 @@ async function submitIntake(input = {}) {
         projectId,
         submittedAt: text(fields.提交时间) || submittedAt,
         order: existingPayment.order,
-        attribution,
-        redemption
+        attribution
       });
     }
 
@@ -126,7 +89,7 @@ async function submitIntake(input = {}) {
       tenantToken,
       appToken: process.env.FEISHU_BASE_APP_TOKEN,
       tableId: process.env.FEISHU_LEADS_TABLE_ID,
-      fields: buildLeadFields({ form, clientId, projectId, submittedAt, attribution, redemption })
+      fields: buildLeadFields({ form, clientId, projectId, submittedAt, attribution })
     });
 
     if (process.env.FEISHU_PROJECTS_TABLE_ID) {
@@ -134,7 +97,7 @@ async function submitIntake(input = {}) {
         tenantToken,
         appToken: process.env.FEISHU_BASE_APP_TOKEN,
         tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
-        fields: buildProjectFields({ form, clientId, projectId, submittedAt, attribution, redemption })
+        fields: buildProjectFields({ form, clientId, projectId, submittedAt, attribution })
       });
     }
 
@@ -144,18 +107,17 @@ async function submitIntake(input = {}) {
       submissionId: form.submissionId,
       brandName: form.brandName,
       phoneNumber: form.contactMethod,
-      amountTotal: redemption.payableFen,
+      amountTotal: attribution.payableFen,
       sourceId: attribution.sourceId,
       sourceToken: attribution.sourceToken,
       sourceName: attribution.sourceName,
       sourceType: attribution.sourceType,
       sourceCapturedAt: form.sourceCapturedAt,
-      channelId: redemption.channelId,
-      channelName: redemption.channelName,
-      discountType: redemption.discountType,
-      discountRateBps: redemption.discountRateBps,
-      commissionRateBps: redemption.commissionRateBps,
-        redeemCode: redemption.redeemCode
+      channelId: attribution.channelId,
+      channelName: attribution.channelName,
+      discountType: attribution.discountType,
+      discountRateBps: attribution.discountRateBps,
+      commissionRateBps: attribution.commissionRateBps,
     });
 
     notifyIntakeSubmitted({
@@ -167,14 +129,14 @@ async function submitIntake(input = {}) {
       attribution
     });
 
-    return intakeResponse({ clientId, projectId, submittedAt, order: paymentResult.order, attribution, redemption });
+    return intakeResponse({ clientId, projectId, submittedAt, order: paymentResult.order, attribution });
   } catch (error) {
     console.error('submitIntake failed', error);
     return fail('提交失败，请稍后重试');
   }
 }
 
-function intakeResponse({ duplicated = false, clientId, projectId, submittedAt, order, attribution, redemption = {} }) {
+function intakeResponse({ duplicated = false, clientId, projectId, submittedAt, order, attribution }) {
   const free = order.status === 'free';
   return {
     ok: true,
@@ -193,10 +155,8 @@ function intakeResponse({ duplicated = false, clientId, projectId, submittedAt, 
     sourceType: attribution.sourceType || '',
     channelId: order.channelId || '',
     channelName: order.channelName || '',
-    redemptionApplied: Boolean(redemption.applied || order.redeemCode),
-    redeemCode: order.redeemCode || '',
     currency: 'CNY',
-    workbenchStatus: free ? '兑换码已生效 / 待 OS 处理' : '等待客户支付'
+    workbenchStatus: free ? '渠道优惠已生效 / 待 OS 处理' : '等待客户支付'
   };
 }
 
@@ -221,7 +181,6 @@ function sanitizeForm(form) {
     goals: cleanList(form.goals, 3, 120),
     sourceToken: cleanText(form.sourceToken, 40),
     sourceCapturedAt: cleanText(form.sourceCapturedAt, 80),
-    redemptionCode: cleanText(form.redemptionCode, 40).replace(/\s+/g, '').toUpperCase(),
     uploads: normalizeUploads(form.uploads),
     contactName: cleanText(form.contactName, 80),
     contactMethod: cleanText(form.contactMethod, 120),
@@ -262,7 +221,7 @@ function sourceLabel(attribution) {
 }
 
 function buildLeadFields({ form, clientId, projectId, submittedAt, attribution = {}, redemption = {} }) {
-  const free = Number(redemption.payableFen) === 0 && Boolean(redemption.applied);
+  const free = Number(attribution.payableFen) === 0 && Boolean(redemption.applied);
   return {
     提交ID: form.submissionId,
     客户编号: clientId,
@@ -285,14 +244,14 @@ function buildLeadFields({ form, clientId, projectId, submittedAt, attribution =
     隐私授权: form.privacyAccepted ? 'true' : 'false',
     提交时间: submittedAt,
     当前状态: free ? '已优惠至免费' : '待付款',
-    下一步动作: free ? '兑换码已生效，开始品牌 GEO 诊断' : '完成订单付款后开始品牌 GEO 诊断',
+    下一步动作: free ? '渠道优惠已生效，开始品牌 GEO 诊断' : '完成订单付款后开始品牌 GEO 诊断',
     来源: sourceLabel(attribution),
     审核状态: free ? '待 OS 处理' : '待付款'
   };
 }
 
 function buildProjectFields({ form, clientId, projectId, submittedAt, attribution = {}, redemption = {} }) {
-  const free = Number(redemption.payableFen) === 0 && Boolean(redemption.applied);
+  const free = Number(attribution.payableFen) === 0 && Boolean(redemption.applied);
   return {
     项目编号: projectId,
     客户编号: clientId,
@@ -302,8 +261,8 @@ function buildProjectFields({ form, clientId, projectId, submittedAt, attributio
     开始时间: submittedAt,
     客户确认范围: form.goals.join('、'),
     内部备注: free
-      ? `由微信小程序提交；来源：${sourceLabel(attribution)}；兑换码 ${redemption.redeemCode || '-'} 已验证，本次诊断免费，可直接进入 GeoGi OS 诊断流程。`
-      : `由微信小程序提交；来源：${sourceLabel(attribution)}；${redemption.applied ? `兑换码 ${redemption.redeemCode} 已验证；` : ''}客户完成订单付款后进入 GeoGi OS 诊断流程。`,
+      ? `由微信小程序提交；来源：${sourceLabel(attribution)}；该来源绑定渠道优惠，本次诊断免费，可直接进入 GeoGi OS 诊断流程。`
+      : `由微信小程序提交；来源：${sourceLabel(attribution)}；客户完成订单付款后进入 GeoGi OS 诊断流程。`,
     信息层级: '01 诊断项目',
     审核状态: free ? '待 OS 处理' : '待付款'
   };
