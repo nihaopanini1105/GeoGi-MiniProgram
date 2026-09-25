@@ -1,5 +1,5 @@
 name: Temporary Production Release Probe
-# post-deploy verification
+# channel-navigation-hotfix verification
 
 on:
   pull_request:
@@ -48,6 +48,18 @@ jobs:
           if grep -F '客户无需输入任何渠道码' /tmp/business-ui.js; then echo "new_channel_ui_marker=present"; else echo "new_channel_ui_marker=absent"; fi
           if grep -F '绑定渠道后自动应用该渠道客户权益' /tmp/business-ui.js; then echo "new_source_binding_marker=present"; else echo "new_source_binding_marker=absent"; fi
           if grep -F '合作渠道与兑换码' /tmp/business-ui.js; then echo "old_redeem_ui_marker=present"; else echo "old_redeem_ui_marker=absent"; fi
+
+      - name: Verify channel navigation hotfix
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location https://ops.geogi.cn/static/pipeline_ui_v1_3_3.js -o /tmp/pipeline.js
+          curl --fail --silent --show-error --location https://ops.geogi.cn/static/navigation_bootstrap_fix.js -o /tmp/nav.js
+          grep -F "'channel-overview'" /tmp/pipeline.js
+          grep -F "'channel-manage'" /tmp/pipeline.js
+          grep -F "'channel-statistics'" /tmp/pipeline.js
+          grep -F "button.dataset.subview" /tmp/nav.js
+          echo "channel_navigation_hotfix=PASS"
 
       - name: Probe official source codes
         shell: bash
