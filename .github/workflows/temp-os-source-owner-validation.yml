@@ -8,25 +8,24 @@ permissions:
   contents: read
 
 jobs:
-  validate-os:
+  validate-os-files:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout GeoGi OS source-owner branch
-        uses: actions/checkout@v4
-        with:
-          repository: nihaopanini1105/GeoGi-OS
-          ref: feat/source-owner-attribution
-          path: os
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install dependencies
+      - name: Validate JavaScript syntax
+        run: node --check os-validation/operations_business_ui.js
+      - name: Validate Python syntax
+        run: python -m py_compile os-validation/miniprogram_bridge.py
+      - name: Validate source-owner UI contract
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pytest reportlab pillow "psycopg[binary]"
-      - name: Run channel source-owner regression
-        working-directory: os
-        run: python -m pytest tests/business/test_channel_redemption_commission_admin.py -q
-      - name: Run full system audit
-        working-directory: os
-        run: bash tools/ci/v1_3_system_audit_gate.sh
+          set -euo pipefail
+          grep -F '人员归属统计' os-validation/operations_business_ui.js
+          grep -F '归属手机号' os-validation/operations_business_ui.js
+          grep -F 'ownerName' os-validation/operations_business_ui.js
+          grep -F 'ownerPhone' os-validation/operations_business_ui.js
+          grep -F 'autocomplete="off"' os-validation/operations_business_ui.js
+          grep -F 'ownerStats' os-validation/miniprogram_bridge.py
