@@ -40,6 +40,10 @@ const {
   generateSourceMiniProgramCode,
   sourceCodeRoot
 } = require('./services/channel-service');
+const {
+  miniProgramUserAdminDashboard,
+  updateMiniProgramUserAdmin
+} = require('./services/miniprogram-user-service');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
 const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
@@ -305,6 +309,27 @@ app.post('/api/uploads', requireCustomerSession, (req, res) => {
 app.post('/api/events', (req, res) => res.json(trackEvent(req.body || {})));
 
 // Internal OS boundary: never exposed as customer business authority.
+app.get('/internal/os/miniprogram-users', requireOsBridge, async (_req, res, next) => {
+  try {
+    const result = await miniProgramUserAdminDashboard();
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/internal/os/miniprogram-users/:userId', requireOsBridge, async (req, res, next) => {
+  try {
+    const user = await updateMiniProgramUserAdmin({
+      ...(req.body || {}),
+      userId: req.params.userId
+    });
+    return res.json({ ok: true, user });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.get('/internal/os/channels', requireOsBridge, async (_req, res, next) => {
   try {
     const result = await channelAdminDashboard();
