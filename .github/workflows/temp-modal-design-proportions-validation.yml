@@ -1,0 +1,26 @@
+name: Temporary Modal Design Proportions Validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax
+        run: node --check os-validation/operations_business_ui.js
+      - name: Modal design contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "编辑渠道 · " os-validation/operations_business_ui.js
+          grep -F '#modalBody>.form-grid{' os-validation/styles.css
+          grep -F 'padding:22px 24px 18px' os-validation/styles.css
+          grep -F 'grid-template-columns:repeat(2,minmax(0,1fr))' os-validation/styles.css
+          grep -F 'width:min(720px,calc(100vw - 40px))' os-validation/styles.css
+          grep -F 'grid-template-columns:1fr;padding:18px 16px 14px' os-validation/styles.css
