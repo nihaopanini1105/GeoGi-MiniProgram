@@ -73,10 +73,6 @@ function normalizePhones(value) {
   return [...new Set(rows.map((item) => cleanText(item, 40)).filter(Boolean))].slice(0, 20);
 }
 
-function normalizeRedeemCode(value) {
-  return cleanText(value, 40).replace(/\s+/g, '').toUpperCase();
-}
-
 function channelError(code) {
   const error = new Error(code);
   error.code = code;
@@ -95,7 +91,6 @@ function publicChannel(channel) {
   return {
     channelId: channel.channelId,
     name: channel.name,
-    redeemCode: normalizeRedeemCode(channel.redeemCode),
     discountType: channel.discountType,
     discountRateBps: Number(channel.discountRateBps || 0),
     commissionRateBps: Number(channel.commissionRateBps || 0),
@@ -267,7 +262,6 @@ async function upsertChannel(input = {}) {
     const index = rows.findIndex((item) => item.channelId === channelId);
     const existing = index >= 0 ? rows[index] : null;
     const name = cleanText(input.name !== undefined ? input.name : existing && existing.name, 120);
-    const redeemCode = normalizeRedeemCode(input.redeemCode !== undefined ? input.redeemCode : existing && existing.redeemCode);
     const discountType = cleanText(input.discountType !== undefined ? input.discountType : existing && existing.discountType, 20) || 'percent';
     const discountRateBps = validateDiscount({
       discountType,
@@ -278,15 +272,6 @@ async function upsertChannel(input = {}) {
       throw channelError('CHANNEL_COMMISSION_RATE_INVALID');
     }
     if (!name) throw channelError('CHANNEL_NAME_REQUIRED');
-    if (redeemCode && !/^[A-Z0-9_-]{2,40}$/.test(redeemCode)) throw channelError('CHANNEL_REDEEM_CODE_INVALID');
-    if (redeemCode && rows.some((item) => item.channelId !== channelId && normalizeRedeemCode(item.redeemCode) === redeemCode)) {
-      throw channelError('CHANNEL_REDEEM_CODE_DUPLICATE');
-    }
-    const hasCustomerBenefit = discountType === 'free' || Number(discountRateBps) < 10000;
-    const hasCommission = Number(commissionRateBps) > 0;
-    if ((hasCustomerBenefit || hasCommission) && !redeemCode) {
-      throw channelError('CHANNEL_REDEEM_CODE_REQUIRED');
-    }
     const startsAt = normalizeIso(input.startsAt !== undefined ? input.startsAt : existing && existing.startsAt);
     const endsAt = normalizeIso(input.endsAt !== undefined ? input.endsAt : existing && existing.endsAt);
     if (startsAt && endsAt && Date.parse(startsAt) >= Date.parse(endsAt)) throw channelError('CHANNEL_EFFECTIVE_PERIOD_INVALID');
@@ -294,7 +279,6 @@ async function upsertChannel(input = {}) {
     const row = {
       channelId,
       name,
-      redeemCode,
       discountType,
       discountRateBps,
       commissionRateBps,
@@ -333,16 +317,31 @@ async function resolveSourceToken(token, now = new Date()) {
     discountRateBps: 10000,
     commissionRateBps: 0
   };
+
   const sources = await listSources();
   const source = sources.find((item) => item.token === cleanToken);
   if (!source) throw channelError('SOURCE_TOKEN_NOT_FOUND');
+
   const nowMs = now instanceof Date ? now.getTime() : Date.parse(String(now));
   const sourceActive = effectiveAt(source, nowMs);
   let channel = null;
+  let channelBenefitActive = false;
   if (source.channelId) {
     const channels = await listChannels();
     channel = channels.find((item) => item.channelId === source.channelId) || null;
+    channelBenefitActive = sourceActive && Boolean(channel) && effectiveAt(channel, nowMs);
   }
+
+  const discountType = channelBenefitActive ? channel.discountType : '';
+  const discountRateBps = channelBenefitActive
+    ? (channel.discountType === 'free' ? 0 : Number(channel.discountRateBps || 10000))
+    : 10000;
+  const payableFen = channelBenefitActive
+    ? (channel.discountType === 'free'
+      ? 0
+      : Math.max(0, Math.min(BASE_PRICE_FEN, Math.round(BASE_PRICE_FEN * discountRateBps / 10000))))
+    : BASE_PRICE_FEN;
+
   return {
     applied: true,
     sourceId: source.sourceId,
@@ -352,44 +351,13 @@ async function resolveSourceToken(token, now = new Date()) {
     sourceActive,
     channelId: channel && channel.channelId || '',
     channelName: channel && channel.name || '',
-    channelBenefitActive: false,
-    listPriceFen: BASE_PRICE_FEN,
-    payableFen: BASE_PRICE_FEN,
-    discountFen: 0,
-    discountType: '',
-    discountRateBps: 10000,
-    commissionRateBps: 0
-  };
-}
-
-async function quoteRedeemCode(code, now = new Date()) {
-  const redeemCode = normalizeRedeemCode(code);
-  if (!redeemCode) throw channelError('REDEEM_CODE_REQUIRED');
-  const channels = await listChannels();
-  const channel = channels.find((item) => normalizeRedeemCode(item.redeemCode) === redeemCode);
-  if (!channel) throw channelError('REDEEM_CODE_NOT_FOUND');
-  const nowMs = now instanceof Date ? now.getTime() : Date.parse(String(now));
-  if (!effectiveAt(channel, nowMs)) {
-    if (channel.startsAt && nowMs < Date.parse(channel.startsAt)) throw channelError('REDEEM_CODE_NOT_STARTED');
-    if (channel.endsAt && nowMs >= Date.parse(channel.endsAt)) throw channelError('REDEEM_CODE_EXPIRED');
-    throw channelError('REDEEM_CODE_INACTIVE');
-  }
-  const discountType = channel.discountType;
-  const discountRateBps = discountType === 'free' ? 0 : Number(channel.discountRateBps || 10000);
-  const payableFen = discountType === 'free'
-    ? 0
-    : Math.max(0, Math.min(BASE_PRICE_FEN, Math.round(BASE_PRICE_FEN * discountRateBps / 10000)));
-  return {
-    applied: true,
-    redeemCode,
-    channelId: channel.channelId,
-    channelName: channel.name,
+    channelBenefitActive,
     listPriceFen: BASE_PRICE_FEN,
     payableFen,
     discountFen: BASE_PRICE_FEN - payableFen,
     discountType,
     discountRateBps,
-    commissionRateBps: Number(channel.commissionRateBps || 0)
+    commissionRateBps: channelBenefitActive ? Number(channel.commissionRateBps || 0) : 0
   };
 }
 
@@ -527,8 +495,6 @@ module.exports = {
   upsertChannel,
   upsertSource,
   resolveSourceToken,
-  quoteRedeemCode,
-  normalizeRedeemCode,
   recordSourceVisit,
   listSourceVisits,
   listCommissionRecords,
