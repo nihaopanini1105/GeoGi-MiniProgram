@@ -1,0 +1,62 @@
+name: Temporary Production Release Probe
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  production-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe MiniProgram API health
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "=== api health ==="
+          curl --fail --silent --show-error --location https://api.geogi.cn/health | tee /tmp/api-health.json
+          node -e 'const p=require("/tmp/api-health.json"); if(!p.ok) process.exit(2); console.log(JSON.stringify(p,null,2))'
+
+      - name: Detect no-code MiniProgram server contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "=== attribution direct ==="
+          curl --fail --silent --show-error --location 'https://api.geogi.cn/api/attribution/resolve?token=' | tee /tmp/attr.json
+          node -e 'const p=require("/tmp/attr.json"); if(!p.ok) process.exit(2); console.log(JSON.stringify(p,null,2))'
+          echo "=== removed redeem endpoint ==="
+          status="$(curl --silent --show-error --output /tmp/redeem.json --write-out '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"code":"PROBE"}' https://api.geogi.cn/api/redeem-codes/quote || true)"
+          echo "redeem_endpoint_status=$status"
+          cat /tmp/redeem.json || true
+          test "$status" = "404"
+
+      - name: Probe Operations Admin
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "=== ops health ==="
+          curl --fail --silent --show-error --location https://ops.geogi.cn/healthz | tee /tmp/ops-health.json
+          echo
+          echo "=== ops ready ==="
+          curl --fail --silent --show-error --location https://ops.geogi.cn/readyz | tee /tmp/ops-ready.json
+          echo
+          echo "=== operator UI source-attribution marker ==="
+          curl --fail --silent --show-error --location https://ops.geogi.cn/static/operations_business_ui.js -o /tmp/business-ui.js
+          grep -F '客户无需输入任何渠道码' /tmp/business-ui.js
+          grep -F '绑定渠道后自动应用该渠道客户权益' /tmp/business-ui.js
+          if grep -F '合作渠道与兑换码' /tmp/business-ui.js; then
+            echo "ERROR: old redeem-code operator UI is still live" >&2
+            exit 2
+          fi
+
+      - name: Probe official source codes
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in official-website official-account business-card-liaohuafeng business-card-lishasha; do
+            status="$(curl --silent --show-error --location --output "/tmp/$name.png" --write-out '%{http_code}' "https://api.geogi.cn/api/source-codes/$name.png")"
+            echo "$name=$status bytes=$(wc -c < "/tmp/$name.png")"
+            test "$status" = "200"
+          done
