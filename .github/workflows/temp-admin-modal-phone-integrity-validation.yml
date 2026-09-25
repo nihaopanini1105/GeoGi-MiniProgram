@@ -1,0 +1,26 @@
+name: Temporary Admin Modal Phone Integrity Validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax
+        run: node --check os-validation/operations_business_ui.js
+      - name: UI and data-quality contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'customerContactDisplay' os-validation/operations_business_ui.js
+          grep -F '历史记录未关联手机号' os-validation/operations_business_ui.js
+          grep -F 'input[type="checkbox"]' os-validation/operations_business.css
+          grep -F 'input[type="radio"]' os-validation/operations_business.css
+          grep -F 'grid-template-columns:repeat(2,minmax(0,1fr))' os-validation/operations_business.css
+          grep -F 'width:18px!important' os-validation/operations_business.css
