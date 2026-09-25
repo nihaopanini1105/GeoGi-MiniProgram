@@ -56,17 +56,20 @@ function run() {
   assert(attributionJs.includes("ATTRIBUTION_KEY = 'geogi_source_attribution'"));
   assert(attributionJs.includes('/api/attribution/resolve'));
   assert(attributionJs.includes('tokenFromScene'));
-  assert(diagnosis.includes('兑换码'));
-  assert(diagnosis.includes('如有兑换码，请在支付前填写'));
-  assert(diagnosis.includes('兑换码已生效'));
+  assert(!diagnosis.includes('兑换码'));
+  assert(!diagnosisJs.includes('redeem'));
+  assert(!diagnosisJs.includes('redemption'));
   const diagnosisIntro = diagnosis.split('<block wx:else>')[0];
-  assert(!diagnosisIntro.includes('兑换码'));
   assert(!diagnosisIntro.includes('渠道优惠'));
-  assert(!diagnosis.includes('渠道专享优惠'));
-  assert(!diagnosis.includes('渠道优惠自动应用'));
+  assert(!diagnosisIntro.includes('本次优惠'));
+  assert(diagnosis.includes('本次订单价格'));
+  assert(diagnosis.includes('本次优惠'));
+  assert(diagnosis.includes('channelBenefitActive'));
   assert(mine.includes('分享专属入口'));
   assert(mine.includes('我的推广与返佣'));
-  assert(mine.includes('推广兑换码'));
+  assert(mine.includes('客户权益'));
+  assert(!mine.includes('兑换码'));
+  assert(!mineJs.includes('redeem'));
 
   assert(!diagnosis.includes('wx:if="{{!phoneAuthorized}}"'), 'diagnosis first screen must not be blocked by phone authorization');
   assert(diagnosisIntro.includes('提交前授权手机号'));
