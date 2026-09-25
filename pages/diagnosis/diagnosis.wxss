@@ -133,37 +133,23 @@ textarea { min-height:110rpx; padding:22rpx; line-height:1.55; }
 }
 
 
-.redemption-row {
-  display: flex;
-  gap: 12rpx;
-  align-items: stretch;
-}
-
-.redemption-input {
-  flex: 1;
-  min-width: 0;
-}
-
-.redemption-check {
-  flex: 0 0 132rpx;
-  min-height: 90rpx;
+.order-price-card {
+  margin-top: 26rpx;
+  padding: 22rpx 24rpx;
+  border: 1rpx solid #D7E4F8;
   border-radius: 20rpx;
-  border: 1rpx solid #AFC8F7;
-  background: #F4F8FF;
-  color: #176BFF;
-  font-size: 23rpx;
-  font-weight: 600;
+  background: #F8FBFF;
 }
 
-.redemption-result {
-  margin-top: 14rpx;
-  padding: 18rpx 20rpx;
-  border: 1rpx solid #CFE0FF;
-  border-radius: 18rpx;
-  background: #F7FAFF;
+.order-price-title {
+  display: block;
+  margin-bottom: 12rpx;
+  color: #20324F;
+  font-size: 24rpx;
+  font-weight: 650;
 }
 
-.redemption-result > view {
+.order-price-row {
   display: flex;
   justify-content: space-between;
   gap: 16rpx;
@@ -172,12 +158,12 @@ textarea { min-height:110rpx; padding:22rpx; line-height:1.55; }
   line-height: 1.8;
 }
 
-.redemption-value {
+.order-price-value {
   color: #20324F;
   font-weight: 650;
 }
 
-.redemption-result > view.payable {
+.order-price-row.payable {
   margin-top: 6rpx;
   padding-top: 8rpx;
   border-top: 1rpx solid #E1EAF7;
@@ -185,14 +171,15 @@ textarea { min-height:110rpx; padding:22rpx; line-height:1.55; }
   font-weight: 600;
 }
 
-.redemption-payable-value {
+.order-price-payable {
   color: #176BFF;
   font-size: 28rpx;
+  font-weight: 700;
 }
 
-.redemption-success {
+.order-price-free {
   display: block;
-  margin-top: 8rpx;
+  margin-top: 10rpx;
   color: #2D8A5C;
   font-size: 21rpx;
   font-weight: 600;
