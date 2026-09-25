@@ -220,8 +220,8 @@ function sourceLabel(attribution) {
   return [...new Set(pieces.filter(Boolean))].join(' · ');
 }
 
-function buildLeadFields({ form, clientId, projectId, submittedAt, attribution = {}, redemption = {} }) {
-  const free = Number(attribution.payableFen) === 0 && Boolean(redemption.applied);
+function buildLeadFields({ form, clientId, projectId, submittedAt, attribution = {} }) {
+  const free = Number(attribution.payableFen) === 0 && Boolean(attribution.channelBenefitActive);
   return {
     提交ID: form.submissionId,
     客户编号: clientId,
@@ -250,8 +250,8 @@ function buildLeadFields({ form, clientId, projectId, submittedAt, attribution =
   };
 }
 
-function buildProjectFields({ form, clientId, projectId, submittedAt, attribution = {}, redemption = {} }) {
-  const free = Number(attribution.payableFen) === 0 && Boolean(redemption.applied);
+function buildProjectFields({ form, clientId, projectId, submittedAt, attribution = {} }) {
+  const free = Number(attribution.payableFen) === 0 && Boolean(attribution.channelBenefitActive);
   return {
     项目编号: projectId,
     客户编号: clientId,
