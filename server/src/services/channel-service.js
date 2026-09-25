@@ -112,7 +112,6 @@ async function channelDashboardForPhone(phoneNumber) {
     return {
       channelId: channel.channelId,
       name: channel.name,
-      redeemCode: channel.redeemCode || '',
       active: channel.active,
       commissionRateBps: channel.commissionRateBps,
       startsAt: channel.startsAt,
@@ -170,7 +169,6 @@ async function channelDashboardForPhone(phoneNumber) {
       brandName: order.brandName,
       channelId: order.channelId,
       channelName: order.channelName,
-      redeemCode: order.redeemCode || '',
       sourceName: order.sourceName || '',
       sourceType: order.sourceType || '',
       listPriceYuan: yuan(order.listPriceFen || BASE_PRICE_FEN),
