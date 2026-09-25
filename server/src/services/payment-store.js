@@ -251,8 +251,6 @@ function publicPaymentView(order) {
     sourceId: order.sourceId || '',
     sourceName: order.sourceName || '',
     sourceType: order.sourceType || '',
-    sourceOwnerName: order.sourceOwnerName || '',
-    sourceOwnerPhone: order.sourceOwnerPhone || '',
     channelId: order.channelId || '',
     channelName: order.channelName || '',
     discountType: order.discountType || '',
