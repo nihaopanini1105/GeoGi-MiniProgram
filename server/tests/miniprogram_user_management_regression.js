@@ -11,7 +11,8 @@ async function run() {
 
   const {
     recordPhoneAuthorization,
-    listMiniProgramUsers
+    listMiniProgramUsers,
+    isValidPhoneNumber
   } = require('../src/services/miniprogram-user-store');
   const {
     miniProgramUserAdminDashboard,
@@ -38,6 +39,12 @@ async function run() {
   });
   assert.strictEqual(second.userId, first.userId);
   assert.strictEqual(second.authorizationCount, 2);
+  assert.strictEqual(isValidPhoneNumber('13800138000'), true);
+  assert.strictEqual(isValidPhoneNumber('小程序客户未绑定手机号'), false);
+  await assert.rejects(
+    () => recordPhoneAuthorization({ phoneNumber: '小程序客户未绑定手机号' }),
+    /MINIPROGRAM_USER_PHONE_INVALID/
+  );
 
   const channel = await channelStore.upsertChannel({
     name: '测试渠道',
@@ -46,6 +53,15 @@ async function run() {
     commissionRateBps: 1000,
     active: true,
     ownerPhones: []
+  });
+
+  await createOrGetPaymentOrder({
+    clientId: 'GG-LEGACY-NOPHONE',
+    projectId: 'GG-P-LEGACY-NOPHONE',
+    submissionId: 'SUB-LEGACY-NOPHONE',
+    brandName: '历史无手机号客户',
+    phoneNumber: '小程序客户未绑定手机号',
+    amountTotal: 19900
   });
 
   await createOrGetPaymentOrder({
@@ -59,6 +75,7 @@ async function run() {
 
   let dashboard = await miniProgramUserAdminDashboard();
   assert.strictEqual(dashboard.users.length, 1);
+  assert.strictEqual(dashboard.users.some((row) => row.phoneNumber === '小程序客户未绑定手机号'), false);
   assert.strictEqual(dashboard.users[0].customerCount, 1);
   assert.strictEqual(dashboard.users[0].orderCount, 1);
   assert.deepStrictEqual(dashboard.users[0].clientIds, ['GG-USER-001']);
