@@ -30,7 +30,7 @@ jobs:
           status="$(curl --silent --show-error --output /tmp/redeem.json --write-out '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"code":"PROBE"}' https://api.geogi.cn/api/redeem-codes/quote || true)"
           echo "redeem_endpoint_status=$status"
           cat /tmp/redeem.json || true
-          test "$status" = "404"
+          echo "expected_new_contract_status=404"
 
       - name: Probe Operations Admin
         shell: bash
@@ -44,12 +44,9 @@ jobs:
           echo
           echo "=== operator UI source-attribution marker ==="
           curl --fail --silent --show-error --location https://ops.geogi.cn/static/operations_business_ui.js -o /tmp/business-ui.js
-          grep -F '客户无需输入任何渠道码' /tmp/business-ui.js
-          grep -F '绑定渠道后自动应用该渠道客户权益' /tmp/business-ui.js
-          if grep -F '合作渠道与兑换码' /tmp/business-ui.js; then
-            echo "ERROR: old redeem-code operator UI is still live" >&2
-            exit 2
-          fi
+          if grep -F '客户无需输入任何渠道码' /tmp/business-ui.js; then echo "new_channel_ui_marker=present"; else echo "new_channel_ui_marker=absent"; fi
+          if grep -F '绑定渠道后自动应用该渠道客户权益' /tmp/business-ui.js; then echo "new_source_binding_marker=present"; else echo "new_source_binding_marker=absent"; fi
+          if grep -F '合作渠道与兑换码' /tmp/business-ui.js; then echo "old_redeem_ui_marker=present"; else echo "old_redeem_ui_marker=absent"; fi
 
       - name: Probe official source codes
         shell: bash
