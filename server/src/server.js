@@ -31,7 +31,6 @@ const { trackEvent } = require('./services/events');
 const { notificationConfigured } = require('./services/ops-notifications');
 const {
   resolveAttribution,
-  quoteCustomerRedeemCode,
   channelDashboardForPhone,
   channelAdminDashboard,
   upsertChannel,
@@ -124,26 +123,6 @@ app.get('/api/attribution/resolve', async (req, res, next) => {
   }
 });
 
-app.post('/api/redeem-codes/quote', async (req, res) => {
-  try {
-    const result = await quoteCustomerRedeemCode(req.body && req.body.code);
-    return res.json(result);
-  } catch (error) {
-    const code = String(error && (error.code || error.message) || '');
-    const messages = {
-      REDEEM_CODE_REQUIRED: '请输入兑换码',
-      REDEEM_CODE_NOT_FOUND: '兑换码无效，请检查后重试',
-      REDEEM_CODE_NOT_STARTED: '兑换码尚未生效',
-      REDEEM_CODE_EXPIRED: '兑换码已过期',
-      REDEEM_CODE_INACTIVE: '兑换码当前不可用'
-    };
-    return res.status(400).json({
-      ok: false,
-      error: code || 'REDEEM_CODE_INVALID',
-      userMessage: messages[code] || '兑换码暂不可用，请稍后重试'
-    });
-  }
-});
 
 app.get('/api/customer/channel-dashboard', requireCustomerSession, async (req, res, next) => {
   try {
