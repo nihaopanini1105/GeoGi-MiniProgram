@@ -1,0 +1,25 @@
+name: Temporary Global Modal Validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax
+        run: node --check os-validation/app.js
+      - name: Modal contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'panel.scrollTop=0' os-validation/app.js
+          grep -F 'body.scrollTop=0' os-validation/app.js
+          grep -F 'max-height:calc(100dvh - 32px)' os-validation/styles.css
+          grep -F '#modalBody{min-height:0;overflow:auto' os-validation/styles.css
+          grep -F '#modalBody .form-actions' os-validation/styles.css
