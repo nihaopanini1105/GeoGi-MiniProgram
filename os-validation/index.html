@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GeoGi GEO 检测与优化后台</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/integrated.css" />
+  <link rel="stylesheet" href="/static/operations_business.css" />
+  <link rel="stylesheet" href="/static/ai_platform_daily_report.css" />
+  <link rel="stylesheet" href="/static/service_journey_v1_2.css" />
+  <link rel="stylesheet" href="/static/official_staff_console_v1_2.css" />
+  <link rel="stylesheet" href="/static/official_staff_service_desk_v1_2.css" />
+  <link rel="stylesheet" href="/static/official_staff_delivery_ledger_v1_2.css" />
+  <link rel="stylesheet" href="/static/full_lifecycle_v1_2_2.css" />
+  <link rel="stylesheet" href="/static/detection_workbench_v1_2_2.css" />
+  <link rel="stylesheet" href="/static/flow_experience_v1_2_2.css" />
+  <link rel="stylesheet" href="/static/render_stability_v1_2_2.css" />
+</head>
+<body class="geogi-booting">
+  <div id="geogiBootScreen" class="geogi-boot-screen" aria-live="polite">
+    <div class="geogi-boot-card"><i class="geogi-boot-mark"></i><div class="geogi-boot-copy"><strong>GeoGi 运营后台</strong><span>正在恢复当前工作区…</span></div></div>
+  </div>
+
+  <div id="login" class="login-shell">
+    <div class="login-layout">
+      <section class="login-brand-panel">
+        <img class="login-logo" src="/static/assets/geogi-logo-horizontal-navy.svg" alt="GeoGi" />
+        <div class="login-value">
+          <div class="eyebrow">GeoGi 运营管理</div>
+          <h1>客户 GEO 服务管理后台</h1>
+          <p>集中管理客户资料、AI 平台检测、GEO 诊断、优化执行、效果复测和报告交付。</p>
+        </div>
+        <div class="login-flow">
+          <span>客户管理</span><i></i><span>检测准备</span><i></i><span>AI 检测</span><i></i><span>诊断与优化</span><i></i><span>复测与交付</span>
+        </div>
+      </section>
+      <section class="login-card">
+        <div class="login-card-head">
+          <span class="version-pill">GeoGi 运营管理系统</span>
+          <h2>登录运营后台</h2>
+          <p>请输入管理员账号和密码。</p>
+        </div>
+        <form id="loginForm" class="login-form">
+          <label>管理员账号</label>
+          <input id="usernameInput" name="username" autocomplete="username" placeholder="输入管理员账号" required />
+          <label>密码</label>
+          <input id="passwordInput" name="password" type="password" autocomplete="current-password" placeholder="输入密码" required />
+          <button id="loginBtn" class="primary login-submit" type="submit">进入运营后台</button>
+        </form>
+        <div id="loginError" class="error"></div>
+        <div class="login-security">账号安全 · 权限管理 · 操作记录 · 数据保护</div>
+      </section>
+    </div>
+  </div>
+
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand-row">
+        <img src="/static/assets/geogi-logo-horizontal-navy.svg" alt="GeoGi" />
+        <span class="brand-version">运营后台</span>
+      </div>
+      <nav id="nav">
+        <div class="nav-group"><div class="nav-label">运营管理</div>
+          <button data-view="dashboard" class="active"><span class="nav-icon">⌂</span><span>工作台</span></button>
+
+          <div class="nav-tree" data-nav-parent="clients">
+            <button data-view="clients" class="nav-parent"><span class="nav-icon">◎</span><span>客户管理</span></button>
+            <div class="nav-submenu" aria-label="客户管理二级导航">
+              <button class="nav-subitem" data-subview="intakes">待接收客户</button>
+              <button class="nav-subitem" data-subview="clients">全部客户</button>
+              <button class="nav-subitem" data-subview="miniprogram-users">小程序用户</button>
+            </div>
+          </div>
+
+          <div class="nav-tree" data-nav-parent="channel-overview">
+            <button data-view="channel-overview" class="nav-parent"><span class="nav-icon">⌘</span><span>渠道管理</span></button>
+            <div class="nav-submenu" aria-label="渠道管理二级导航">
+              <button class="nav-subitem" data-subview="channel-overview">渠道总览</button>
+              <button class="nav-subitem" data-subview="channel-manage">渠道管理</button>
+              <button class="nav-subitem" data-subview="channel-statistics">渠道统计</button>
+            </div>
+          </div>
+
+          <div class="nav-tree" data-nav-parent="data-center">
+            <button data-view="data-center" class="nav-parent"><span class="nav-icon">▦</span><span>数据中心</span></button>
+            <div class="nav-submenu" aria-label="数据中心二级导航">
+              <button class="nav-subitem" data-subview="data-center">数据概览</button>
+              <button class="nav-subitem" data-subview="data-center-customers">客户统计</button>
+              <button class="nav-subitem" data-subview="data-center-business">业务统计</button>
+              <button class="nav-subitem" data-subview="data-center-payments">收款与退款</button>
+              <button class="nav-subitem" data-subview="ai-platform-daily">AI 平台监测</button>
+              <button class="nav-subitem" data-subview="geo-competitive-daily">竞品监测</button>
+              <button class="nav-subitem" data-subview="competitive-intelligence">竞品数据库</button>
+            </div>
+          </div>
+        </div>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="operator-avatar" id="operatorAvatar">—</div>
+        <div class="operator-copy"><span id="operatorName">—</span><small id="operatorRole">管理员</small></div>
+        <button id="logoutBtn" class="icon-ghost" title="退出登录">↪</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="page-heading"><div id="pageEyebrow" class="eyebrow">运营管理</div><h2 id="pageTitle">工作台</h2><p id="pageSubtitle">查看今天需要推进的客户、待处理事项和业务数据。</p></div>
+        <div class="top-actions"><button id="refreshBtn" class="secondary">刷新数据</button></div>
+      </header>
+      <section id="content" class="content"></section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal hidden"><div class="modal-panel"><div class="modal-head"><div><span class="modal-kicker">GeoGi 运营后台</span><h3 id="modalTitle"></h3></div><button id="modalClose" class="icon-btn">×</button></div><div id="modalBody"></div></div></div>
+  <button id="newClientBtn" type="button" hidden aria-hidden="true" tabindex="-1"></button>
+  <template id="emptyTpl"><div class="empty"><strong>暂无数据</strong><span>当前还没有可显示的记录。</span></div></template>
+
+  <script src="/static/app.js"></script>
+  <script src="/static/session_boot_stability_v1_2_2.js"></script>
+  <script src="/static/binding.js"></script>
+  <script src="/static/ops_extensions.js"></script>
+  <script src="/static/integrated_ops.js"></script>
+  <script src="/static/lifecycle_v1_1.js"></script>
+  <script src="/static/profile_ui.js"></script>
+  <script src="/static/delivery_ui.js"></script>
+  <script src="/static/ai_platform_daily_report.js"></script>
+  <script src="/static/geo_competitive_daily.js"></script>
+  <script src="/static/operations_business_ui.js"></script>
+  <script src="/static/workflow_readiness_ui.js"></script>
+  <script src="/static/service_workspace_v1_2.js"></script>
+  <script src="/static/service_journey_v1_2.js"></script>
+  <script src="/static/service_portfolio_v1_2.js"></script>
+  <script src="/static/official_staff_console_v1_2.js"></script>
+  <script src="/static/production_onboarding_v1_2_1.js"></script>
+  <script src="/static/brand_identity_correction_v1_2_2.js"></script>
+  <script src="/static/official_staff_service_desk_v1_2.js"></script>
+  <script src="/static/official_staff_delivery_ledger_v1_2.js"></script>
+  <script src="/static/official_staff_collaboration_v1_2.js"></script>
+  <script src="/static/official_staff_traceability_v1_2.js"></script>
+  <script src="/static/full_lifecycle_v1_2_2.js"></script>
+  <script src="/static/diagnosis_report_v1_3.js"></script>
+  <script src="/static/live_detection_dispatch_v1_2_2.js"></script>
+  <script src="/static/full_lifecycle_v1_2_2_retest.js"></script>
+  <script src="/static/competitive_intelligence_v1_2_2.js"></script>
+  <script src="/static/navigation_bootstrap_fix.js"></script>
+  <script src="/static/flow_experience_v1_2_2.js"></script>
+  <script src="/static/render_stability_v1_2_2.js"></script>
+  <script src="/static/chinese_ui_guard_v1_3.js"></script>
+  <script src="/static/pipeline_ui_v1_3_3.js"></script>
+</body>
+</html>
