@@ -6,6 +6,7 @@ const {
   listChannels,
   listSources,
   ensureDefaultOfficialSources,
+  ensureOfficialDistributionSources,
   upsertChannel,
   upsertSource,
   resolveSourceToken,
@@ -69,7 +70,8 @@ async function resolveAttribution(token, visitorId = '') {
 
 async function channelDashboardForPhone(phoneNumber) {
   const phone = String(phoneNumber || '').trim();
-  if (!phone) return { ok: true, isChannel: false, channels: [], monthly: [], recentOrders: [] };
+  if (!phone) return { ok: true, isChannel: false, isSourceOwner: false, channels: [], ownedSources: [], monthly: [], recentOrders: [] };
+  await ensureOfficialDistributionSources();
   const [channels, sources, visits, orders, commissions] = await Promise.all([
     listChannels(),
     listSources(),
@@ -78,7 +80,10 @@ async function channelDashboardForPhone(phoneNumber) {
     listCommissionRecords()
   ]);
   const owned = channels.filter((channel) => Array.isArray(channel.ownerPhones) && channel.ownerPhones.includes(phone));
-  if (!owned.length) return { ok: true, isChannel: false, channels: [], monthly: [], recentOrders: [] };
+  const ownedSources = sources.filter((source) => String(source.ownerPhone || '') === phone);
+  if (!owned.length && !ownedSources.length) {
+    return { ok: true, isChannel: false, isSourceOwner: false, channels: [], ownedSources: [], monthly: [], recentOrders: [] };
+  }
 
   const currentPeriod = monthKey();
 
@@ -179,7 +184,43 @@ async function channelDashboardForPhone(phoneNumber) {
       reportReleasedAt: order.reportReleasedAt || ''
     }));
 
-  return { ok: true, isChannel: true, currentPeriod, channels: summaries, monthly, recentOrders };
+  const ownedSourceIds = new Set(ownedSources.map((source) => source.sourceId));
+  const ownedSourceVisits = visits.filter((visit) => (
+    String(visit.sourceOwnerPhone || '') === phone || ownedSourceIds.has(visit.sourceId)
+  ));
+  const ownedSourceOrders = orders.filter((order) => (
+    String(order.sourceOwnerPhone || '') === phone || ownedSourceIds.has(order.sourceId)
+  ));
+  const ownedSourcesSummary = ownedSources.map((source) => ({
+    ...source,
+    sourceTypeLabel: sourceTypeLabel(source.sourceType),
+    miniProgramPath: '/pages/index/index?src=' + encodeURIComponent(source.token),
+    ...sourceMetrics(source, visits, orders)
+  }));
+  const sourceOwnerSummary = {
+    ownerName: ownedSources.find((source) => source.ownerName)?.ownerName || '',
+    ownerPhone: phone,
+    sourceCount: ownedSources.length,
+    visits: ownedSourceVisits.length,
+    uniqueVisitors: new Set(ownedSourceVisits.map((item) => item.visitorId).filter(Boolean)).size,
+    submittedOrders: ownedSourceOrders.length,
+    paidOrders: ownedSourceOrders.filter(paymentCompleted).length,
+    completedReports: ownedSourceOrders.filter((order) => order.reportReleasedAt).length,
+    grossPaidYuan: yuan(ownedSourceOrders.reduce((sum, order) => sum + (paymentCompleted(order) ? Number(order.amountTotal || 0) : 0), 0))
+  };
+
+  return {
+    ok: true,
+    isChannel: owned.length > 0,
+    isSourceOwner: ownedSources.length > 0,
+    hasPromotionAccess: owned.length > 0 || ownedSources.length > 0,
+    currentPeriod,
+    channels: summaries,
+    ownedSources: ownedSourcesSummary,
+    sourceOwnerSummary,
+    monthly,
+    recentOrders
+  };
 }
 
 function sourceMetrics(source, visits, orders) {
@@ -195,8 +236,44 @@ function sourceMetrics(source, visits, orders) {
   };
 }
 
+function buildSourceOwnerStats(sources, visits, orders) {
+  const owners = new Map();
+  for (const source of sources) {
+    const ownerName = String(source.ownerName || '').trim();
+    const ownerPhone = String(source.ownerPhone || '').trim();
+    if (!ownerName && !ownerPhone) continue;
+    const key = ownerPhone || ('name:' + ownerName);
+    if (!owners.has(key)) owners.set(key, { ownerName, ownerPhone, sourceIds: new Set() });
+    const owner = owners.get(key);
+    if (!owner.ownerName && ownerName) owner.ownerName = ownerName;
+    owner.sourceIds.add(source.sourceId);
+  }
+  return [...owners.values()].map((owner) => {
+    const sourceIds = owner.sourceIds;
+    const ownerVisits = visits.filter((visit) => (
+      (owner.ownerPhone && String(visit.sourceOwnerPhone || '') === owner.ownerPhone)
+      || (!visit.sourceOwnerPhone && sourceIds.has(visit.sourceId))
+    ));
+    const ownerOrders = orders.filter((order) => (
+      (owner.ownerPhone && String(order.sourceOwnerPhone || '') === owner.ownerPhone)
+      || (!order.sourceOwnerPhone && sourceIds.has(order.sourceId))
+    ));
+    return {
+      ownerName: owner.ownerName,
+      ownerPhone: owner.ownerPhone,
+      sourceCount: sourceIds.size,
+      visits: ownerVisits.length,
+      uniqueVisitors: new Set(ownerVisits.map((item) => item.visitorId).filter(Boolean)).size,
+      submittedOrders: ownerOrders.length,
+      paidOrders: ownerOrders.filter(paymentCompleted).length,
+      completedReports: ownerOrders.filter((order) => order.reportReleasedAt).length,
+      grossPaidYuan: yuan(ownerOrders.reduce((sum, order) => sum + (paymentCompleted(order) ? Number(order.amountTotal || 0) : 0), 0))
+    };
+  }).sort((a, b) => (b.paidOrders - a.paidOrders) || (b.visits - a.visits) || String(a.ownerName).localeCompare(String(b.ownerName)));
+}
+
 async function channelAdminDashboard() {
-  await ensureDefaultOfficialSources();
+  await ensureOfficialDistributionSources();
   const [channels, sources, visits, orders, commissions] = await Promise.all([
     listChannels(),
     listSources(),
@@ -252,6 +329,7 @@ async function channelAdminDashboard() {
         refundedYuan: yuan(order.refundedAmount || 0)
       })),
     commissions,
+    ownerStats: buildSourceOwnerStats(sourceRows, visits, orders),
     monthly: buildAdminMonthly(channelRows, orders, commissions)
   };
 }

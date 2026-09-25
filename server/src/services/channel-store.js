@@ -111,6 +111,8 @@ function publicSource(source) {
     token: source.token,
     name: source.name,
     sourceType: source.sourceType,
+    ownerName: source.ownerName || '',
+    ownerPhone: source.ownerPhone || '',
     channelId: source.channelId || '',
     active: Boolean(source.active),
     startsAt: source.startsAt || '',
@@ -157,19 +159,25 @@ async function ensureOfficialDistributionSources() {
       sourceId: 'source_business_card_liaohuafeng',
       name: 'GeoGi · 廖华锋名片',
       sourceType: 'business_card',
+      ownerName: '廖华锋',
       notes: 'official_business_card:liaohuafeng'
     },
     {
       sourceId: 'source_business_card_lishasha',
       name: 'GeoGi · 李沙沙名片',
       sourceType: 'business_card',
+      ownerName: '李沙沙',
       notes: 'official_business_card:lishasha'
     }
   ];
   const personal = [];
   for (const item of personalDefaults) {
     let existing = rows.find((row) => row.notes === item.notes);
-    if (!existing) existing = await upsertSource({ ...item, active: true });
+    if (!existing) {
+      existing = await upsertSource({ ...item, active: true });
+    } else if (!existing.ownerName && item.ownerName) {
+      existing = await upsertSource({ sourceId: existing.sourceId, ownerName: item.ownerName });
+    }
     personal.push(existing);
   }
   return {
@@ -211,6 +219,8 @@ async function upsertSource(input = {}) {
     const name = cleanText(input.name !== undefined ? input.name : existing && existing.name, 160);
     const sourceType = cleanText(input.sourceType !== undefined ? input.sourceType : existing && existing.sourceType, 40);
     const channelId = cleanText(input.channelId !== undefined ? input.channelId : existing && existing.channelId, 120);
+    const ownerName = cleanText(input.ownerName !== undefined ? input.ownerName : existing && existing.ownerName, 120);
+    const ownerPhone = normalizePhones(input.ownerPhone !== undefined ? input.ownerPhone : existing && existing.ownerPhone)[0] || '';
     if (!name) throw channelError('SOURCE_NAME_REQUIRED');
     if (!SOURCE_TYPES.has(sourceType)) throw channelError('SOURCE_TYPE_INVALID');
     if (sourceType === 'channel' && !channelId) throw channelError('SOURCE_CHANNEL_REQUIRED');
@@ -226,6 +236,8 @@ async function upsertSource(input = {}) {
       token: existing && existing.token || generateSourceToken(),
       name,
       sourceType,
+      ownerName,
+      ownerPhone,
       channelId,
       active: input.active !== undefined ? Boolean(input.active) : (existing ? Boolean(existing.active) : true),
       startsAt,
@@ -307,6 +319,8 @@ async function resolveSourceToken(token, now = new Date()) {
     sourceToken: '',
     sourceName: '直接访问',
     sourceType: 'direct',
+    sourceOwnerName: '',
+    sourceOwnerPhone: '',
     sourceActive: true,
     channelId: '',
     channelName: '',
@@ -345,6 +359,8 @@ async function resolveSourceToken(token, now = new Date()) {
     sourceToken: source.token,
     sourceName: source.name,
     sourceType: source.sourceType,
+    sourceOwnerName: source.ownerName || '',
+    sourceOwnerPhone: source.ownerPhone || '',
     sourceActive,
     channelId: channel && channel.channelId || '',
     channelName: channel && channel.name || '',
@@ -376,6 +392,8 @@ async function recordSourceVisit({ attribution, visitorId = '', capturedAt = '' 
       sourceToken: attribution.sourceToken,
       sourceName: attribution.sourceName,
       sourceType: attribution.sourceType,
+      sourceOwnerName: attribution.sourceOwnerName || '',
+      sourceOwnerPhone: attribution.sourceOwnerPhone || '',
       channelId: attribution.channelId || '',
       visitorId: cleanVisitorId,
       capturedAt: now

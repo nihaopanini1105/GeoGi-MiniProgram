@@ -14,6 +14,7 @@ async function run() {
     resolveSourceToken,
     ensureDefaultOfficialSources,
     ensureOfficialDistributionSources,
+    recordSourceVisit,
     reconcileCommission,
     settleChannelPeriod,
     listCommissionRecords
@@ -25,6 +26,7 @@ async function run() {
     markProjectReportReleased
   } = require('../src/services/payment-store');
   const {
+    resolveAttribution,
     channelDashboardForPhone,
     channelAdminDashboard,
     sourceCodeFileName,
@@ -38,7 +40,9 @@ async function run() {
   assert.strictEqual(distributionSources.website.sourceType, 'website');
   assert.strictEqual(distributionSources.officialAccount.sourceType, 'official_account');
   assert.strictEqual(distributionSources.liaoHuafengBusinessCard.name, 'GeoGi · 廖华锋名片');
+  assert.strictEqual(distributionSources.liaoHuafengBusinessCard.ownerName, '廖华锋');
   assert.strictEqual(distributionSources.liShashaBusinessCard.name, 'GeoGi · 李沙沙名片');
+  assert.strictEqual(distributionSources.liShashaBusinessCard.ownerName, '李沙沙');
   assert.deepStrictEqual(
     officialSources.map((item) => item.sourceType).sort(),
     ['business_card', 'official_account', 'website']
@@ -202,6 +206,49 @@ async function run() {
   assert.strictEqual(partnerCardQuote.channelId, channelA.channelId);
   assert.strictEqual(partnerCardQuote.payableFen, 9950);
 
+  const lishashaCard = await upsertSource({
+    sourceId: distributionSources.liShashaBusinessCard.sourceId,
+    ownerName: '李沙沙',
+    ownerPhone: '13500135000'
+  });
+  const lishashaQuote = await resolveSourceToken(lishashaCard.token, new Date('2026-09-24T00:00:00Z'));
+  assert.strictEqual(lishashaQuote.sourceOwnerName, '李沙沙');
+  assert.strictEqual(lishashaQuote.sourceOwnerPhone, '13500135000');
+  assert.strictEqual(lishashaQuote.channelId, '');
+  assert.strictEqual(lishashaQuote.payableFen, 19900);
+  const publicLishasha = await resolveAttribution(lishashaCard.token, 'public-visitor');
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(publicLishasha, 'sourceOwnerPhone'), false);
+  await recordSourceVisit({ attribution: lishashaQuote, visitorId: 'visitor-lishasha', capturedAt: '2026-09-24T03:00:00Z' });
+  const ownerOrder = await createOrGetPaymentOrder({
+    clientId: 'GG-OWNER-1',
+    projectId: 'GG-P-OWNER-1',
+    submissionId: 'SUB-OWNER-1',
+    brandName: '名片来源客户',
+    phoneNumber: '13600000003',
+    amountTotal: lishashaQuote.payableFen,
+    sourceId: lishashaQuote.sourceId,
+    sourceToken: lishashaQuote.sourceToken,
+    sourceName: lishashaQuote.sourceName,
+    sourceType: lishashaQuote.sourceType,
+    sourceOwnerName: lishashaQuote.sourceOwnerName,
+    sourceOwnerPhone: lishashaQuote.sourceOwnerPhone,
+    sourceCapturedAt: '2026-09-24T03:00:00Z',
+    channelId: lishashaQuote.channelId,
+    channelName: lishashaQuote.channelName,
+    discountType: lishashaQuote.discountType,
+    discountRateBps: lishashaQuote.discountRateBps,
+    commissionRateBps: lishashaQuote.commissionRateBps
+  });
+  assert.strictEqual(ownerOrder.order.sourceOwnerName, '李沙沙');
+  assert.strictEqual(ownerOrder.order.sourceOwnerPhone, '13500135000');
+
+  const ownerDashboard = await channelDashboardForPhone('13500135000');
+  assert.strictEqual(ownerDashboard.isChannel, false);
+  assert.strictEqual(ownerDashboard.isSourceOwner, true);
+  assert.strictEqual(ownerDashboard.hasPromotionAccess, true);
+  assert.strictEqual(ownerDashboard.ownedSources.length, 1);
+  assert.strictEqual(ownerDashboard.sourceOwnerSummary.submittedOrders, 1);
+
   const dashboardB = await channelDashboardForPhone('13900139000');
   assert.strictEqual(dashboardB.channels.length, 1);
   assert.strictEqual(dashboardB.channels[0].channelId, channelB.channelId);
@@ -231,6 +278,8 @@ async function run() {
   assert(admin.sources.some((row) => row.sourceType === 'business_card'));
   assert(admin.orders.some((row) => row.sourceId === sourceA.sourceId));
   assert(admin.orders.some((row) => row.sourceId === sourceB.sourceId));
+  assert(admin.orders.some((row) => row.sourceOwnerName === '李沙沙'));
+  assert(admin.ownerStats.some((row) => row.ownerName === '李沙沙' && row.submittedOrders === 1));
 
   const records = await listCommissionRecords();
   assert.strictEqual(records.length, 2);

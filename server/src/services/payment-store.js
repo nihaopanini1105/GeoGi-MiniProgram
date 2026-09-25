@@ -43,6 +43,8 @@ function canonicalOrder(order) {
   row.sourceToken = String(row.sourceToken || '').trim().slice(0, 40);
   row.sourceName = String(row.sourceName || '').trim().slice(0, 160);
   row.sourceType = String(row.sourceType || '').trim().slice(0, 40);
+  row.sourceOwnerName = String(row.sourceOwnerName || '').trim().slice(0, 120);
+  row.sourceOwnerPhone = String(row.sourceOwnerPhone || '').trim().slice(0, 40);
   row.sourceCapturedAt = String(row.sourceCapturedAt || '').trim().slice(0, 80);
   row.channelId = String(row.channelId || '').trim().slice(0, 120);
   row.channelName = String(row.channelName || '').trim().slice(0, 120);
@@ -153,6 +155,8 @@ async function createOrGetPaymentOrder(input) {
     sourceToken: input.sourceToken,
     sourceName: input.sourceName,
     sourceType: input.sourceType,
+    sourceOwnerName: input.sourceOwnerName,
+    sourceOwnerPhone: input.sourceOwnerPhone,
     sourceCapturedAt: input.sourceCapturedAt,
     channelId: input.channelId,
     channelName: input.channelName,
@@ -189,6 +193,8 @@ async function updatePaymentOrder(outTradeNo, patch) {
     sourceToken: existing.sourceToken,
     sourceName: existing.sourceName,
     sourceType: existing.sourceType,
+    sourceOwnerName: existing.sourceOwnerName,
+    sourceOwnerPhone: existing.sourceOwnerPhone,
     sourceCapturedAt: existing.sourceCapturedAt,
     channelId: existing.channelId,
     channelName: existing.channelName,
