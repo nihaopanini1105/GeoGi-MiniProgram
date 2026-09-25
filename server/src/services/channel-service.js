@@ -9,7 +9,6 @@ const {
   upsertChannel,
   upsertSource,
   resolveSourceToken,
-  quoteRedeemCode,
   recordSourceVisit,
   listSourceVisits,
   listCommissionRecords,
@@ -68,23 +67,6 @@ async function resolveAttribution(token, visitorId = '') {
   };
 }
 
-async function quoteCustomerRedeemCode(code) {
-  const quote = await quoteRedeemCode(code);
-  return {
-    ok: true,
-    applied: true,
-    redeemCode: quote.redeemCode,
-    listPriceFen: quote.listPriceFen,
-    listPriceYuan: yuan(quote.listPriceFen),
-    discountFen: quote.discountFen,
-    discountYuan: yuan(quote.discountFen),
-    payableFen: quote.payableFen,
-    payableYuan: yuan(quote.payableFen),
-    discountType: quote.discountType,
-    discountRateBps: quote.discountRateBps
-  };
-}
-
 async function channelDashboardForPhone(phoneNumber) {
   const phone = String(phoneNumber || '').trim();
   if (!phone) return { ok: true, isChannel: false, channels: [], monthly: [], recentOrders: [] };
@@ -104,10 +86,7 @@ async function channelDashboardForPhone(phoneNumber) {
     const channelSources = sources.filter((source) => source.channelId === channel.channelId);
     const sourceIds = new Set(channelSources.map((source) => source.sourceId));
     const sourceOrders = orders.filter((order) => sourceIds.has(order.sourceId));
-    const redeemedOrders = orders.filter((order) => order.channelId === channel.channelId && order.redeemCode);
-    const relatedByProject = new Map();
-    for (const order of sourceOrders.concat(redeemedOrders)) relatedByProject.set(order.projectId, order);
-    const relatedOrders = [...relatedByProject.values()];
+    const relatedOrders = sourceOrders;
     const commissionRows = commissions.filter((item) => item.channelId === channel.channelId);
     const shareSource = channelSources.find((source) => source.sourceType === 'channel' && source.notes === 'auto_channel_share')
       || channelSources.find((source) => source.sourceType === 'channel')
@@ -118,7 +97,6 @@ async function channelDashboardForPhone(phoneNumber) {
       channelSources,
       sourceIds,
       sourceOrders,
-      redeemedOrders,
       relatedOrders,
       commissionRows,
       shareSource,
@@ -134,7 +112,6 @@ async function channelDashboardForPhone(phoneNumber) {
     return {
       channelId: channel.channelId,
       name: channel.name,
-      redeemCode: channel.redeemCode || '',
       active: channel.active,
       commissionRateBps: channel.commissionRateBps,
       startsAt: channel.startsAt,
@@ -192,7 +169,6 @@ async function channelDashboardForPhone(phoneNumber) {
       brandName: order.brandName,
       channelId: order.channelId,
       channelName: order.channelName,
-      redeemCode: order.redeemCode || '',
       sourceName: order.sourceName || '',
       sourceType: order.sourceType || '',
       listPriceYuan: yuan(order.listPriceFen || BASE_PRICE_FEN),
@@ -427,7 +403,6 @@ async function generateSourceMiniProgramCode(sourceId, options = {}) {
 
 module.exports = {
   resolveAttribution,
-  quoteCustomerRedeemCode,
   channelDashboardForPhone,
   channelAdminDashboard,
   upsertChannel,
