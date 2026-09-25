@@ -52,7 +52,7 @@ jobs:
       - name: Source attribution and commission regression
         run: |
           cd server
-          node tests/channel_redemption_commission_regression.js
+          node tests/channel_attribution_commission_regression.js
           node tests/channel_store_concurrency_regression.js
 
       - name: Customer portal regressions
