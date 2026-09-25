@@ -175,7 +175,11 @@ Page({
       channels: (result.channels || []).map((item) => {
         return {
           ...item,
-          redeemCode: String(item.redeemCode || ''),
+          discountText: item.discountType === 'free'
+            ? '本次诊断免费'
+            : (Number(item.discountRateBps || 10000) >= 10000
+              ? '标准价'
+              : (Number(item.discountRateBps || 10000) / 1000).toFixed(1).replace(/\.0$/, '') + ' 折'),
           commissionText: Number(item.commissionRateBps || 0) > 0
             ? (Number(item.commissionRateBps || 0) / 100).toFixed(0) + '%'
             : '无返佣',
