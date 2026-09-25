@@ -26,6 +26,7 @@ async function run() {
     markProjectReportReleased
   } = require('../src/services/payment-store');
   const {
+    resolveAttribution,
     channelDashboardForPhone,
     channelAdminDashboard,
     sourceCodeFileName,
@@ -215,6 +216,8 @@ async function run() {
   assert.strictEqual(lishashaQuote.sourceOwnerPhone, '13500135000');
   assert.strictEqual(lishashaQuote.channelId, '');
   assert.strictEqual(lishashaQuote.payableFen, 19900);
+  const publicLishasha = await resolveAttribution(lishashaCard.token, 'public-visitor');
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(publicLishasha, 'sourceOwnerPhone'), false);
   await recordSourceVisit({ attribution: lishashaQuote, visitorId: 'visitor-lishasha', capturedAt: '2026-09-24T03:00:00Z' });
   const ownerOrder = await createOrGetPaymentOrder({
     clientId: 'GG-OWNER-1',
