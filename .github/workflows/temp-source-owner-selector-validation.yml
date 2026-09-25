@@ -1,0 +1,24 @@
+name: Temporary Source Owner Selector Validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax
+        run: node --check os-validation/operations_business_ui.js
+      - name: Source owner selector contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "const users=(data.users||[]).filter(x=>String(x.phoneNumber||'').trim())" os-validation/operations_business_ui.js
+          grep -F '个人名片建议绑定对应小程序用户' os-validation/operations_business_ui.js
+          grep -F 'input[name="owner_phone"]:checked' os-validation/operations_business_ui.js
+          grep -F '适用于官网、公众号等不属于具体个人的来源' os-validation/operations_business_ui.js
