@@ -46,7 +46,6 @@ function canonicalOrder(order) {
   row.sourceCapturedAt = String(row.sourceCapturedAt || '').trim().slice(0, 80);
   row.channelId = String(row.channelId || '').trim().slice(0, 120);
   row.channelName = String(row.channelName || '').trim().slice(0, 120);
-  row.redeemCode = String(row.redeemCode || '').trim().replace(/\s+/g, '').toUpperCase().slice(0, 40);
   row.discountType = String(row.discountType || '').trim().slice(0, 20);
   row.discountRateBps = Number(row.discountRateBps || 0);
   row.commissionRateBps = Number(row.commissionRateBps || 0);
@@ -157,7 +156,6 @@ async function createOrGetPaymentOrder(input) {
     sourceCapturedAt: input.sourceCapturedAt,
     channelId: input.channelId,
     channelName: input.channelName,
-    redeemCode: input.redeemCode,
     discountType: input.discountType,
     discountRateBps: Number(input.discountRateBps || 0),
     discountFen: Math.max(0, PRODUCT_PRICE_FEN - amountTotal),
@@ -194,7 +192,6 @@ async function updatePaymentOrder(outTradeNo, patch) {
     sourceCapturedAt: existing.sourceCapturedAt,
     channelId: existing.channelId,
     channelName: existing.channelName,
-    redeemCode: existing.redeemCode,
     discountType: existing.discountType,
     discountRateBps: existing.discountRateBps,
     discountFen: existing.discountFen,
@@ -250,7 +247,6 @@ function publicPaymentView(order) {
     sourceType: order.sourceType || '',
     channelId: order.channelId || '',
     channelName: order.channelName || '',
-    redeemCode: order.redeemCode || '',
     discountType: order.discountType || '',
     discountRateBps: Number(order.discountRateBps || 0),
     currency: order.currency,
