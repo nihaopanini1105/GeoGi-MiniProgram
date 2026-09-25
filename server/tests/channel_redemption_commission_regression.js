@@ -263,7 +263,8 @@ async function run() {
   assert.strictEqual(shouldReplaceAttribution(channelAttribution, channelBAttribution), false);
   assert.strictEqual(
     shouldReplaceAttribution({ ...channelAttribution, channelBenefitActive: false }, channelBAttribution),
-    true
+    false,
+    'an existing attributed channel remains locked until the order attribution is cleared'
   );
 
   const attributionSource = fs.readFileSync(path.join(__dirname, '../../utils/attribution.js'), 'utf8');
