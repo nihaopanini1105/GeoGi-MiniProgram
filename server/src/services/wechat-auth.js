@@ -1,5 +1,6 @@
 const https = require('https');
 const { createCustomerToken } = require('./customer-session');
+const { recordPhoneAuthorization } = require('./miniprogram-user-store');
 
 async function getPhoneNumber({ code }) {
   const cleanCode = String(code || '').trim();
@@ -32,6 +33,12 @@ async function getPhoneNumber({ code }) {
     const info = phoneResult.phone_info || {};
     const phoneNumber = info.phoneNumber || '';
     if (!phoneNumber) return fail('微信未返回可用手机号');
+    await recordPhoneAuthorization({
+      phoneNumber,
+      purePhoneNumber: info.purePhoneNumber || phoneNumber,
+      countryCode: info.countryCode || '',
+      authorizedAt: new Date().toISOString()
+    });
     const session = createCustomerToken(phoneNumber);
     return {
       ok: true,

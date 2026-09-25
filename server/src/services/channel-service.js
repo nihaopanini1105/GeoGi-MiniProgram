@@ -7,8 +7,8 @@ const {
   listSources,
   ensureDefaultOfficialSources,
   ensureOfficialDistributionSources,
-  upsertChannel,
-  upsertSource,
+  upsertChannel: storeUpsertChannel,
+  upsertSource: storeUpsertSource,
   resolveSourceToken,
   recordSourceVisit,
   listSourceVisits,
@@ -17,6 +17,27 @@ const {
   settleChannelPeriod
 } = require('./channel-store');
 const { listPaymentOrders } = require('./payment-store');
+const { verifiedUserOptions, requireVerifiedPhone } = require('./miniprogram-user-service');
+
+async function upsertChannel(input = {}) {
+  if (input.ownerPhones !== undefined) {
+    const phones = [...new Set((Array.isArray(input.ownerPhones) ? input.ownerPhones : [])
+      .map((value) => String(value || '').trim())
+      .filter(Boolean))];
+    for (const phone of phones) await requireVerifiedPhone(phone);
+  }
+  return storeUpsertChannel(input);
+}
+
+async function upsertSource(input = {}) {
+  const next = { ...(input || {}) };
+  if (next.ownerPhone !== undefined && String(next.ownerPhone || '').trim()) {
+    const user = await requireVerifiedPhone(next.ownerPhone);
+    next.ownerPhone = user.phoneNumber;
+    next.ownerName = String(user.displayName || next.ownerName || '').trim();
+  }
+  return storeUpsertSource(next);
+}
 
 function yuan(fen) { return Number(fen || 0) / 100; }
 function percentFromBps(value) { return Number(value || 0) / 100; }
@@ -77,7 +98,8 @@ async function channelDashboardForPhone(phoneNumber) {
     listSources(),
     listSourceVisits(),
     listPaymentOrders(),
-    listCommissionRecords()
+    listCommissionRecords(),
+    verifiedUserOptions()
   ]);
   const owned = channels.filter((channel) => Array.isArray(channel.ownerPhones) && channel.ownerPhones.includes(phone));
   const ownedSources = sources.filter((source) => String(source.ownerPhone || '') === phone);
@@ -274,7 +296,7 @@ function buildSourceOwnerStats(sources, visits, orders) {
 
 async function channelAdminDashboard() {
   await ensureOfficialDistributionSources();
-  const [channels, sources, visits, orders, commissions] = await Promise.all([
+  const [channels, sources, visits, orders, commissions, userOptions] = await Promise.all([
     listChannels(),
     listSources(),
     listSourceVisits(),
@@ -329,6 +351,7 @@ async function channelAdminDashboard() {
         refundedYuan: yuan(order.refundedAmount || 0)
       })),
     commissions,
+    userOptions,
     ownerStats: buildSourceOwnerStats(sourceRows, visits, orders),
     monthly: buildAdminMonthly(channelRows, orders, commissions)
   };
