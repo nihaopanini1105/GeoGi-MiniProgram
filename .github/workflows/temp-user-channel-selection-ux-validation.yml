@@ -1,0 +1,26 @@
+name: Temporary User Channel Selection UX Validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax
+        run: node --check os-validation/operations_business_ui.js
+      - name: Selection contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'refreshVerifiedUserOptions' os-validation/operations_business_ui.js
+          grep -F '负责人选项每次打开都会实时读取' os-validation/operations_business_ui.js
+          grep -F 'input[name="channel_ids"]:checked' os-validation/operations_business_ui.js
+          grep -F 'input[name="owner_phones"]:checked' os-validation/operations_business_ui.js
+          grep -F '搜索姓名 / 手机号' os-validation/operations_business_ui.js
+          grep -F '勾选即关联，取消勾选即解除' os-validation/operations_business_ui.js
