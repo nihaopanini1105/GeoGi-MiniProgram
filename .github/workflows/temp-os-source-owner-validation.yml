@@ -1,0 +1,32 @@
+name: Temporary OS Source Owner Validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-os:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout GeoGi OS source-owner branch
+        uses: actions/checkout@v4
+        with:
+          repository: nihaopanini1105/GeoGi-OS
+          ref: feat/source-owner-attribution
+          path: os
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest reportlab pillow "psycopg[binary]"
+      - name: Run channel source-owner regression
+        working-directory: os
+        run: python -m pytest tests/business/test_channel_redemption_commission_admin.py -q
+      - name: Run full system audit
+        working-directory: os
+        run: bash tools/ci/v1_3_system_audit_gate.sh
