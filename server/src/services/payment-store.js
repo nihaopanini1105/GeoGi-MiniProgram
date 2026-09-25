@@ -226,8 +226,10 @@ async function markProjectReportReleased(projectId, releasedAt) {
 function maskContact(value) {
   const text = String(value || '').trim();
   if (!text) return '';
-  if (/^1\d{10}$/.test(text)) return text.slice(0, 3) + '****' + text.slice(-4);
-  return text.length > 5 ? text.slice(0, 2) + '***' + text.slice(-2) : '***';
+  const compact = text.replace(/[\s\-()]/g, '');
+  if (/^1\d{10}$/.test(compact)) return compact.slice(0, 3) + '****' + compact.slice(-4);
+  if (/^\+?\d{7,15}$/.test(compact)) return compact.slice(0, 3) + '****' + compact.slice(-4);
+  return '历史记录未关联手机号';
 }
 
 function publicPaymentView(order) {

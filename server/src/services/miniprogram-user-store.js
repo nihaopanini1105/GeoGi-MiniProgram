@@ -58,13 +58,19 @@ function clean(value, max = 200) {
 }
 
 function normalizePhone(value) {
-  const raw = clean(value, 40).replace(/[\s-]/g, '');
+  const raw = clean(value, 40).replace(/[\s\-()]/g, '');
   return raw;
+}
+
+function isValidPhoneNumber(value) {
+  const phone = normalizePhone(value);
+  return /^\+?\d{7,15}$/.test(phone);
 }
 
 function userIdForPhone(phoneNumber) {
   const phone = normalizePhone(phoneNumber);
   if (!phone) throw new Error('MINIPROGRAM_USER_PHONE_REQUIRED');
+  if (!isValidPhoneNumber(phone)) throw new Error('MINIPROGRAM_USER_PHONE_INVALID');
   return 'mpu_' + crypto.createHash('sha256').update(phone, 'utf8').digest('hex').slice(0, 20);
 }
 
@@ -88,12 +94,14 @@ function publicAdminUser(row) {
 }
 
 async function listMiniProgramUsers() {
-  return (await readUsers()).map(publicAdminUser);
+  return (await readUsers())
+    .filter((row) => isValidPhoneNumber(row && row.phoneNumber))
+    .map(publicAdminUser);
 }
 
 async function findMiniProgramUserByPhone(phoneNumber) {
   const phone = normalizePhone(phoneNumber);
-  if (!phone) return null;
+  if (!phone || !isValidPhoneNumber(phone)) return null;
   const rows = await readUsers();
   const row = rows.find((item) => normalizePhone(item.phoneNumber) === phone);
   return row ? publicAdminUser(row) : null;
@@ -103,7 +111,7 @@ async function findMiniProgramUserById(userId) {
   const id = clean(userId, 80);
   if (!id) return null;
   const rows = await readUsers();
-  const row = rows.find((item) => item.userId === id);
+  const row = rows.find((item) => item.userId === id && isValidPhoneNumber(item.phoneNumber));
   return row ? publicAdminUser(row) : null;
 }
 
@@ -116,6 +124,7 @@ async function recordPhoneAuthorization({
 } = {}) {
   const phone = normalizePhone(phoneNumber);
   if (!phone) throw new Error('MINIPROGRAM_USER_PHONE_REQUIRED');
+  if (!isValidPhoneNumber(phone)) throw new Error('MINIPROGRAM_USER_PHONE_INVALID');
   const at = clean(authorizedAt, 80) || new Date().toISOString();
   const id = userIdForPhone(phone);
   return mutateUsers(async (current) => {
@@ -151,7 +160,7 @@ async function ensureHistoricalAuthorizedUser({
   displayName = ''
 } = {}) {
   const phone = normalizePhone(phoneNumber);
-  if (!phone) return null;
+  if (!phone || !isValidPhoneNumber(phone)) return null;
   const existing = await findMiniProgramUserByPhone(phone);
   if (existing) return existing;
   const created = await recordPhoneAuthorization({
@@ -195,6 +204,7 @@ module.exports = {
   USER_TYPES,
   userIdForPhone,
   normalizePhone,
+  isValidPhoneNumber,
   listMiniProgramUsers,
   findMiniProgramUserByPhone,
   findMiniProgramUserById,

@@ -4,7 +4,8 @@ const {
   findMiniProgramUserByPhone,
   ensureHistoricalAuthorizedUser,
   updateMiniProgramUser,
-  normalizePhone
+  normalizePhone,
+  isValidPhoneNumber
 } = require('./miniprogram-user-store');
 const {
   listChannels,
@@ -25,7 +26,7 @@ async function ensureHistoricalUsersFromOrders(orders) {
   const byPhone = new Map();
   for (const order of orders || []) {
     const phone = normalizePhone(order && order.phoneNumber);
-    if (!phone) continue;
+    if (!phone || !isValidPhoneNumber(phone)) continue;
     const createdAt = String(order.createdAt || '');
     const current = byPhone.get(phone);
     if (!current || createdAt < current.createdAt) {
