@@ -217,6 +217,8 @@ async function ensureOrder({ clientId, projectId, phoneNumber }) {
     sourceToken: existing && existing.sourceToken,
     sourceName: existing && existing.sourceName,
     sourceType: existing && existing.sourceType,
+    sourceOwnerName: existing && existing.sourceOwnerName,
+    sourceOwnerPhone: existing && existing.sourceOwnerPhone,
     sourceCapturedAt: existing && existing.sourceCapturedAt,
     channelId: existing && existing.channelId,
     channelName: existing && existing.channelName,
