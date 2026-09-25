@@ -53,8 +53,6 @@ async function resolveAttribution(token, visitorId = '') {
     sourceName: attribution.sourceName,
     sourceType: attribution.sourceType,
     sourceTypeLabel: sourceTypeLabel(attribution.sourceType),
-    sourceOwnerName: attribution.sourceOwnerName || '',
-    sourceOwnerPhone: attribution.sourceOwnerPhone || '',
     sourceActive: attribution.sourceActive,
     channelId: attribution.channelId,
     channelName: attribution.channelName,
