@@ -1,4 +1,5 @@
 const { get, post, uploadFile, isApiConfigured } = require('../../utils/request');
+const { API_BASE_URL } = require('../../config/api');
 
 Page({
   data: {
@@ -233,10 +234,22 @@ Page({
   refresh() { this.loadReport(); },
   goContact() { wx.navigateTo({ url: '/pages/contact/contact' }); },
 
-  openPdf() {
+  async openPdf() {
     const report = this.data.report || {};
     if (report.artifactType === 'h5' || report.artifactMimeType === 'text/html') {
-      wx.showModal({title:'H5 报告即将开放',content:'当前报告需要安全身份验证后通过网页阅读。为保护企业数据，尚未配置受控阅读地址时不能公开打开 HTML 文件。',showCancel:false});
+      try {
+        wx.showLoading({ title: '验证报告权限' });
+        const result = await post('/api/customer/reports/' + encodeURIComponent(this.data.projectId) + '/h5-ticket', { clientId: this.data.clientId });
+        wx.hideLoading();
+        if (!result || !result.ok || !/^\/api\/customer\/h5-reader\/[0-9a-f]{64}$/.test(result.readerPath || '')) {
+          throw new Error('未获得有效的 H5 阅读授权');
+        }
+        const src = API_BASE_URL + result.readerPath;
+        wx.navigateTo({ url: '/pages/h5-report/h5-report?src=' + encodeURIComponent(src) });
+      } catch (error) {
+        wx.hideLoading();
+        wx.showToast({ title: error && error.message ? error.message : '报告暂不可用', icon: 'none' });
+      }
       return;
     }
     const url = report.reportLink;
