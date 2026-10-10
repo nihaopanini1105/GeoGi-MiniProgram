@@ -101,6 +101,24 @@ async function run() {
 
   const valid = buildValidPackage();
   validateDeliveryPackage(valid);
+  const htmlArtifact = buildValidPackage();
+  htmlArtifact.artifacts[0].artifact_type = 'h5';
+  htmlArtifact.artifacts[0].mime_type = 'text/html';
+  htmlArtifact.artifacts[0].file_name = 'report.html';
+  rehash(htmlArtifact);
+  validateDeliveryPackage(htmlArtifact);
+  const disguised = buildValidPackage();
+  disguised.artifacts[0].artifact_type = 'h5';
+  rehash(disguised);
+  expectCode(() => validateDeliveryPackage(disguised), 'DELIVERY_ARTIFACT_TYPE_INVALID');
+  const illegalOutcome = buildValidPackage();
+  illegalOutcome.delivery_purpose = 'final_outcome_report';
+  illegalOutcome.release_authority = 'm09_e2c_final_release';
+  illegalOutcome.artifacts[0].artifact_type = 'h5';
+  illegalOutcome.artifacts[0].mime_type = 'text/html';
+  illegalOutcome.artifacts[0].file_name = 'report.html';
+  rehash(illegalOutcome);
+  expectCode(() => validateDeliveryPackage(illegalOutcome), 'DELIVERY_ARTIFACT_TYPE_INVALID');
   assert.strictEqual(valid.version_pins.release_record_version, '1.0.0');
   assert(!Object.prototype.hasOwnProperty.call(valid.version_pins, 'report_delivery_record_version'));
 
