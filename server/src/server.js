@@ -47,6 +47,7 @@ const {
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
 const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
+const { issueH5Ticket, consumeH5Ticket, readVerifiedH5Artifact } = require('./services/h5-reader-ticket');
 const {
   OperationsBridgeError,
   configured: osBridgeConfigured,
@@ -67,6 +68,16 @@ app.use(express.json({
     req.rawBody = Buffer.from(buffer || '');
   }
 }));
+// H5 customer reports are private; never serve HTML artifacts from public uploads.
+app.use('/uploads', (req, res, next) => {
+  let name;
+  try { name = decodeURIComponent(String(req.path || '')).toLowerCase(); }
+  catch (_) { return res.status(400).json({ ok: false, userMessage: '文件地址无效' }); }
+  if (name.endsWith('.html') || name.endsWith('.htm')) {
+    return res.status(404).json({ ok: false, userMessage: '文件不可公开访问' });
+  }
+  return next();
+});
 app.use('/uploads', express.static(getUploadRoot()));
 app.use('/source-codes', express.static(sourceCodeRoot()));
 
@@ -169,6 +180,46 @@ app.get('/api/customer/reports/:projectId', requireCustomerSession, async (req, 
   return res.status(result.ok ? 200 : 404).json(result);
 });
 
+// Tickets are issued only after the existing phone ownership and payment/release checks.
+app.post('/api/customer/reports/:projectId/h5-ticket', requireCustomerSession, async (req, res) => {
+  try {
+    const clientId = await resolveOwnedClientId({
+      phoneNumber: req.customerSession.phoneNumber,
+      requestedClientId: req.body && req.body.clientId
+    });
+    if (!clientId) return res.status(404).json({ ok: false, userMessage: '无权查看该报告' });
+    const result = await getCustomerReport({ clientId, projectId: req.params.projectId });
+    const report = result && result.report;
+    if (!result.ok || !report || report.reportReady !== true || report.artifactType !== 'h5' || report.artifactMimeType !== 'text/html') {
+      return res.status(404).json({ ok: false, userMessage: '没有已发布的 H5 报告' });
+    }
+    const token = issueH5Ticket({ clientId, projectId: req.params.projectId, sha256: report.artifactSha256, fileName: report.artifactFileName });
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ ok: true, readerPath: '/api/customer/h5-reader/' + token, expiresInSeconds: 60 });
+  } catch (error) {
+    return res.status(503).json({ ok: false, userMessage: '报告阅读暂不可用，请稍后重试' });
+  }
+});
+
+app.get('/api/customer/h5-reader/:ticket', async (req, res) => {
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
+  try {
+    const ticket = consumeH5Ticket(req.params.ticket);
+    const result = await getCustomerReport({ clientId: ticket.clientId, projectId: ticket.projectId });
+    const report = result && result.report;
+    if (!result.ok || !report || !report.reportReady || report.artifactType !== 'h5' || report.artifactMimeType !== 'text/html'
+        || report.artifactSha256 !== ticket.sha256 || report.artifactFileName !== ticket.fileName) {
+      return res.status(404).type('text/plain').send('报告已失效或无法访问');
+    }
+    const bytes = readVerifiedH5Artifact(getUploadRoot(), ticket.fileName, ticket.sha256);
+    return res.status(200).type('html').send(bytes);
+  } catch (error) {
+    return res.status(404).type('text/plain').send('报告链接无效，请从小程序重新打开');
+  }
+});
 app.post('/api/customer/projects/:projectId/supplement', requireCustomerSession, async (req, res) => {
   const requestedClientId = req.body && req.body.clientId;
   const clientId = await resolveOwnedClientId({

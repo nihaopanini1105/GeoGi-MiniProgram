@@ -135,7 +135,7 @@ async function run() {
   assert.strictEqual(dashboardA.channels.length, 1);
   assert.strictEqual(dashboardA.channels[0].shareSourceToken, channelA.shareSource.token);
   assert.strictEqual(dashboardA.channels[0].pendingCommissionYuan, 15.92);
-  assert.strictEqual(dashboardA.monthly.find((row) => row.period === '2026-09').completedReports, 1);
+  assert.strictEqual(dashboardA.monthly.find((row) => row.period === String(aOrderResult.order.createdAt).slice(0, 7)).completedReports, 1);
 
   const settled = await settleChannelPeriod({
     channelId: channelA.channelId,

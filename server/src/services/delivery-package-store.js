@@ -140,6 +140,12 @@ function validateDeliveryPackage(packageDocument) {
   for (const key of ['artifact_id', 'artifact_type', 'mime_type', 'file_name', 'render_version', 'uri']) {
     requiredString(artifact, key, 'DELIVERY_ARTIFACT_INVALID');
   }
+  const mime = String(artifact.mime_type || '');
+  const kind = String(artifact.artifact_type || '');
+  const filename = String(artifact.file_name || '');
+  const pdf = mime === 'application/pdf' && kind === 'pdf' && filename.endsWith('.pdf');
+  const h5 = mime === 'text/html' && kind === 'h5' && filename.endsWith('.html') && packageDocument.delivery_purpose === 'baseline_diagnostic_report';
+  if (!pdf && !h5) throw new DeliveryPackageError('DELIVERY_ARTIFACT_TYPE_INVALID');
   if (!/^[0-9a-f]{64}$/.test(String(artifact.sha256 || ''))) {
     throw new DeliveryPackageError('DELIVERY_ARTIFACT_HASH_INVALID');
   }
@@ -237,8 +243,10 @@ function projectDeliveryForCustomer(packageDocument, scope) {
     reportVersion: packageDocument.report_reference.report_version,
     reportContentHash: packageDocument.report_reference.content_hash,
     reportRecordHash: packageDocument.report_reference.report_record_hash,
-    reportLink: artifact.uri,
+    reportLink: artifact.artifact_type === 'h5' ? '' : artifact.uri,
     artifactId: artifact.artifact_id,
+    artifactType: artifact.artifact_type,
+    artifactFileName: artifact.file_name,
     artifactMimeType: artifact.mime_type,
     artifactSha256: artifact.sha256,
     artifactSizeBytes: artifact.size_bytes,

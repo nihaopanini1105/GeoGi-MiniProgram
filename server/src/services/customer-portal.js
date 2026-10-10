@@ -140,6 +140,8 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
     paymentStatus: payment ? payment.status : 'unpaid',
     amountYuan: payment ? payment.amountYuan : 199,
     reportLink: reportReady && deliveryView ? deliveryView.reportLink : '',
+    artifactMimeType: reportReady && deliveryView ? deliveryView.artifactMimeType : '',
+    artifactType: reportReady && deliveryView ? deliveryView.artifactType : '',
     version: reportReady ? String(deliveryPackage.report_reference.report_version) : '',
     deliveryPackageId: reportReady ? deliveryPackage.delivery_package_id : '',
     canSupplement: canCustomerSupplement(payment, reportReady),

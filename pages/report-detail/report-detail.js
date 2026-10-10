@@ -1,4 +1,5 @@
 const { get, post, uploadFile, isApiConfigured } = require('../../utils/request');
+const { API_BASE_URL } = require('../../config/api');
 
 Page({
   data: {
@@ -76,6 +77,8 @@ Page({
       status: data.status || '处理中',
       reportReady: data.reportReady === true,
       reportLink: data.reportLink || '',
+      artifactMimeType: data.artifactMimeType || '',
+      artifactType: data.artifactType || '',
       reportVersion: data.reportVersion || '',
       releasedAt: this.formatDisplayTime(data.releasedAt),
       deliveryPackageId: data.deliveryPackageId || '',
@@ -231,8 +234,25 @@ Page({
   refresh() { this.loadReport(); },
   goContact() { wx.navigateTo({ url: '/pages/contact/contact' }); },
 
-  openPdf() {
-    const url = this.data.report && this.data.report.reportLink;
+  async openPdf() {
+    const report = this.data.report || {};
+    if (report.artifactType === 'h5' || report.artifactMimeType === 'text/html') {
+      try {
+        wx.showLoading({ title: '验证报告权限' });
+        const result = await post('/api/customer/reports/' + encodeURIComponent(this.data.projectId) + '/h5-ticket', { clientId: this.data.clientId });
+        wx.hideLoading();
+        if (!result || !result.ok || !/^\/api\/customer\/h5-reader\/[0-9a-f]{64}$/.test(result.readerPath || '')) {
+          throw new Error('未获得有效的 H5 阅读授权');
+        }
+        const src = API_BASE_URL + result.readerPath;
+        wx.navigateTo({ url: '/pages/h5-report/h5-report?src=' + encodeURIComponent(src) });
+      } catch (error) {
+        wx.hideLoading();
+        wx.showToast({ title: error && error.message ? error.message : '报告暂不可用', icon: 'none' });
+      }
+      return;
+    }
+    const url = report.reportLink;
     if (!url) {
       wx.showToast({ title: '正式报告尚未发布', icon: 'none' });
       return;

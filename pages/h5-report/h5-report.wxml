@@ -1,0 +1,2 @@
+<view wx:if="{{invalid}}" class="h5-error">报告链接已失效，请返回报告详情重新打开。</view>
+<web-view wx:else src="{{src}}"></web-view>
