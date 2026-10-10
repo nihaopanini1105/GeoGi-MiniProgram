@@ -76,6 +76,8 @@ Page({
       status: data.status || '处理中',
       reportReady: data.reportReady === true,
       reportLink: data.reportLink || '',
+      artifactMimeType: data.artifactMimeType || '',
+      artifactType: data.artifactType || '',
       reportVersion: data.reportVersion || '',
       releasedAt: this.formatDisplayTime(data.releasedAt),
       deliveryPackageId: data.deliveryPackageId || '',
@@ -232,7 +234,12 @@ Page({
   goContact() { wx.navigateTo({ url: '/pages/contact/contact' }); },
 
   openPdf() {
-    const url = this.data.report && this.data.report.reportLink;
+    const report = this.data.report || {};
+    if (report.artifactType === 'h5' || report.artifactMimeType === 'text/html') {
+      wx.showModal({title:'H5 报告即将开放',content:'当前报告需要安全身份验证后通过网页阅读。为保护企业数据，尚未配置受控阅读地址时不能公开打开 HTML 文件。',showCancel:false});
+      return;
+    }
+    const url = report.reportLink;
     if (!url) {
       wx.showToast({ title: '正式报告尚未发布', icon: 'none' });
       return;
