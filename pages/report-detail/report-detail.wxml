@@ -28,7 +28,7 @@
         <text wx:if="{{report.releasedAt}}">发布时间：{{report.releasedAt}}</text>
         <text wx:if="{{report.reportVersion}}">报告版本：v{{report.reportVersion}}</text>
       </view>
-      <button wx:if="{{report.reportLink}}" class="primary-button full-button pdf-button" bindtap="openPdf">打开正式诊断报告</button>
+      <button wx:if="{{report.reportReady && (report.reportLink || report.artifactType === 'h5')}}" class="primary-button full-button pdf-button" bindtap="openPdf">{{report.artifactType === 'h5' ? '阅读正式 H5 诊断报告' : '打开正式诊断报告'}}</button>
     </view>
 
     <view wx:if="{{report.reportReady}}" class="section card scope-card">
