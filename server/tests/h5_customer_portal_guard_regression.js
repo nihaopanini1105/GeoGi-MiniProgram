@@ -12,6 +12,7 @@ assert(portal.includes('artifactMimeType: reportReady && deliveryView'));
 assert(portal.includes('artifactType: reportReady && deliveryView'));
 assert(detail.includes("report.artifactType === 'h5'"));
 assert(detail.includes("report.artifactMimeType === 'text/html'"));
-assert(detail.includes('尚未配置受控阅读地址时不能公开打开 HTML 文件'));
+assert(detail.includes("'/h5-ticket'"));
+assert(detail.includes('wx.navigateTo'));
 assert.strictEqual(delivery.DELIVERY_MODE,'artifact_only');
 console.log('H5_CUSTOMER_PORTAL_TYPE_GUARD_PASS');
