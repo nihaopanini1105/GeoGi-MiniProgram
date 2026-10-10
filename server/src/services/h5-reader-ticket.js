@@ -37,6 +37,8 @@ function readVerifiedH5Artifact(root, fileName, sha256) {
   if (!/^[a-zA-Z0-9._-]{1,180}\.html$/.test(cleanName)) throw new Error('H5_ARTIFACT_INVALID');
   const file = path.resolve(root, cleanName);
   if (path.dirname(file) !== path.resolve(root)) throw new Error('H5_ARTIFACT_INVALID');
+  const entry = fs.lstatSync(file);
+  if (!entry.isFile() || entry.isSymbolicLink()) throw new Error('H5_ARTIFACT_INVALID');
   const bytes = fs.readFileSync(file);
   if (!bytes.toString('utf8', 0, 80).trimStart().toLowerCase().startsWith('<!doctype html>')) {
     throw new Error('H5_ARTIFACT_INVALID');
