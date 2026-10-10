@@ -246,6 +246,7 @@ function projectDeliveryForCustomer(packageDocument, scope) {
     reportLink: artifact.uri,
     artifactId: artifact.artifact_id,
     artifactType: artifact.artifact_type,
+    artifactFileName: artifact.file_name,
     artifactMimeType: artifact.mime_type,
     artifactSha256: artifact.sha256,
     artifactSizeBytes: artifact.size_bytes,
