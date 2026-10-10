@@ -243,7 +243,7 @@ function projectDeliveryForCustomer(packageDocument, scope) {
     reportVersion: packageDocument.report_reference.report_version,
     reportContentHash: packageDocument.report_reference.content_hash,
     reportRecordHash: packageDocument.report_reference.report_record_hash,
-    reportLink: artifact.uri,
+    reportLink: artifact.artifact_type === 'h5' ? '' : artifact.uri,
     artifactId: artifact.artifact_id,
     artifactType: artifact.artifact_type,
     artifactFileName: artifact.file_name,
