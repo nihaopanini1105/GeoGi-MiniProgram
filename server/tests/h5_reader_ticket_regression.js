@@ -17,6 +17,9 @@ assert.throws(()=>consumeH5Ticket(ticket),/H5_TICKET_INVALID/);
 assert.deepStrictEqual(readVerifiedH5Artifact(root,'report.html',sha256),payload);
 assert.throws(()=>readVerifiedH5Artifact(root,'../secret.html',sha256),/H5_ARTIFACT_INVALID/);
 assert.throws(()=>readVerifiedH5Artifact(root,'report.html','a'.repeat(64)),/H5_ARTIFACT_INTEGRITY_FAILURE/);
+const link=path.join(root,'linked.html');
+fs.symlinkSync(path.join(root,'report.html'),link);
+assert.throws(()=>readVerifiedH5Artifact(root,'linked.html',sha256),/H5_ARTIFACT_INVALID/);
 
 const backend = fs.readFileSync(path.join(__dirname,'../src/server.js'),'utf8');
 const page = fs.readFileSync(path.join(__dirname,'../../pages/report-detail/report-detail.js'),'utf8');
