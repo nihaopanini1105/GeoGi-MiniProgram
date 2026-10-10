@@ -67,6 +67,14 @@ app.use(express.json({
     req.rawBody = Buffer.from(buffer || '');
   }
 }));
+// H5 customer reports are private; never serve HTML artifacts from public uploads.
+app.use('/uploads', (req, res, next) => {
+  const name = String(req.path || '').toLowerCase();
+  if (name.endsWith('.html') || name.endsWith('.htm')) {
+    return res.status(404).json({ ok: false, userMessage: '文件不可公开访问' });
+  }
+  return next();
+});
 app.use('/uploads', express.static(getUploadRoot()));
 app.use('/source-codes', express.static(sourceCodeRoot()));
 
