@@ -81,6 +81,22 @@ async function run() {
     assert(readRevocation(p.delivery_package_id));
     assert.strictEqual(await findDeliveryPackage({clientId:p.client_id,projectId:p.project_id}),null);
     await assert.rejects(()=>importDeliveryPackage(p),/DELIVERY_REVOKED_PACKAGE_CANNOT_REPUBLISH/);
+    // Ambiguous timeout: the remote publish may arrive after compensation.
+    // A tombstone must be allowed even before any package was stored.
+    const late=fixture();
+    late.delivery_package_id='v2-late-publish';
+    delete late.package_hash;
+    late.package_hash=sha256Canonical(late);
+    const preemptive=revokeV2Package({
+      deliveryPackageId:late.delivery_package_id,
+      clientId:late.client_id,projectId:late.project_id,
+      artifactSha256:late.artifacts[0].sha256,reason:'publication_timeout'
+    });
+    assert.strictEqual(preemptive.status,'revoked');
+    await assert.rejects(()=>importDeliveryPackage(late),
+      /DELIVERY_REVOKED_PACKAGE_CANNOT_REPUBLISH/);
+    assert.strictEqual(readRevocation(late.delivery_package_id).client_id,late.client_id);
+
   } finally {fs.rmSync(dir,{recursive:true,force:true});}
 }
 
