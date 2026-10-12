@@ -19,7 +19,7 @@ async function main() {
     findDeliveryPackage, projectDeliveryForCustomer
   } = require('../src/services/delivery-package-store');
   const { revokeV2Package, getRevocation } = require('../src/services/report-v2-revocation-store');
-  const { v2Capabilities, verifyV2CustomerAccess, lookupExactV2Package } =
+  const { v2Capabilities, verifyV2CustomerAccess, revokeV2Delivery, lookupExactV2Package } =
     require('../src/services/report-v2-bridge');
   const { reportPaymentEligible } = require('../src/services/customer-portal');
 
@@ -112,7 +112,13 @@ async function main() {
     ...scope,artifact_sha256:'d'.repeat(64)
   },deps)).accessible,false);
 
-  const revoke=revokeV2Package(v2,{...scope,reason:'fixture revoke'});
+  // Disabling the V2 feature must block existing customer access instantly,
+  // yet a compensating OS revocation must remain available.
+  process.env.GEOGI_REPORT_V2_BRIDGE_ENABLED='false';
+  assert.strictEqual((await verifyV2CustomerAccess(scope,deps)).accessible,false);
+  assert.strictEqual(await findDeliveryPackage({clientId:v2.client_id,projectId:v2.project_id}),null);
+  const revoke=await revokeV2Delivery({...scope,reason:'fixture revoke while disabled'});
+  process.env.GEOGI_REPORT_V2_BRIDGE_ENABLED='true';
   assert.strictEqual(revoke.status,'revoked');
   assert.strictEqual(getRevocation(scope.delivery_package_id).artifact_sha256,scope.artifact_sha256);
   assert.strictEqual(revokeV2Package(v2,{...scope,reason:'repeat'}).idempotent,true);
@@ -120,7 +126,7 @@ async function main() {
   assert.strictEqual(await findDeliveryPackage({clientId:v2.client_id,projectId:v2.project_id}),null,
     'revocation must not fall back to older package');
   assert.throws(()=>projectDeliveryForCustomer(v2,{clientId:v2.client_id,projectId:v2.project_id}),
-    /DELIVERY_V2_REVOKED/);
+    /DELIVERY_V2_UNAVAILABLE_OR_REVOKED/);
   await assert.rejects(()=>importDeliveryPackage(v2),/DELIVERY_V2_REVOKED_CANNOT_REPUBLISH/);
   assert.deepStrictEqual(await importDeliveryPackage(v1).then(x=>x.idempotent),true);
   assert(fs.existsSync(path.join(process.env.GEOGI_DELIVERY_PACKAGE_ROOT,v2.delivery_package_id+'.json')),
