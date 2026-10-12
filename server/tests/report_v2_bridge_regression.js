@@ -104,4 +104,5 @@ async function main(){
   fs.rmSync(root,{recursive:true,force:true});
  }
 }
-main().catch(e=>{console.error(e);process.exitCode=1;});
+if (require.main === module) main().catch(e=>{console.error(e);process.exitCode=1;});
+module.exports = { packageV2 };
