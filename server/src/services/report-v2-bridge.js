@@ -39,7 +39,7 @@ async function resolveScopedPackage(body) {
   }
   return item;
 }
-async function verifyAccess(body) {
+async function verifyAccess(body, dependencies = {}) {
   const item = await resolveScopedPackage(body);
   const revoked = isRevoked(item.delivery_package_id);
   let authorized = false;
@@ -48,15 +48,15 @@ async function verifyAccess(body) {
     // Read from the same Feishu project ownership and paid-release projection
     // used by the signed-phone-session customer portal. Never trust an OS-
     // supplied client ID as proof of a customer's phone-session identity.
-    const { getCustomerReport } = require('./customer-portal');
+    const getCustomerReport = dependencies.getCustomerReport || require('./customer-portal').getCustomerReport;
     const result = await getCustomerReport({clientId:item.client_id,projectId:item.project_id});
     const view = result && result.report;
     authorized = Boolean(result && result.ok && view && view.reportReady === true &&
       view.deliveryPackageId === item.delivery_package_id &&
       view.artifactSha256 === item.artifacts[0].sha256);
     if (authorized) {
-      const { readVerifiedH5Artifact } = require('./h5-reader-ticket');
-      const { getUploadRoot } = require('./uploads');
+      const readVerifiedH5Artifact = dependencies.readVerifiedH5Artifact || require('./h5-reader-ticket').readVerifiedH5Artifact;
+      const getUploadRoot = dependencies.getUploadRoot || require('./uploads').getUploadRoot;
       try {
         readVerifiedH5Artifact(getUploadRoot(), item.artifacts[0].file_name, item.artifacts[0].sha256);
         accessible = true;
