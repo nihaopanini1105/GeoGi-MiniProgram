@@ -5,32 +5,24 @@ const { validateDeliveryPackage, listDeliveryPackages } = require('./delivery-pa
 
 const AUTHORITY = 'geo_diagnostic_html_release_v2';
 
-function statePath() {
-  return path.join(process.env.GEOGI_DELIVERY_PACKAGE_ROOT || path.join(__dirname, '../../data/delivery-packages'), 'v2-access-state.dat');
-}
-function readState() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(statePath(), 'utf8'));
-    if (!parsed || parsed.version !== 1 || typeof parsed.revoked !== 'object' || !parsed.revoked) throw Error('V2_STATE_INVALID');
-    return parsed;
-  } catch (error) {
-    if (error.code === 'ENOENT') return { version: 1, revoked: {} };
-    throw error;
-  }
-}
-function persistState(value) {
-  const target = statePath();
-  fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
-  const temporary = target + '.tmp-' + process.pid + '-' + require('crypto').randomBytes(6).toString('hex');
-  try {
-    fs.writeFileSync(temporary, JSON.stringify(value), { flag:'wx', mode: 0o600 });
-    fs.renameSync(temporary, target);
-  } finally {
-    try { fs.unlinkSync(temporary); } catch (e) { if (e.code !== 'ENOENT') throw e; }
-  }
+function revocationFile(packageId) {
+  const id = String(packageId || '');
+  if (!id) throw Error('V2_PACKAGE_ID_REQUIRED');
+  const key = require('crypto').createHash('sha256').update(id).digest('hex');
+  return path.join(process.env.GEOGI_DELIVERY_PACKAGE_ROOT || path.join(__dirname, '../../data/delivery-packages'), 'v2-revocations', key + '.revoked');
 }
 function isRevoked(id) {
-  return Boolean(readState().revoked[String(id || '')]);
+  return fs.existsSync(revocationFile(id));
+}
+function persistRevocation(id, digest, reason) {
+  const target = revocationFile(id);
+  fs.mkdirSync(path.dirname(target), { recursive:true, mode:0o700 });
+  const record = JSON.stringify({
+    delivery_package_id:id, artifact_sha256:digest, reason:reason.slice(0,500),
+    revoked_at:new Date().toISOString(),
+  });
+  try { fs.writeFileSync(target, record, { flag:'wx', mode:0o600 }); }
+  catch (error) { if (error.code !== 'EEXIST') throw error; }
 }
 async function resolveScopedPackage(body) {
   const id = String(body.delivery_package_id || '');
@@ -79,13 +71,8 @@ async function verifyAccess(body) {
 async function revoke(body) {
   const item = await resolveScopedPackage(body);
   if (!String(body.reason || '').trim()) throw Error('V2_REVOCATION_REASON_REQUIRED');
-  const state=readState();
-  state.revoked[item.delivery_package_id] = {
-    artifact_sha256: item.artifacts[0].sha256,
-    reason: String(body.reason).slice(0,500),
-    revoked_at: new Date().toISOString(),
-  };
-  persistState(state);
+  persistRevocation(item.delivery_package_id, item.artifacts[0].sha256,
+    String(body.reason).trim());
   return { status:'revoked', delivery_package_id:item.delivery_package_id };
 }
 function capabilities() {
