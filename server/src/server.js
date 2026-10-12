@@ -194,7 +194,11 @@ app.post('/api/customer/reports/:projectId/h5-ticket', requireCustomerSession, a
     if (!result.ok || !report || report.reportReady !== true || report.artifactType !== 'h5' || report.artifactMimeType !== 'text/html') {
       return res.status(404).json({ ok: false, userMessage: '没有已发布的 H5 报告' });
     }
-    const token = issueH5Ticket({ clientId, projectId: req.params.projectId, sha256: report.artifactSha256, fileName: report.artifactFileName });
+    const token = issueH5Ticket({
+      clientId, projectId: req.params.projectId,
+      deliveryPackageId: report.deliveryPackageId,
+      sha256: report.artifactSha256, fileName: report.artifactFileName
+    });
     res.setHeader('Cache-Control', 'no-store');
     return res.json({ ok: true, readerPath: '/api/customer/h5-reader/' + token, expiresInSeconds: 60 });
   } catch (error) {
@@ -212,6 +216,7 @@ app.get('/api/customer/h5-reader/:ticket', async (req, res) => {
     const result = await getCustomerReport({ clientId: ticket.clientId, projectId: ticket.projectId });
     const report = result && result.report;
     if (!result.ok || !report || !report.reportReady || report.artifactType !== 'h5' || report.artifactMimeType !== 'text/html'
+        || report.deliveryPackageId !== ticket.deliveryPackageId
         || report.artifactSha256 !== ticket.sha256 || report.artifactFileName !== ticket.fileName) {
       return res.status(404).type('text/plain').send('报告已失效或无法访问');
     }
