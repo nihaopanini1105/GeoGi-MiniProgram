@@ -229,7 +229,8 @@ async function findDeliveryPackage({ clientId, projectId }) {
   // Revoking the newest package must NOT silently resurrect a superseded one.
   const latest = matches[0];
   if (latest.release_authority === 'geo_diagnostic_html_release_v2' &&
-      getRevocation(latest.delivery_package_id)) return null;
+      (process.env.GEOGI_REPORT_V2_BRIDGE_ENABLED !== 'true' ||
+       getRevocation(latest.delivery_package_id))) return null;
   return latest;
 }
 
@@ -243,8 +244,9 @@ function assertScope(packageDocument, { clientId, projectId }) {
 function projectDeliveryForCustomer(packageDocument, scope) {
   assertScope(packageDocument, scope);
   if (packageDocument.release_authority === 'geo_diagnostic_html_release_v2' &&
-      getRevocation(packageDocument.delivery_package_id)) {
-    throw new DeliveryPackageError('DELIVERY_V2_REVOKED');
+      (process.env.GEOGI_REPORT_V2_BRIDGE_ENABLED !== 'true' ||
+       getRevocation(packageDocument.delivery_package_id))) {
+    throw new DeliveryPackageError('DELIVERY_V2_UNAVAILABLE_OR_REVOKED');
   }
   const artifact = packageDocument.artifacts[0];
   return {
