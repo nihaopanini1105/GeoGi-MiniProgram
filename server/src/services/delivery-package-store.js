@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { AUTHORITY: V2_AUTHORITY, readRevocation } = require('./report-v2-revocations');
 
 const DELIVERY_CONTRACT_VERSION = '3.0.0';
 const DELIVERY_MODE = 'artifact_only';
@@ -56,7 +57,8 @@ function validateDisplayOnlyPolicy(packageDocument) {
   }
   const purpose = String(packageDocument.delivery_purpose || '');
   const releaseAuthority = String(packageDocument.release_authority || '');
-  if (!DELIVERY_AUTHORITIES[purpose] || DELIVERY_AUTHORITIES[purpose] !== releaseAuthority) {
+  const v2 = purpose === 'baseline_diagnostic_report' && releaseAuthority === V2_AUTHORITY;
+  if (!v2 && (!DELIVERY_AUTHORITIES[purpose] || DELIVERY_AUTHORITIES[purpose] !== releaseAuthority)) {
     throw new DeliveryPackageError('DELIVERY_PURPOSE_OR_RELEASE_AUTHORITY_INVALID');
   }
   if (Object.prototype.hasOwnProperty.call(packageDocument, 'display_summary')) {
@@ -145,7 +147,9 @@ function validateDeliveryPackage(packageDocument) {
   const filename = String(artifact.file_name || '');
   const pdf = mime === 'application/pdf' && kind === 'pdf' && filename.endsWith('.pdf');
   const h5 = mime === 'text/html' && kind === 'h5' && filename.endsWith('.html') && packageDocument.delivery_purpose === 'baseline_diagnostic_report';
-  if (!pdf && !h5) throw new DeliveryPackageError('DELIVERY_ARTIFACT_TYPE_INVALID');
+  if ((!pdf && !h5) || (packageDocument.release_authority === V2_AUTHORITY && !h5)) {
+    throw new DeliveryPackageError('DELIVERY_ARTIFACT_TYPE_INVALID');
+  }
   if (!/^[0-9a-f]{64}$/.test(String(artifact.sha256 || ''))) {
     throw new DeliveryPackageError('DELIVERY_ARTIFACT_HASH_INVALID');
   }
@@ -175,6 +179,9 @@ function packagePath(packageId) {
 
 async function importDeliveryPackage(packageDocument) {
   validateDeliveryPackage(packageDocument);
+  if (packageDocument.release_authority === V2_AUTHORITY && readRevocation(packageDocument.delivery_package_id)) {
+    throw new DeliveryPackageError('DELIVERY_REVOKED_PACKAGE_CANNOT_REPUBLISH');
+  }
   const output = packagePath(packageDocument.delivery_package_id);
   await fs.promises.mkdir(path.dirname(output), { recursive: true });
   const canonical = `${canonicalStringify(packageDocument)}\n`;
@@ -212,6 +219,7 @@ async function listDeliveryPackages() {
 
 async function findDeliveryPackage({ clientId, projectId }) {
   const matches = (await listDeliveryPackages()).filter((item) => (
+    !(item.release_authority === V2_AUTHORITY && readRevocation(item.delivery_package_id)) &&
     item.client_id === String(clientId || '').trim() && item.project_id === String(projectId || '').trim()
   ));
   if (!matches.length) return null;

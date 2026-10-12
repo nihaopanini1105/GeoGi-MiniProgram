@@ -45,7 +45,8 @@ const {
   updateMiniProgramUserAdmin
 } = require('./services/miniprogram-user-service');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
-const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
+const { DELIVERY_CONTRACT_VERSION, listDeliveryPackages } = require('./services/delivery-package-store');
+const { AUTHORITY: V2_AUTHORITY, readRevocation, revokeV2Package } = require('./services/report-v2-revocations');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
 const { issueH5Ticket, consumeH5Ticket, readVerifiedH5Artifact } = require('./services/h5-reader-ticket');
 const {
@@ -494,6 +495,80 @@ app.post(
     }
   }
 );
+
+// Report V2 has an independent OS release authority and never bypasses the
+// existing customer-session / paid-diagnostic H5 reader permission checks.
+app.get('/internal/os/report-v2/capabilities', requireOsBridge, (_req, res) => {
+  res.json({ ok: true, result: {
+    release_authority: V2_AUTHORITY,
+    idempotent_upload: true, idempotent_publish: true,
+    authenticated_customer_access: true, revoke: true, rollback: true
+  } });
+});
+
+async function exactV2Package(request, { allowMissing = false } = {}) {
+  const id = String(request && request.delivery_package_id || '');
+  const clientId = String(request && request.client_id || '');
+  const projectId = String(request && request.project_id || '');
+  const sha = String(request && request.artifact_sha256 || '');
+  if (!id || !clientId || !projectId || !/^[a-f0-9]{64}$/.test(sha)) {
+    throw new Error('REPORT_V2_SCOPE_INVALID');
+  }
+  const document = (await listDeliveryPackages()).find(item =>
+    item.delivery_package_id === id && item.release_authority === V2_AUTHORITY);
+  if (!document && allowMissing) return null;
+  if (!document || document.client_id !== clientId || document.project_id !== projectId ||
+      document.artifacts?.[0]?.sha256 !== sha) throw new Error('REPORT_V2_SCOPE_MISMATCH');
+  return document;
+}
+
+app.post('/internal/os/report-v2/verify-customer-access', requireOsBridge, async (req, res, next) => {
+  try {
+    const request = req.body || {};
+    const pkg = await exactV2Package(request, { allowMissing: true });
+    const tombstone = readRevocation(request.delivery_package_id);
+    if (tombstone && (tombstone.client_id !== request.client_id ||
+        tombstone.project_id !== request.project_id ||
+        tombstone.artifact_sha256 !== request.artifact_sha256)) {
+      throw new Error('REPORT_V2_SCOPE_MISMATCH');
+    }
+    const revoked = Boolean(tombstone);
+    // Authorization here is derived from real tenant/project and paid report
+    // entitlement. Actual reading still needs a signed customer session and
+    // one-time H5 ticket; a privileged OS bearer is never a customer ticket.
+    const report = revoked || !pkg ? null : await getCustomerReport({
+      clientId: pkg.client_id, projectId: pkg.project_id
+    });
+    const view = report && report.report;
+    const authorized = Boolean(report && report.ok && view?.reportReady === true &&
+      view.deliveryPackageId === pkg.delivery_package_id &&
+      view.artifactSha256 === pkg.artifacts[0].sha256);
+    res.json({ ok: true, result: {
+      authorized, accessible: authorized && !revoked,
+      client_id: request.client_id, project_id: request.project_id,
+      delivery_package_id: request.delivery_package_id,
+      artifact_sha256: request.artifact_sha256
+    } });
+  } catch (error) { next(error); }
+});
+
+app.post('/internal/os/report-v2/revoke', requireOsBridge, async (req, res, next) => {
+  try {
+    const request = req.body || {};
+    const pkg = await exactV2Package(request, { allowMissing: true });
+    const result = revokeV2Package({
+      packageDocument: pkg, deliveryPackageId: request.delivery_package_id,
+      clientId: request.client_id, projectId: request.project_id,
+      artifactSha256: request.artifact_sha256, reason: request.reason
+    });
+    res.json({ ok: true, result: {
+      status: result.status,
+      delivery_package_id: result.delivery_package_id,
+      client_id: result.client_id, project_id: result.project_id,
+      artifact_sha256: result.artifact_sha256
+    } });
+  } catch (error) { next(error); }
+});
 
 app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, next) => {
   try {
