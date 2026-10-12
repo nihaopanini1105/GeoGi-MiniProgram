@@ -220,7 +220,10 @@ async function findDeliveryPackage({ clientId, projectId }) {
   ));
   if (!matches.length) return null;
   matches.sort((a, b) => String(b.released_at).localeCompare(String(a.released_at)));
-  return matches[0];
+  const latest = matches[0];
+  if (latest.release_authority === 'geo_diagnostic_html_release_v2' &&
+      require('./report-v2-bridge').isRevoked(latest.delivery_package_id)) return null;
+  return latest;
 }
 
 function assertScope(packageDocument, { clientId, projectId }) {
