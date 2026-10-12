@@ -7,8 +7,10 @@ const ID = /^[A-Za-z0-9_.-]{1,180}$/;
 const SHA = /^[a-f0-9]{64}$/;
 
 function stateRoot() {
+  const packageRoot = path.resolve(process.env.GEOGI_DELIVERY_PACKAGE_ROOT ||
+    path.join(__dirname, '../../data/delivery-packages'));
   return path.resolve(process.env.GEOGI_REPORT_V2_STATE_ROOT ||
-    path.join(__dirname, '../../data/report-v2-revocations'));
+    path.join(packageRoot, '.v2-revocations'));
 }
 
 function revokedPath(packageId) {
