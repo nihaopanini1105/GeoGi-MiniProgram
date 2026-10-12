@@ -229,12 +229,19 @@ function buildCustomerResultNotifications(order = {}) {
 }
 
 function reportPaymentEligible({ payment, lead, deliveryPackage }) {
-  // V1 payment semantics remain unchanged. Pre-payment legacy exemption is
-  // only honored for V2 and never overrides a refund/revocation/closed order.
+  // Preserve V1 compatibility. V2 is fail-closed for refunded, partially
+  // refunded, refund-processing or revoked payment states even if a legacy
+  // payment helper would consider that status eligible. OS must not mark
+  // customer deliverable merely because the old helper returned true.
+  const v2 = Boolean(deliveryPackage &&
+    deliveryPackage.release_authority === 'geo_diagnostic_html_release_v2');
+  const status = String(payment && payment.status || '').trim().toLowerCase();
+  if (v2 && [
+    'refunded', 'refund_processing', 'refund_requested', 'refund_pending',
+    'partially_refunded', 'chargeback', 'charged_back', 'closed', 'payment_failed',
+  ].includes(status)) return false;
   if (isPaidForReport(payment)) return true;
-  if (!deliveryPackage || deliveryPackage.release_authority !== 'geo_diagnostic_html_release_v2') return false;
-  const status = String(payment && payment.status || '');
-  if (['refunded', 'refund_processing', 'closed', 'payment_failed', 'partially_refunded'].includes(status)) return false;
+  if (!v2) return false;
   const submittedAt = text(lead && lead.fields && lead.fields.提交时间);
   return legacyPaymentExemption(submittedAt).eligible === true;
 }
