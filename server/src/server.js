@@ -46,6 +46,7 @@ const {
 } = require('./services/miniprogram-user-service');
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
 const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
+const v2Bridge = require('./services/report-v2-bridge');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
 const { issueH5Ticket, consumeH5Ticket, readVerifiedH5Artifact } = require('./services/h5-reader-ticket');
 const {
@@ -494,6 +495,25 @@ app.post(
     }
   }
 );
+
+app.get('/internal/os/report-v2/capabilities', requireOsBridge, (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  return res.json({ ok: true, result: v2Bridge.capabilities() });
+});
+
+app.post('/internal/os/report-v2/verify-customer-access', requireOsBridge, async (req, res, next) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ ok: true, result: await v2Bridge.verifyAccess(req.body || {}) });
+  } catch (error) { next(error); }
+});
+
+app.post('/internal/os/report-v2/revoke', requireOsBridge, async (req, res, next) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ ok: true, result: await v2Bridge.revoke(req.body || {}) });
+  } catch (error) { next(error); }
+});
 
 app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, next) => {
   try {
