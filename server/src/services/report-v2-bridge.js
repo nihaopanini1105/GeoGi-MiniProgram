@@ -6,7 +6,7 @@ const { validateDeliveryPackage, listDeliveryPackages } = require('./delivery-pa
 const AUTHORITY = 'geo_diagnostic_html_release_v2';
 
 function statePath() {
-  return path.join(process.env.GEOGI_DELIVERY_PACKAGE_ROOT || path.join(__dirname, '../../data/delivery-packages'), 'v2-access-state.json');
+  return path.join(process.env.GEOGI_DELIVERY_PACKAGE_ROOT || path.join(__dirname, '../../data/delivery-packages'), 'v2-access-state.dat');
 }
 function readState() {
   try {
