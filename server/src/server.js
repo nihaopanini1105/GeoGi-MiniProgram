@@ -48,6 +48,7 @@ const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services
 const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
 const { issueH5Ticket, consumeH5Ticket, readVerifiedH5Artifact } = require('./services/h5-reader-ticket');
+const { v2Capabilities, verifyV2CustomerAccess, revokeV2Delivery } = require('./services/report-v2-bridge');
 const {
   OperationsBridgeError,
   configured: osBridgeConfigured,
@@ -495,6 +496,30 @@ app.post(
   }
 );
 
+app.get('/internal/os/report-v2/capabilities', requireOsBridge, (_req, res) => {
+  // Explicit flag remains false until the MiniProgram deployment and
+  // authenticated customer H5/revocation acceptance have completed.
+  return res.json({ ok: true, result: v2Capabilities() });
+});
+
+app.post('/internal/os/report-v2/verify-customer-access', requireOsBridge, async (req, res, next) => {
+  try {
+    const result = await verifyV2CustomerAccess(req.body || {});
+    return res.json({ ok: true, result });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/internal/os/report-v2/revoke', requireOsBridge, async (req, res, next) => {
+  try {
+    const result = await revokeV2Delivery(req.body || {});
+    return res.json({ ok: true, result });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, next) => {
   try {
     const result = await publishOsDeliveryPackage(req.body || {});
@@ -561,6 +586,10 @@ app.use((error, _req, res, _next) => {
   }
   if (error && error.type === 'entity.too.large') {
     return res.status(413).json({ ok: false, error: 'OS_ARTIFACT_TOO_LARGE' });
+  }
+  if (error && typeof error.code === 'string' && error.code.startsWith('V2_')) {
+    return res.status(error.code === 'V2_BRIDGE_NOT_ENABLED' ? 503 : 400)
+      .json({ ok: false, error: error.code });
   }
   if (error && typeof error.code === 'string' && error.code.startsWith('DELIVERY_')) {
     return res.status(400).json({ ok: false, error: error.code });
