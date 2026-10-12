@@ -31,29 +31,34 @@ function assertNotRevoked(packageId) {
   if (readRevocation(packageId)) throw new Error('REPORT_V2_PACKAGE_REVOKED');
 }
 
-function revokeV2Package({ packageDocument, clientId, projectId, artifactSha256, reason }) {
-  if (!packageDocument || packageDocument.release_authority !== AUTHORITY ||
-      packageDocument.client_id !== clientId ||
-      packageDocument.project_id !== projectId ||
-      packageDocument.delivery_package_id === '' ||
-      packageDocument.artifacts?.[0]?.sha256 !== artifactSha256 ||
-      !SHA.test(String(artifactSha256 || '')) || !String(reason || '').trim()) {
+function revokeV2Package({ packageDocument, deliveryPackageId, clientId, projectId, artifactSha256, reason }) {
+  const packageId = String(deliveryPackageId || packageDocument?.delivery_package_id || '');
+  if (!ID.test(packageId) || !ID.test(String(clientId || '')) ||
+      !ID.test(String(projectId || '')) ||
+      !SHA.test(String(artifactSha256 || '')) || !String(reason || '').trim() ||
+      (packageDocument && (
+        packageDocument.release_authority !== AUTHORITY ||
+        packageDocument.client_id !== clientId ||
+        packageDocument.project_id !== projectId ||
+        packageDocument.delivery_package_id !== packageId ||
+        packageDocument.artifacts?.[0]?.sha256 !== artifactSha256
+      ))) {
     throw new Error('REPORT_V2_REVOKE_SCOPE_INVALID');
   }
   const record = {
-    delivery_package_id: packageDocument.delivery_package_id,
+    delivery_package_id: packageId,
     client_id: clientId, project_id: projectId,
     artifact_sha256: artifactSha256,
     status: 'revoked', reason: String(reason).slice(0, 500),
     revoked_at: new Date().toISOString()
   };
-  const target = revokedPath(packageDocument.delivery_package_id);
+  const target = revokedPath(packageId);
   fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
   try {
     fs.writeFileSync(target, JSON.stringify(record) + '\n', { flag: 'wx', mode: 0o600 });
   } catch (error) {
     if (error.code !== 'EEXIST') throw error;
-    const prior = readRevocation(packageDocument.delivery_package_id);
+    const prior = readRevocation(packageId);
     if (!prior || prior.client_id !== clientId || prior.project_id !== projectId ||
         prior.artifact_sha256 !== artifactSha256) throw new Error('REPORT_V2_REVOKE_CONFLICT');
     return prior;
