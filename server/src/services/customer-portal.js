@@ -82,7 +82,9 @@ async function getCustomerReport({ clientId, projectId }) {
     ]);
     const order = normalizeOrder({ lead, project, deliveryPackage, payment });
 
-    if (!deliveryPackage || !reportPaymentEligible({ payment, lead, deliveryPackage })) {
+    if (!deliveryPackage ||
+        (deliveryPackage.release_authority === 'geo_diagnostic_html_release_v2' && !project) ||
+        !reportPaymentEligible({ payment, lead, deliveryPackage })) {
       return {
         ok: true,
         order,
@@ -111,7 +113,8 @@ async function getCustomerReport({ clientId, projectId }) {
 function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const leadFields = (lead && lead.fields) || {};
   const projectFields = (project && project.fields) || {};
-  const paidForReport = reportPaymentEligible({ payment, lead, deliveryPackage });
+  const paidForReport = reportPaymentEligible({ payment, lead, deliveryPackage }) &&
+    (deliveryPackage?.release_authority !== 'geo_diagnostic_html_release_v2' || Boolean(project));
   const reportReady = Boolean(deliveryPackage && paidForReport);
   const leadStatus = text(leadFields.当前状态);
   const projectStage = text(projectFields.当前阶段);
