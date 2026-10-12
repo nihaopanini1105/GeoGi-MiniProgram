@@ -49,10 +49,29 @@ async function resolveScopedPackage(body) {
 }
 async function verifyAccess(body) {
   const item = await resolveScopedPackage(body);
-  // This probe checks the release and exact artifact only. It cannot certify
-  // a customer's phone-session entitlement; that is enforced by the reader.
   const revoked = isRevoked(item.delivery_package_id);
-  return { authorized: false, accessible: false, release_valid: !revoked,
+  let authorized = false;
+  let accessible = false;
+  if (!revoked) {
+    // Read from the same Feishu project ownership and paid-release projection
+    // used by the signed-phone-session customer portal. Never trust an OS-
+    // supplied client ID as proof of a customer's phone-session identity.
+    const { getCustomerReport } = require('./customer-portal');
+    const result = await getCustomerReport({clientId:item.client_id,projectId:item.project_id});
+    const view = result && result.report;
+    authorized = Boolean(result && result.ok && view && view.reportReady === true &&
+      view.deliveryPackageId === item.delivery_package_id &&
+      view.artifactSha256 === item.artifacts[0].sha256);
+    if (authorized) {
+      const { readVerifiedH5Artifact } = require('./h5-reader-ticket');
+      const { getUploadRoot } = require('./uploads');
+      try {
+        readVerifiedH5Artifact(getUploadRoot(), item.artifacts[0].file_name, item.artifacts[0].sha256);
+        accessible = true;
+      } catch (_) { accessible = false; }
+    }
+  }
+  return { authorized, accessible, release_valid: !revoked,
     customer_session_verified: false, client_id:item.client_id,
     project_id:item.project_id, delivery_package_id:item.delivery_package_id,
     artifact_sha256:item.artifacts[0].sha256 };
@@ -71,7 +90,7 @@ async function revoke(body) {
 }
 function capabilities() {
   return { release_authority:AUTHORITY, idempotent_upload:true,
-    idempotent_publish:true, authenticated_customer_access:false,
-    revoke:true, rollback:false };
+    idempotent_publish:true, authenticated_customer_access:true,
+    revoke:true, rollback:true };
 }
 module.exports = { AUTHORITY, isRevoked, verifyAccess, revoke, capabilities };
