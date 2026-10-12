@@ -39,6 +39,14 @@ async function main(){
  process.env.GEOGI_DELIVERY_PACKAGE_ROOT=root;
  try {
   const pkg=packageV2();
+  const html=Buffer.from('<!doctype html><html lang="zh"><body>GeoGi V2</body></html>');
+  pkg.artifacts[0].sha256=crypto.createHash('sha256').update(html).digest('hex');
+  pkg.artifacts[0].size_bytes=html.length;
+  delete pkg.package_hash;
+  pkg.package_hash=store.sha256Canonical(pkg);
+  const uploadRoot=path.join(root,'uploads');
+  fs.mkdirSync(uploadRoot);
+  fs.writeFileSync(path.join(uploadRoot,pkg.artifacts[0].file_name),html);
   assert.equal(store.validateDeliveryPackage(pkg),pkg);
   assert.equal((await store.importDeliveryPackage(pkg)).imported,true);
   const args={client_id:pkg.client_id,project_id:pkg.project_id,
@@ -46,6 +54,24 @@ async function main(){
   const cap=bridge.capabilities();
   assert.equal(cap.release_authority,'geo_diagnostic_html_release_v2');
   assert.equal(bridge.isRevoked(pkg.delivery_package_id),false);
+  const reader=require('../src/services/h5-reader-ticket').readVerifiedH5Artifact;
+  const authentic={
+    getCustomerReport:async ({clientId,projectId})=>({
+      ok:clientId===pkg.client_id && projectId===pkg.project_id,
+      report:{reportReady:true,deliveryPackageId:pkg.delivery_package_id,
+        artifactSha256:pkg.artifacts[0].sha256}
+    }),
+    readVerifiedH5Artifact:reader,
+    getUploadRoot:()=>uploadRoot,
+  };
+  const good=await bridge.verifyAccess(args, authentic);
+  assert.equal(good.authorized,true);
+  assert.equal(good.accessible,true);
+  const wrong=await bridge.verifyAccess(args,{...authentic,
+    getCustomerReport:async()=>({ok:true,report:{reportReady:false}})});
+  assert.equal(wrong.authorized,false);
+  assert.equal(wrong.accessible,false);
+
   assert.equal((await store.findDeliveryPackage({clientId:pkg.client_id,projectId:pkg.project_id})).delivery_package_id,pkg.delivery_package_id);
   await assert.rejects(()=>bridge.revoke({...args,artifact_sha256:'0'.repeat(64),reason:'qa'}),/SCOPE_MISMATCH/);
   assert.equal((await bridge.revoke({...args,reason:'test revocation'})).status,'revoked');
