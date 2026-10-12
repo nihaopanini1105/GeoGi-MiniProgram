@@ -1,0 +1,39 @@
+name: GeoGi MiniProgram Protected Report V2 Bridge
+on:
+  pull_request:
+    paths:
+      - 'server/**'
+      - '.github/workflows/report-v2-protected-delivery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  v2-bridge-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install server dependencies
+        run: npm install --no-audit --no-fund
+      - name: Check guarded route syntax
+        run: |
+          node --check src/server.js
+          node --check src/services/report-v2-revocation-store.js
+          node --check src/services/report-v2-bridge.js
+          node --check src/services/delivery-package-store.js
+          node --check src/services/os-operations-bridge.js
+          node --check src/services/customer-portal.js
+      - name: Run V2 protection and existing H5/V1 boundary suites
+        run: |
+          node tests/report_v2_protected_delivery_regression.js
+          node tests/delivery_package_boundary_regression.js
+          node tests/h5_reader_ticket_regression.js
+          node tests/h5_customer_portal_guard_regression.js
+          node tests/os_operations_bridge_regression.js
+          node tests/customer_portal_status_regression.js
