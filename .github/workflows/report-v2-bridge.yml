@@ -24,6 +24,7 @@ jobs:
           node --check server/src/server.js
           node --check server/src/services/report-v2-bridge.js
           node server/tests/report_v2_bridge_regression.js
+          node server/tests/report_v2_bridge_http_regression.js
       - name: Run full MiniProgram server regression
         working-directory: server
         run: npm test
