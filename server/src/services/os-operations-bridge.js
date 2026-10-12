@@ -207,7 +207,9 @@ async function publishOsDeliveryPackage(packageDocument) {
     ? await reconcileCommission({ order: payment, releasedAt: packageDocument.released_at })
     : null;
   return {
-    ...(packageDocument.release_authority === 'geo_diagnostic_html_release_v2' ? { status: 'published' } : {}),
+    ...(packageDocument.release_authority === 'geo_diagnostic_html_release_v2'
+      ? { status: 'published', delivery_package_id: packageDocument.delivery_package_id }
+      : {}),
     imported: result.imported,
     idempotent: result.idempotent,
     deliveryPackageId: packageDocument.delivery_package_id,
