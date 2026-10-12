@@ -37,3 +37,5 @@ jobs:
           node tests/h5_customer_portal_guard_regression.js
           node tests/os_operations_bridge_regression.js
           node tests/customer_portal_status_regression.js
+      - name: Run full MiniProgram server regression suite
+        run: npm test
