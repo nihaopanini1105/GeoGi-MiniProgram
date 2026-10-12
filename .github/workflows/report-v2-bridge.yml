@@ -1,0 +1,29 @@
+name: GeoGi Report V2 Bridge
+on:
+  push:
+    branches:
+      - feat/report-v2-bridge-governed-20261012
+  pull_request:
+    paths:
+      - 'server/src/**'
+      - 'server/tests/report_v2_bridge_regression.js'
+      - '.github/workflows/report-v2-bridge.yml'
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install server dependencies
+        working-directory: server
+        run: npm install --no-audit --no-fund
+      - name: Validate V2 route syntax and bridge security
+        run: |
+          node --check server/src/server.js
+          node --check server/src/services/report-v2-bridge.js
+          node server/tests/report_v2_bridge_regression.js
+      - name: Run full MiniProgram server regression
+        working-directory: server
+        run: npm test
