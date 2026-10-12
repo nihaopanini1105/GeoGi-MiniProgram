@@ -152,7 +152,7 @@ async function revokeV2Delivery(request) {
 }
 
 module.exports = {
-  AUTHORITY, isV2Enabled, v2Capabilities, exactScope,
+  AUTHORITY, isV2Enabled, requireV2Enabled, v2Capabilities, exactScope,
   lookupExactV2Package, confirmCustomerOwnership,
   verifyV2CustomerAccess, revokeV2Delivery
 };
