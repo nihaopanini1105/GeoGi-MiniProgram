@@ -62,7 +62,7 @@ async function main(){
   pdf.artifacts[0].file_name='report.pdf';
   delete pdf.package_hash;pdf.package_hash=store.sha256Canonical(pdf);
   assert.throws(()=>store.validateDeliveryPackage(pdf),/DELIVERY_ARTIFACT_TYPE_INVALID|DELIVERY_V2_HTML_REQUIRED/);
-  assert(fs.existsSync(path.join(root,'v2-access-state.dat')));
+  assert(fs.existsSync(path.join(root,'v2-revocations',crypto.createHash('sha256').update(pkg.delivery_package_id).digest('hex')+'.revoked')));
   console.log('V2 bridge scoped revoke and customer-read fence passed');
  } finally {
   if(previous===undefined) delete process.env.GEOGI_DELIVERY_PACKAGE_ROOT;
