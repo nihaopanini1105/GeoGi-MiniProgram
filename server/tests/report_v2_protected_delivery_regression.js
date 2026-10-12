@@ -136,6 +136,17 @@ async function main() {
   assert.strictEqual(reportPaymentEligible({payment:null,lead:prePayLead,deliveryPackage:v2}),true);
   assert.strictEqual(reportPaymentEligible({payment:null,lead:prePayLead,deliveryPackage:v1}),false);
   assert.strictEqual(reportPaymentEligible({payment:{status:'refunded'},lead:prePayLead,deliveryPackage:v2}),false);
+  for (const state of ['partially_refunded','refund_processing','refund_requested',
+    'refund_pending','charged_back','chargeback','payment_failed','closed']) {
+    assert.strictEqual(
+      reportPaymentEligible({payment:{status:state},lead:prePayLead,deliveryPackage:v2}),
+      false, 'V2 access must be denied for adverse payment state '+state
+    );
+  }
+  // V1 historical semantics are a separate, frozen delivery contract.
+  assert.strictEqual(reportPaymentEligible({
+    payment:{status:'partially_refunded'},lead:prePayLead,deliveryPackage:v1
+  }), true);
   assert.strictEqual(reportPaymentEligible({
     payment:null,lead:{fields:{'提交时间':'2026-10-12T00:00:00Z'}},deliveryPackage:v2
   }),false);
