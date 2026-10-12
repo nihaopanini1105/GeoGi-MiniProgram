@@ -190,7 +190,27 @@ async function updateOsProjectStage({ projectId, stage }) {
   return { projectId, stage: String(stage).toUpperCase(), ...stageConfig };
 }
 
+function buildDeliveryAcknowledgement(packageDocument, result, commission) {
+  return {
+    ...(packageDocument.release_authority === 'geo_diagnostic_html_release_v2'
+      ? { status: 'published', delivery_package_id: packageDocument.delivery_package_id }
+      : {}),
+    imported: result.imported,
+    idempotent: result.idempotent,
+    deliveryPackageId: packageDocument.delivery_package_id,
+    projectId: packageDocument.project_id,
+    clientId: packageDocument.client_id,
+    commission
+  };
+}
+
 async function publishOsDeliveryPackage(packageDocument) {
+  if (packageDocument && packageDocument.release_authority === 'geo_diagnostic_html_release_v2') {
+    const { isRevoked } = require('./report-v2-bridge');
+    if (isRevoked(packageDocument.delivery_package_id)) {
+      throw new OperationsBridgeError('OS_BRIDGE_REVOKED_PACKAGE_REPLAY_FORBIDDEN');
+    }
+  }
   const result = await importDeliveryPackage(packageDocument);
   await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
   const payment = await markProjectReportReleased(
@@ -200,14 +220,7 @@ async function publishOsDeliveryPackage(packageDocument) {
   const commission = payment
     ? await reconcileCommission({ order: payment, releasedAt: packageDocument.released_at })
     : null;
-  return {
-    imported: result.imported,
-    idempotent: result.idempotent,
-    deliveryPackageId: packageDocument.delivery_package_id,
-    projectId: packageDocument.project_id,
-    clientId: packageDocument.client_id,
-    commission
-  };
+  return buildDeliveryAcknowledgement(packageDocument, result, commission);
 }
 
 module.exports = {
@@ -220,5 +233,6 @@ module.exports = {
   requireOsBridge,
   listOsIntakes,
   updateOsProjectStage,
-  publishOsDeliveryPackage
+  publishOsDeliveryPackage,
+  buildDeliveryAcknowledgement
 };

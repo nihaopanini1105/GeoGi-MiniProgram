@@ -56,7 +56,8 @@ function validateDisplayOnlyPolicy(packageDocument) {
   }
   const purpose = String(packageDocument.delivery_purpose || '');
   const releaseAuthority = String(packageDocument.release_authority || '');
-  if (!DELIVERY_AUTHORITIES[purpose] || DELIVERY_AUTHORITIES[purpose] !== releaseAuthority) {
+  const isV2 = purpose === 'baseline_diagnostic_report' && releaseAuthority === 'geo_diagnostic_html_release_v2';
+  if (!isV2 && (!DELIVERY_AUTHORITIES[purpose] || DELIVERY_AUTHORITIES[purpose] !== releaseAuthority)) {
     throw new DeliveryPackageError('DELIVERY_PURPOSE_OR_RELEASE_AUTHORITY_INVALID');
   }
   if (Object.prototype.hasOwnProperty.call(packageDocument, 'display_summary')) {
@@ -146,6 +147,9 @@ function validateDeliveryPackage(packageDocument) {
   const pdf = mime === 'application/pdf' && kind === 'pdf' && filename.endsWith('.pdf');
   const h5 = mime === 'text/html' && kind === 'h5' && filename.endsWith('.html') && packageDocument.delivery_purpose === 'baseline_diagnostic_report';
   if (!pdf && !h5) throw new DeliveryPackageError('DELIVERY_ARTIFACT_TYPE_INVALID');
+  if (packageDocument.release_authority === 'geo_diagnostic_html_release_v2' && !h5) {
+    throw new DeliveryPackageError('DELIVERY_V2_HTML_REQUIRED');
+  }
   if (!/^[0-9a-f]{64}$/.test(String(artifact.sha256 || ''))) {
     throw new DeliveryPackageError('DELIVERY_ARTIFACT_HASH_INVALID');
   }
@@ -216,7 +220,10 @@ async function findDeliveryPackage({ clientId, projectId }) {
   ));
   if (!matches.length) return null;
   matches.sort((a, b) => String(b.released_at).localeCompare(String(a.released_at)));
-  return matches[0];
+  const latest = matches[0];
+  if (latest.release_authority === 'geo_diagnostic_html_release_v2' &&
+      require('./report-v2-bridge').isRevoked(latest.delivery_package_id)) return null;
+  return latest;
 }
 
 function assertScope(packageDocument, { clientId, projectId }) {
