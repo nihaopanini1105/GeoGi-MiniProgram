@@ -64,8 +64,10 @@ async function main() {
     assert.strictEqual(publicHtml.status,404);
     console.log('Bridge HTTP authentication/capability/revoke/verification/public HTML denial passed');
   } finally {
-    server.kill('SIGTERM');
-    await new Promise(resolve=>server.once('exit',resolve));
+    if (server.exitCode === null && server.signalCode === null) {
+      server.kill('SIGTERM');
+      await new Promise(resolve=>server.once('exit',resolve));
+    }
     if(prev===undefined)delete process.env.GEOGI_DELIVERY_PACKAGE_ROOT;
     else process.env.GEOGI_DELIVERY_PACKAGE_ROOT=prev;
     fs.rmSync(root,{recursive:true,force:true});
