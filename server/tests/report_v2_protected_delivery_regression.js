@@ -68,6 +68,9 @@ async function main() {
 
   const v2 = pkg('delivery_package_v2_1');
   const v1 = pkg('delivery_package_v1_1', 'baseline_diagnostic_release_v1','application/pdf');
+  v1.released_at = '2026-09-01T00:00:00Z';
+  delete v1.package_hash;
+  v1.package_hash = sha256Canonical(v1);
   validateDeliveryPackage(v2);
   validateDeliveryPackage(v1);
   assert.throws(() => validateDeliveryPackage(
