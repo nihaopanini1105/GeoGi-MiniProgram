@@ -191,6 +191,12 @@ async function updateOsProjectStage({ projectId, stage }) {
 }
 
 async function publishOsDeliveryPackage(packageDocument) {
+  if (packageDocument && packageDocument.release_authority === 'geo_diagnostic_html_release_v2') {
+    // Imported V2 packages require the independently tested, explicitly
+    // enabled authenticated reader + revocation service. V1 is unchanged.
+    const { requireV2Enabled } = require('./report-v2-bridge');
+    requireV2Enabled();
+  }
   const result = await importDeliveryPackage(packageDocument);
   await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
   const payment = await markProjectReportReleased(
@@ -203,6 +209,8 @@ async function publishOsDeliveryPackage(packageDocument) {
   return {
     imported: result.imported,
     idempotent: result.idempotent,
+    status: 'published',
+    delivery_package_id: packageDocument.delivery_package_id,
     deliveryPackageId: packageDocument.delivery_package_id,
     projectId: packageDocument.project_id,
     clientId: packageDocument.client_id,
