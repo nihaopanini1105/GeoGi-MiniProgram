@@ -51,6 +51,14 @@ async function main(){
   assert.equal((await store.importDeliveryPackage(pkg)).imported,true);
   const args={client_id:pkg.client_id,project_id:pkg.project_id,
     delivery_package_id:pkg.delivery_package_id,artifact_sha256:pkg.artifacts[0].sha256};
+  const {buildDeliveryAcknowledgement} = require('../src/services/os-operations-bridge');
+  const v2Ack=buildDeliveryAcknowledgement(pkg,{imported:true,idempotent:false},null);
+  assert.equal(v2Ack.status,'published');
+  assert.equal(v2Ack.delivery_package_id,pkg.delivery_package_id);
+  const v1Ack=buildDeliveryAcknowledgement({...pkg,release_authority:'baseline_diagnostic_release_v1'},
+    {imported:true,idempotent:false},null);
+  assert.equal(v1Ack.status,undefined);
+  assert.equal(v1Ack.deliveryPackageId,pkg.delivery_package_id);
   const cap=bridge.capabilities();
   assert.equal(cap.release_authority,'geo_diagnostic_html_release_v2');
   assert.equal(bridge.isRevoked(pkg.delivery_package_id),false);
