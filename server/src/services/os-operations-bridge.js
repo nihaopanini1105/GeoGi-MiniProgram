@@ -191,6 +191,12 @@ async function updateOsProjectStage({ projectId, stage }) {
 }
 
 async function publishOsDeliveryPackage(packageDocument) {
+  if (packageDocument && packageDocument.release_authority === 'geo_diagnostic_html_release_v2') {
+    const { isRevoked } = require('./report-v2-bridge');
+    if (isRevoked(packageDocument.delivery_package_id)) {
+      throw new OperationsBridgeError('OS_BRIDGE_REVOKED_PACKAGE_REPLAY_FORBIDDEN');
+    }
+  }
   const result = await importDeliveryPackage(packageDocument);
   await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
   const payment = await markProjectReportReleased(
@@ -201,6 +207,7 @@ async function publishOsDeliveryPackage(packageDocument) {
     ? await reconcileCommission({ order: payment, releasedAt: packageDocument.released_at })
     : null;
   return {
+    ...(packageDocument.release_authority === 'geo_diagnostic_html_release_v2' ? { status: 'published' } : {}),
     imported: result.imported,
     idempotent: result.idempotent,
     deliveryPackageId: packageDocument.delivery_package_id,
