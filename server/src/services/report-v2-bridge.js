@@ -111,7 +111,6 @@ async function confirmCustomerOwnership({ clientId, projectId }) {
 }
 
 async function verifyV2CustomerAccess(request, deps = {}) {
-  requireV2Enabled();
   const scoped = exactScope(request);
   const base = {
     authorized: false, accessible: false,
@@ -120,6 +119,9 @@ async function verifyV2CustomerAccess(request, deps = {}) {
     delivery_package_id: scoped.delivery_package_id,
     artifact_sha256: scoped.artifact_sha256
   };
+  // Even with V2 disabled, the OS must be able to confirm inaccessible
+  // delivery during compensation/revocation. Never return authorization.
+  if (!isV2Enabled()) return base;
   const packageLookup = deps.packageLookup || lookupExactV2Package;
   const revokedLookup = deps.revokedLookup || getRevocation;
   const ownershipLookup = deps.ownershipLookup || confirmCustomerOwnership;
@@ -146,7 +148,8 @@ async function verifyV2CustomerAccess(request, deps = {}) {
 }
 
 async function revokeV2Delivery(request) {
-  requireV2Enabled();
+  // Emergency revoke must remain operational when V2 customer reading is
+  // disabled. The private HTTP route still requires the OS bearer secret.
   const scoped = exactScope(request);
   const pkg = await lookupExactV2Package(scoped);
   if (!pkg) {
