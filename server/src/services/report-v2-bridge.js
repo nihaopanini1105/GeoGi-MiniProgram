@@ -84,12 +84,18 @@ async function lookupExactV2Package(request) {
 
 async function confirmCustomerOwnership({ clientId, projectId }) {
   const token = await getTenantAccessToken();
-  const rows = await listBitableRecords({
-    tenantToken: token,
-    appToken: process.env.FEISHU_BASE_APP_TOKEN,
-    tableId: process.env.FEISHU_LEADS_TABLE_ID,
-    pageSize: 100
-  });
+  const [rows, projects] = await Promise.all([
+    listBitableRecords({
+      tenantToken: token, appToken: process.env.FEISHU_BASE_APP_TOKEN,
+      tableId: process.env.FEISHU_LEADS_TABLE_ID, pageSize: 100
+    }),
+    listBitableRecords({
+      tenantToken: token, appToken: process.env.FEISHU_BASE_APP_TOKEN,
+      tableId: process.env.FEISHU_PROJECTS_TABLE_ID, pageSize: 100
+    })
+  ]);
+  if (!projects.some(row => text(row.fields && row.fields.客户编号) === clientId &&
+                            text(row.fields && row.fields.项目编号) === projectId)) return false;
   const owned = rows.filter(row => (
     text(row.fields && row.fields.客户编号) === clientId &&
     text(row.fields && row.fields.项目编号) === projectId
