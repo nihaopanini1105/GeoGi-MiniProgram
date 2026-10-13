@@ -8,8 +8,10 @@ const path = require('path');
 const TTL_MS = 60 * 1000;
 const tickets = new Map();
 
-function issueH5Ticket({ clientId, projectId, sha256, fileName }) {
-  if (!clientId || !projectId || !/^[0-9a-f]{64}$/.test(String(sha256 || ''))) {
+function issueH5Ticket({ clientId, projectId, deliveryPackageId, sha256, fileName }) {
+  if (!clientId || !projectId ||
+      !/^[a-zA-Z0-9._-]{1,180}$/.test(String(deliveryPackageId || '')) ||
+      !/^[0-9a-f]{64}$/.test(String(sha256 || ''))) {
     throw new Error('H5_TICKET_SCOPE_INVALID');
   }
   if (!/^[a-zA-Z0-9._-]{1,180}\.html$/.test(String(fileName || ''))) {
@@ -17,7 +19,9 @@ function issueH5Ticket({ clientId, projectId, sha256, fileName }) {
   }
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = Date.now() + TTL_MS;
-  tickets.set(token, { clientId, projectId, sha256, fileName, expiresAt });
+  // Bind ticket to the exact immutable release package, not merely file bytes.
+  // A replacement package may reuse the same artifact SHA/file name.
+  tickets.set(token, { clientId, projectId, deliveryPackageId, sha256, fileName, expiresAt });
   // Opportunistic cleanup; never retain expired tickets indefinitely.
   for (const [key, value] of tickets) if (value.expiresAt <= Date.now()) tickets.delete(key);
   return token;
