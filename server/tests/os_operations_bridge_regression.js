@@ -7,6 +7,7 @@ const {
   PAID_DIAGNOSTIC_LAUNCH_CUTOFF,
   LEGACY_PAYMENT_EXEMPTION_REASON,
   legacyPaymentExemption,
+  projectPaymentAdmission,
   OperationsBridgeError,
   configured,
   requireOsBridge,
@@ -43,6 +44,24 @@ async function main() {
   assert.strictEqual(current.eligible, false);
   assert.strictEqual(current.reason, '');
   assert.strictEqual(legacyPaymentExemption('not-a-date').eligible, false);
+  const oldSubmission = '2026-09-20T00:00:00Z';
+  const newSubmission = '2026-10-12T00:00:00Z';
+  for (const state of [
+    'refunded','partially_refunded','refund_processing','closed',
+    'payment_failed','refund_pending','charged_back'
+  ]) {
+    const entry = projectPaymentAdmission({ status: state }, oldSubmission);
+    assert.strictEqual(entry.paymentEligibleForProcessing, false, state);
+    assert.strictEqual(entry.paymentAdmissionMode, 'payment_not_eligible', state);
+    assert.strictEqual(entry.paymentRequired, true, state);
+  }
+  assert.strictEqual(projectPaymentAdmission(null, oldSubmission).paymentEligibleForProcessing, true);
+  assert.strictEqual(projectPaymentAdmission(null, newSubmission).paymentEligibleForProcessing, false);
+  assert.strictEqual(projectPaymentAdmission({ status: 'paid' }, newSubmission).paymentEligibleForProcessing, true);
+  assert.strictEqual(projectPaymentAdmission({ status: 'partially_refunded' }, newSubmission).paymentEligibleForProcessing, false);
+  assert.strictEqual(projectPaymentAdmission({ status: 'free', channelId: 'c', sourceId: 's' }, newSubmission).paymentEligibleForProcessing, true);
+  assert.strictEqual(projectPaymentAdmission({ status: 'free', channelId: '', sourceId: 's' }, newSubmission).paymentEligibleForProcessing, false);
+
 
   const bridgeSource = fs.readFileSync(
     path.join(__dirname, '../src/services/os-operations-bridge.js'),
