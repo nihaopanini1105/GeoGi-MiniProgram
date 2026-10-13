@@ -10,6 +10,7 @@ const {
   findPaymentByProject,
   publicPaymentView
 } = require('./payment-store');
+const { legacyPaymentExemption } = require('./os-operations-bridge');
 
 async function listCustomerProjects({ clientId }) {
   try {
@@ -81,7 +82,9 @@ async function getCustomerReport({ clientId, projectId }) {
     ]);
     const order = normalizeOrder({ lead, project, deliveryPackage, payment });
 
-    if (!deliveryPackage || !isPaidForReport(payment)) {
+    if (!deliveryPackage ||
+        (deliveryPackage.release_authority === 'geo_diagnostic_html_release_v2' && !project) ||
+        !reportPaymentEligible({ payment, lead, deliveryPackage })) {
       return {
         ok: true,
         order,
@@ -110,7 +113,8 @@ async function getCustomerReport({ clientId, projectId }) {
 function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const leadFields = (lead && lead.fields) || {};
   const projectFields = (project && project.fields) || {};
-  const paidForReport = isPaidForReport(payment);
+  const paidForReport = reportPaymentEligible({ payment, lead, deliveryPackage }) &&
+    (deliveryPackage?.release_authority !== 'geo_diagnostic_html_release_v2' || Boolean(project));
   const reportReady = Boolean(deliveryPackage && paidForReport);
   const leadStatus = text(leadFields.当前状态);
   const projectStage = text(projectFields.当前阶段);
@@ -222,6 +226,24 @@ function buildCustomerResultNotifications(order = {}) {
   }
 
   return notifications;
+}
+
+function reportPaymentEligible({ payment, lead, deliveryPackage }) {
+  // Preserve V1 compatibility. V2 is fail-closed for refunded, partially
+  // refunded, refund-processing or revoked payment states even if a legacy
+  // payment helper would consider that status eligible. OS must not mark
+  // customer deliverable merely because the old helper returned true.
+  const v2 = Boolean(deliveryPackage &&
+    deliveryPackage.release_authority === 'geo_diagnostic_html_release_v2');
+  const status = String(payment && payment.status || '').trim().toLowerCase();
+  if (v2 && [
+    'refunded', 'refund_processing', 'refund_requested', 'refund_pending',
+    'partially_refunded', 'chargeback', 'charged_back', 'closed', 'payment_failed',
+  ].includes(status)) return false;
+  if (isPaidForReport(payment)) return true;
+  if (!v2) return false;
+  const submittedAt = text(lead && lead.fields && lead.fields.提交时间);
+  return legacyPaymentExemption(submittedAt).eligible === true;
 }
 
 function isPaidForReport(payment) {
@@ -338,6 +360,7 @@ module.exports = {
   customerNextAction,
   buildPendingReport,
   isPaidForReport,
+  reportPaymentEligible,
   canCustomerSupplement,
   buildCustomerResultNotifications,
   paymentStatusLabel

@@ -48,6 +48,7 @@ const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services
 const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
 const { issueH5Ticket, consumeH5Ticket, readVerifiedH5Artifact } = require('./services/h5-reader-ticket');
+const { v2Capabilities, verifyV2CustomerAccess, revokeV2Delivery } = require('./services/report-v2-bridge');
 const {
   OperationsBridgeError,
   configured: osBridgeConfigured,
@@ -193,7 +194,11 @@ app.post('/api/customer/reports/:projectId/h5-ticket', requireCustomerSession, a
     if (!result.ok || !report || report.reportReady !== true || report.artifactType !== 'h5' || report.artifactMimeType !== 'text/html') {
       return res.status(404).json({ ok: false, userMessage: '没有已发布的 H5 报告' });
     }
-    const token = issueH5Ticket({ clientId, projectId: req.params.projectId, sha256: report.artifactSha256, fileName: report.artifactFileName });
+    const token = issueH5Ticket({
+      clientId, projectId: req.params.projectId,
+      deliveryPackageId: report.deliveryPackageId,
+      sha256: report.artifactSha256, fileName: report.artifactFileName
+    });
     res.setHeader('Cache-Control', 'no-store');
     return res.json({ ok: true, readerPath: '/api/customer/h5-reader/' + token, expiresInSeconds: 60 });
   } catch (error) {
@@ -211,6 +216,7 @@ app.get('/api/customer/h5-reader/:ticket', async (req, res) => {
     const result = await getCustomerReport({ clientId: ticket.clientId, projectId: ticket.projectId });
     const report = result && result.report;
     if (!result.ok || !report || !report.reportReady || report.artifactType !== 'h5' || report.artifactMimeType !== 'text/html'
+        || report.deliveryPackageId !== ticket.deliveryPackageId
         || report.artifactSha256 !== ticket.sha256 || report.artifactFileName !== ticket.fileName) {
       return res.status(404).type('text/plain').send('报告已失效或无法访问');
     }
@@ -495,6 +501,30 @@ app.post(
   }
 );
 
+app.get('/internal/os/report-v2/capabilities', requireOsBridge, (_req, res) => {
+  // Explicit flag remains false until the MiniProgram deployment and
+  // authenticated customer H5/revocation acceptance have completed.
+  return res.json({ ok: true, result: v2Capabilities() });
+});
+
+app.post('/internal/os/report-v2/verify-customer-access', requireOsBridge, async (req, res, next) => {
+  try {
+    const result = await verifyV2CustomerAccess(req.body || {});
+    return res.json({ ok: true, result });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/internal/os/report-v2/revoke', requireOsBridge, async (req, res, next) => {
+  try {
+    const result = await revokeV2Delivery(req.body || {});
+    return res.json({ ok: true, result });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, next) => {
   try {
     const result = await publishOsDeliveryPackage(req.body || {});
@@ -561,6 +591,10 @@ app.use((error, _req, res, _next) => {
   }
   if (error && error.type === 'entity.too.large') {
     return res.status(413).json({ ok: false, error: 'OS_ARTIFACT_TOO_LARGE' });
+  }
+  if (error && typeof error.code === 'string' && error.code.startsWith('V2_')) {
+    return res.status(error.code === 'V2_BRIDGE_NOT_ENABLED' ? 503 : 400)
+      .json({ ok: false, error: error.code });
   }
   if (error && typeof error.code === 'string' && error.code.startsWith('DELIVERY_')) {
     return res.status(400).json({ ok: false, error: error.code });
