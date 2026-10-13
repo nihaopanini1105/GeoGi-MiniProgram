@@ -135,7 +135,11 @@ async function main() {
   const prePayLead={fields:{'提交时间':'2026-09-16T10:08:00+08:00'}};
   assert.strictEqual(reportPaymentEligible({payment:null,lead:prePayLead,deliveryPackage:v2}),true);
   assert.strictEqual(reportPaymentEligible({payment:null,lead:prePayLead,deliveryPackage:v1}),false);
-  assert.strictEqual(reportPaymentEligible({payment:{status:'refunded'},lead:prePayLead,deliveryPackage:v2}),false);
+  for (const status of ['refunded', 'refund_processing', 'closed', 'payment_failed', 'partially_refunded']) {
+    assert.strictEqual(reportPaymentEligible({payment:{status},lead:prePayLead,deliveryPackage:v2}),false, status);
+  }
+  assert.strictEqual(reportPaymentEligible({payment:{status:'partially_refunded'},lead:prePayLead,deliveryPackage:v1}),true);
+  assert.strictEqual(reportPaymentEligible({payment:{status:'paid'},lead:prePayLead,deliveryPackage:v2}),true);
   assert.strictEqual(reportPaymentEligible({
     payment:null,lead:{fields:{'提交时间':'2026-10-12T00:00:00Z'}},deliveryPackage:v2
   }),false);
