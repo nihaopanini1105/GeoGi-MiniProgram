@@ -76,6 +76,32 @@ function legacyPaymentExemption(submittedAt) {
 }
 
 
+// Refund/chargeback/closed statuses override every legacy admission path.
+// Never classify a partially refunded order as fully paid or use a
+// pre-payment exemption to revive an adverse order.
+function projectPaymentAdmission(payment, submittedAt) {
+  const status = String(payment && payment.status || '').trim().toLowerCase();
+  const blocked = new Set([
+    'refunded', 'partially_refunded', 'refund_processing',
+    'refund_requested', 'refund_pending', 'chargeback', 'charged_back',
+    'payment_failed', 'closed'
+  ]);
+  const denied = blocked.has(status);
+  const paid = !denied && status === 'paid';
+  const freeChannelOffer = !denied && Boolean(payment && status === 'free'
+    && payment.channelId && payment.sourceId);
+  const legacyExemption = legacyPaymentExemption(submittedAt);
+  const legacyEligible = !denied && legacyExemption.eligible && !paid && !freeChannelOffer;
+  return {
+    paymentRequired: denied ? true : !paid && !legacyEligible && !freeChannelOffer,
+    paymentEligibleForProcessing: paid || freeChannelOffer || legacyEligible,
+    paymentAdmissionMode: denied ? 'payment_not_eligible'
+      : (paid ? 'paid' : (freeChannelOffer ? 'channel_offer'
+      : (legacyEligible ? 'legacy_pre_payment' : 'payment_required'))),
+    legacyPaymentExemption: legacyExemption,
+  };
+}
+
 function projectView(record) {
   const fields = record.fields || {};
   return {
@@ -136,18 +162,15 @@ async function listOsIntakes() {
     const lead = leadView(record);
     const payment = await findPaymentByProject(lead.projectId);
     const paymentView = publicPaymentView(payment);
-    const paid = Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status));
-    const freeChannelOffer = Boolean(payment && payment.status === 'free' && payment.channelId && payment.sourceId);
-    const legacyExemption = legacyPaymentExemption(lead.submittedAt);
-    const legacyEligible = legacyExemption.eligible && !paid;
+    const admission = projectPaymentAdmission(payment, lead.submittedAt);
     return {
       ...lead,
       project: projects.get(lead.projectId) || null,
       payment: paymentView,
-      paymentRequired: !legacyEligible && !freeChannelOffer,
-      paymentEligibleForProcessing: paid || freeChannelOffer || legacyEligible,
-      paymentAdmissionMode: paid ? 'paid' : (freeChannelOffer ? 'channel_offer' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required')),
-      legacyPaymentExemption: legacyExemption
+      paymentRequired: admission.paymentRequired,
+      paymentEligibleForProcessing: admission.paymentEligibleForProcessing,
+      paymentAdmissionMode: admission.paymentAdmissionMode,
+      legacyPaymentExemption: admission.legacyPaymentExemption
     };
   }));
   return items.sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
@@ -223,6 +246,7 @@ module.exports = {
   PAID_DIAGNOSTIC_LAUNCH_CUTOFF,
   LEGACY_PAYMENT_EXEMPTION_REASON,
   legacyPaymentExemption,
+  projectPaymentAdmission,
   OperationsBridgeError,
   configured,
   requireOsBridge,
