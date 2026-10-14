@@ -69,6 +69,7 @@ jobs:
           node tests/v2_customer_pdf_ticket_regression.js
           node tests/customer_portal_status_regression.js
           node tests/customer_session_regression.js
+          node tests/multiclient_session_reports_regression.js
           node tests/customer_supplement_regression.js
           node tests/customer_experience_details_regression.js
 
