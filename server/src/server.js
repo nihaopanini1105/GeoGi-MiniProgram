@@ -69,12 +69,13 @@ app.use(express.json({
     req.rawBody = Buffer.from(buffer || '');
   }
 }));
-// H5 customer reports are private; never serve HTML artifacts from public uploads.
+// Both H5 and PDF reports are private; public uploads can only host
+// non-report assets. Reading either report requires a scoped one-use token.
 app.use('/uploads', (req, res, next) => {
   let name;
   try { name = decodeURIComponent(String(req.path || '')).toLowerCase(); }
   catch (_) { return res.status(400).json({ ok: false, userMessage: '文件地址无效' }); }
-  if (name.endsWith('.html') || name.endsWith('.htm')) {
+  if (name.endsWith('.html') || name.endsWith('.htm') || name.endsWith('.pdf')) {
     return res.status(404).json({ ok: false, userMessage: '文件不可公开访问' });
   }
   return next();
