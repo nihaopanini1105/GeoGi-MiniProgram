@@ -297,10 +297,10 @@ Page({
         encodeURIComponent(this.data.projectId)+'/pdf-ticket',{clientId:this.data.clientId});
       wx.hideLoading();
       if (!ticket || !ticket.ok ||
-          !/^\\/api\\/customer\\/pdf-reader\\/[0-9a-f]{64}$/.test(ticket.downloadPath||'')) {
+          !/^\/api\/customer\/pdf-reader\/[0-9a-f]{64}$/.test(ticket.downloadPath||'')) {
         throw new Error('未获得有效的 PDF 下载授权');
       }
-      const remote=API_BASE_URL.replace(/\\/+$/,'')+ticket.downloadPath;
+      const remote=API_BASE_URL.replace(/\/+$/,'')+ticket.downloadPath;
       wx.showLoading({title:'下载 PDF 中'});
       const downloaded=await new Promise((resolve,reject)=>{
         wx.downloadFile({
