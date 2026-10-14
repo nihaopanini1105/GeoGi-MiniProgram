@@ -79,7 +79,10 @@ app.use('/uploads', (req, res, next) => {
   let name;
   try { name = decodeURIComponent(String(req.path || '')).toLowerCase(); }
   catch (_) { return res.status(400).json({ ok: false, userMessage: '文件地址无效' }); }
-  if (name.endsWith('.html') || name.endsWith('.htm') || name.endsWith('.pdf')) {
+  // Customer-uploaded PDF attachments remain accessible under their
+  // existing rules. Only immutable V2 report PDF assets are private.
+  if (name.endsWith('.html') || name.endsWith('.htm')
+      || /^\\/geogi-v2-[0-9a-f]{16}\\.pdf$/.test(name)) {
     return res.status(404).json({ ok: false, userMessage: '文件不可公开访问' });
   }
   return next();
