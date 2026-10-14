@@ -45,9 +45,10 @@ async function listCustomerProjects({ clientId, clientIds }) {
     const orders = (await Promise.all(leads.map(async (lead) => {
       const fields = lead.fields || {};
       const projectId = text(fields.项目编号);
-      if (!projectId) return null;
+      const ownedClientId = text(fields.客户编号);
+      if (!projectId || !allowed.has(ownedClientId)) return null;
       const [deliveryPackage, payment] = await Promise.all([
-        findDeliveryPackage({ clientId: cleanClientId, projectId }),
+        findDeliveryPackage({ clientId: ownedClientId, projectId }),
         findPaymentByProject(projectId)
       ]);
       return normalizeOrder({
