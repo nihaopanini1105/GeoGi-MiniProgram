@@ -205,6 +205,55 @@ async function importDeliveryPackage(packageDocument) {
   return { imported: true, idempotent: false, path: output, package: packageDocument };
 }
 
+function _revocationPath(packageId) {
+  const id=String(packageId||'');
+  if (!/^delivery_package_[a-zA-Z0-9_-]{8,100}$/.test(id)) {
+    throw new DeliveryPackageError('DELIVERY_PACKAGE_ID_INVALID');
+  }
+  return path.join(deliveryRoot(),'_revocations',id+'.json');
+}
+
+function isDeliveryRevoked(packageId) {
+  return fs.existsSync(_revocationPath(packageId));
+}
+
+async function revokeDeliveryPackage(packageId,{clientId,projectId,reason}) {
+  const file=packagePath(packageId);
+  let document;
+  try { document=JSON.parse(await fs.promises.readFile(file,'utf8')); }
+  catch (error) {
+    if (error.code==='ENOENT') throw new DeliveryPackageError('DELIVERY_PACKAGE_NOT_FOUND');
+    throw error;
+  }
+  assertScope(document,{clientId,projectId});
+  const revokedFile=_revocationPath(packageId);
+  if (fs.existsSync(revokedFile)) return {idempotent:true,status:'revoked'};
+  if (!String(reason||'').trim()) throw new DeliveryPackageError('DELIVERY_REVOCATION_REASON_REQUIRED');
+  await fs.promises.mkdir(path.dirname(revokedFile),{recursive:true});
+  const payload={packageId,clientId,projectId,
+    revokedAt:new Date().toISOString(),reason:String(reason).slice(0,400)};
+  try {
+    await fs.promises.writeFile(revokedFile,JSON.stringify(payload)+'\\n',{flag:'wx',mode:0o600});
+  } catch (error) {
+    if (error.code==='EEXIST') return {idempotent:true,status:'revoked'};
+    throw error;
+  }
+  return {idempotent:false,status:'revoked'};
+}
+
+async function getDeliveryPackageById(packageId) {
+  const file=packagePath(packageId);
+  let raw;
+  try { raw=await fs.promises.readFile(file,'utf8'); }
+  catch(error) {
+    if(error.code==='ENOENT') return null;
+    throw error;
+  }
+  const document=JSON.parse(raw);
+  validateDeliveryPackage(document);
+  return document;
+}
+
 async function listDeliveryPackages() {
   let names = [];
   try {
@@ -220,6 +269,7 @@ async function listDeliveryPackages() {
     // alternative customer-facing report template. Never delete them.
     if ((document.release_authority || '') !== DELIVERY_AUTHORITIES.baseline_diagnostic_report) continue;
     validateDeliveryPackage(document);
+    if (isDeliveryRevoked(document.delivery_package_id)) continue;
     packages.push(document);
   }
   return packages;
@@ -290,5 +340,8 @@ module.exports = {
   listDeliveryPackages,
   findDeliveryPackage,
   projectDeliveryForCustomer,
+  getDeliveryPackageById,
+  revokeDeliveryPackage,
+  isDeliveryRevoked,
   assertScope
 };
