@@ -130,30 +130,44 @@ function validateDeliveryPackage(packageDocument) {
     throw new DeliveryPackageError('DELIVERY_REPORT_VERSION_PIN_MISMATCH');
   }
 
-  if (!Array.isArray(packageDocument.artifacts) || packageDocument.artifacts.length !== 1) {
-    throw new DeliveryPackageError('DELIVERY_SINGLE_ARTIFACT_REQUIRED');
+  const artifacts=packageDocument.artifacts;
+  if (!Array.isArray(artifacts) || artifacts.length<1 || artifacts.length>2) {
+    throw new DeliveryPackageError('DELIVERY_ARTIFACT_COUNT_INVALID');
   }
-  const artifact = packageDocument.artifacts[0];
-  if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
-    throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID');
+  const seenKinds=new Set();
+  for (const artifact of artifacts) {
+    if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
+      throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID');
+    }
+    for (const key of ['artifact_id', 'artifact_type', 'mime_type', 'file_name', 'render_version', 'uri']) {
+      requiredString(artifact,key,'DELIVERY_ARTIFACT_INVALID');
+    }
+    const mime=String(artifact.mime_type||'');
+    const kind=String(artifact.artifact_type||'');
+    const filename=String(artifact.file_name||'');
+    const pdf=mime==='application/pdf' && kind==='pdf' && filename.endsWith('.pdf');
+    const h5=mime==='text/html' && kind==='h5' && filename.endsWith('.html')
+        && packageDocument.delivery_purpose==='baseline_diagnostic_report';
+    if (!pdf && !h5) throw new DeliveryPackageError('DELIVERY_ARTIFACT_TYPE_INVALID');
+    if (seenKinds.has(kind)) throw new DeliveryPackageError('DELIVERY_DUPLICATE_ARTIFACT_KIND');
+    seenKinds.add(kind);
+    if (!/^[0-9a-f]{64}$/.test(String(artifact.sha256||''))) {
+      throw new DeliveryPackageError('DELIVERY_ARTIFACT_HASH_INVALID');
+    }
+    if (!Number.isInteger(artifact.size_bytes) || artifact.size_bytes<1) {
+      throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID','size_bytes');
+    }
+    if (artifact.report_content_hash!==report.content_hash
+        || artifact.report_record_hash!==report.report_record_hash) {
+      throw new DeliveryPackageError('DELIVERY_ARTIFACT_REPORT_HASH_MISMATCH');
+    }
   }
-  for (const key of ['artifact_id', 'artifact_type', 'mime_type', 'file_name', 'render_version', 'uri']) {
-    requiredString(artifact, key, 'DELIVERY_ARTIFACT_INVALID');
-  }
-  const mime = String(artifact.mime_type || '');
-  const kind = String(artifact.artifact_type || '');
-  const filename = String(artifact.file_name || '');
-  const pdf = mime === 'application/pdf' && kind === 'pdf' && filename.endsWith('.pdf');
-  const h5 = mime === 'text/html' && kind === 'h5' && filename.endsWith('.html') && packageDocument.delivery_purpose === 'baseline_diagnostic_report';
-  if (!pdf && !h5) throw new DeliveryPackageError('DELIVERY_ARTIFACT_TYPE_INVALID');
-  if (!/^[0-9a-f]{64}$/.test(String(artifact.sha256 || ''))) {
-    throw new DeliveryPackageError('DELIVERY_ARTIFACT_HASH_INVALID');
-  }
-  if (!Number.isInteger(artifact.size_bytes) || artifact.size_bytes < 0) {
-    throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID', 'size_bytes');
-  }
-  if (artifact.report_content_hash !== report.content_hash || artifact.report_record_hash !== report.report_record_hash) {
-    throw new DeliveryPackageError('DELIVERY_ARTIFACT_REPORT_HASH_MISMATCH');
+  // The optional second attachment belongs to the very same final
+  // customer report. It never changes scope, publication or payment rules.
+  if (artifacts.length===2 && (
+      packageDocument.delivery_purpose!=='baseline_diagnostic_report'
+      || !seenKinds.has('h5') || !seenKinds.has('pdf'))) {
+    throw new DeliveryPackageError('DELIVERY_DUAL_ARTIFACT_SCOPE_INVALID');
   }
 
   const hashInput = JSON.parse(JSON.stringify(packageDocument));
@@ -228,7 +242,9 @@ function assertScope(packageDocument, { clientId, projectId }) {
 
 function projectDeliveryForCustomer(packageDocument, scope) {
   assertScope(packageDocument, scope);
-  const artifact = packageDocument.artifacts[0];
+  const artifact = packageDocument.artifacts.find(item=>item.artifact_type==='h5')
+    || packageDocument.artifacts[0];
+  const pdfArtifact=packageDocument.artifacts.find(item=>item.artifact_type==='pdf') || null;
   return {
     deliveryPackageId: packageDocument.delivery_package_id,
     deliveryContractVersion: packageDocument.delivery_contract_version,
@@ -251,6 +267,10 @@ function projectDeliveryForCustomer(packageDocument, scope) {
     artifactSha256: artifact.sha256,
     artifactSizeBytes: artifact.size_bytes,
     artifactRenderVersion: artifact.render_version,
+    pdfAvailable: Boolean(pdfArtifact),
+    pdfArtifactFileName: pdfArtifact ? pdfArtifact.file_name : '',
+    pdfArtifactSha256: pdfArtifact ? pdfArtifact.sha256 : '',
+    pdfArtifactSizeBytes: pdfArtifact ? pdfArtifact.size_bytes : 0,
     versionPins: { ...packageDocument.version_pins }
   };
 }
