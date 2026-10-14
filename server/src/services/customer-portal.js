@@ -11,22 +11,35 @@ const {
   publicPaymentView
 } = require('./payment-store');
 
-async function listCustomerProjects({ clientId }) {
+async function listCustomerProjects({ clientId, clientIds }) {
   try {
-    const cleanClientId = clean(clientId);
-    if (!cleanClientId) return fail('缺少客户编号');
-
+    const owned = [...new Set(
+      (Array.isArray(clientIds) ? clientIds : [clientId])
+        .map(clean).filter(Boolean)
+    )];
+    if (!owned.length) return fail('缺少客户编号');
+    const allowed = new Set(owned);
     const tenantToken = await getTenantAccessToken();
-    const leads = await listByClient({
-      tenantToken,
-      tableId: process.env.FEISHU_LEADS_TABLE_ID,
-      clientId: cleanClientId
-    });
-    const projects = await listByClient({
-      tenantToken,
-      tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
-      clientId: cleanClientId
-    });
+    // Query Feishu once per source table; intersect every row with IDs
+    // independently confirmed against the signed-in phone session.
+    const [allLeads, allProjects] = await Promise.all([
+      listBitableRecords({
+        tenantToken,
+        appToken: process.env.FEISHU_BASE_APP_TOKEN,
+        tableId: process.env.FEISHU_LEADS_TABLE_ID,
+        pageSize: 100
+      }),
+      listBitableRecords({
+        tenantToken,
+        appToken: process.env.FEISHU_BASE_APP_TOKEN,
+        tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
+        pageSize: 100
+      })
+    ]);
+    const leads = allLeads.filter(record =>
+      allowed.has(text(record.fields && record.fields.客户编号)));
+    const projects = allProjects.filter(record =>
+      allowed.has(text(record.fields && record.fields.客户编号)));
     const projectById = new Map(projects.map((record) => [text(record.fields && record.fields.项目编号), record]));
 
     const orders = (await Promise.all(leads.map(async (lead) => {
@@ -49,7 +62,7 @@ async function listCustomerProjects({ clientId }) {
     const notifications = orders
       .flatMap((order) => buildCustomerResultNotifications(order))
       .sort((a, b) => String(b.occurredAt || '').localeCompare(String(a.occurredAt || '')));
-    return { ok: true, clientId: cleanClientId, orders, notifications };
+    return { ok: true, clientId: owned[0], orders, notifications };
   } catch (error) {
     console.error('listCustomerProjects failed', error);
     return fail('报告状态读取失败，请稍后重试');
