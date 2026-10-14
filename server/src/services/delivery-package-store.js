@@ -6,8 +6,7 @@ const DELIVERY_CONTRACT_VERSION = '3.0.0';
 const DELIVERY_MODE = 'artifact_only';
 const PRODUCTION_AUTHORITY = 'geogi_os';
 const DELIVERY_AUTHORITIES = Object.freeze({
-  baseline_diagnostic_report: 'baseline_diagnostic_release_v1',
-  final_outcome_report: 'm09_e2c_final_release'
+  baseline_diagnostic_report: 'geo_diagnostic_html_release_v2'
 });
 const SUPPORTED_DELIVERY_CONTRACT_VERSIONS = new Set([DELIVERY_CONTRACT_VERSION]);
 
@@ -131,7 +130,7 @@ function validateDeliveryPackage(packageDocument) {
   }
 
   const artifacts=packageDocument.artifacts;
-  if (!Array.isArray(artifacts) || artifacts.length<1 || artifacts.length>2) {
+  if (!Array.isArray(artifacts) || artifacts.length !== 2) {
     throw new DeliveryPackageError('DELIVERY_ARTIFACT_COUNT_INVALID');
   }
   const seenKinds=new Set();
@@ -164,9 +163,8 @@ function validateDeliveryPackage(packageDocument) {
   }
   // The optional second attachment belongs to the very same final
   // customer report. It never changes scope, publication or payment rules.
-  if (artifacts.length===2 && (
-      packageDocument.delivery_purpose!=='baseline_diagnostic_report'
-      || !seenKinds.has('h5') || !seenKinds.has('pdf'))) {
+  if (packageDocument.delivery_purpose!=='baseline_diagnostic_report'
+      || !seenKinds.has('h5') || !seenKinds.has('pdf')) {
     throw new DeliveryPackageError('DELIVERY_DUAL_ARTIFACT_SCOPE_INVALID');
   }
 
@@ -218,6 +216,9 @@ async function listDeliveryPackages() {
   const packages = [];
   for (const name of names.filter((item) => item.endsWith('.json')).sort()) {
     const document = JSON.parse(await fs.promises.readFile(path.join(deliveryRoot(), name), 'utf8'));
+    // Historical delivery packages are immutable archives but not an
+    // alternative customer-facing report template. Never delete them.
+    if ((document.release_authority || '') !== DELIVERY_AUTHORITIES.baseline_diagnostic_report) continue;
     validateDeliveryPackage(document);
     packages.push(document);
   }
@@ -242,9 +243,8 @@ function assertScope(packageDocument, { clientId, projectId }) {
 
 function projectDeliveryForCustomer(packageDocument, scope) {
   assertScope(packageDocument, scope);
-  const artifact = packageDocument.artifacts.find(item=>item.artifact_type==='h5')
-    || packageDocument.artifacts[0];
-  const pdfArtifact=packageDocument.artifacts.find(item=>item.artifact_type==='pdf') || null;
+  const artifact = packageDocument.artifacts.find(item=>item.artifact_type==='h5');
+  const pdfArtifact=packageDocument.artifacts.find(item=>item.artifact_type==='pdf');
   return {
     deliveryPackageId: packageDocument.delivery_package_id,
     deliveryContractVersion: packageDocument.delivery_contract_version,
