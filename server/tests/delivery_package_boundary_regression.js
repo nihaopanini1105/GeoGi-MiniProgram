@@ -126,7 +126,7 @@ async function run() {
   const duplicate=JSON.parse(JSON.stringify(valid));
   duplicate.artifacts[1].artifact_type='h5';
   duplicate.artifacts[1].mime_type='text/html';
-  duplicate.artifacts[1].file_name='other.html';
+  duplicate.artifacts[1].file_name='GeoGi-V2-aaaaaaaaaaaaaaaa.html';
   rehash(duplicate);
   expectCode(()=>validateDeliveryPackage(duplicate),'DELIVERY_DUPLICATE_ARTIFACT_KIND');
   const oldAuthority=JSON.parse(JSON.stringify(valid));
