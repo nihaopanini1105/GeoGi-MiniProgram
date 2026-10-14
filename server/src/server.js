@@ -50,7 +50,8 @@ const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artif
 const { issueH5Ticket, consumeH5Ticket, readVerifiedH5Artifact } = require('./services/h5-reader-ticket');
 const { issuePdfTicket, consumePdfTicket, readVerifiedPdfArtifact } = require('./services/pdf-reader-ticket');
 const {
-  reportV2Capabilities, verifyCustomerReportAccess, revokeCustomerReportDelivery
+  reportV2Capabilities, verifyCustomerReportAccess, revokeCustomerReportDelivery,
+  verifyGeoGiPilotBinding
 } = require('./services/report-v2-bridge-operations');
 const {
   OperationsBridgeError,
@@ -551,6 +552,15 @@ app.post(
 
 app.get('/internal/os/report-v2/capabilities', requireOsBridge, (_req,res) => {
   return res.json({ok:true,result:reportV2Capabilities()});
+});
+
+app.post('/internal/os/report-v2/verify-pilot-binding',requireOsBridge,async(req,res,next)=>{
+  try {
+    const clientId=String((req.body||{}).client_id||'');
+    const projectId=String((req.body||{}).project_id||'');
+    const result=await verifyGeoGiPilotBinding({clientId,projectId});
+    return res.json({ok:true,result});
+  } catch(error) { return next(error); }
 });
 
 app.post('/internal/os/report-v2/verify-customer-access',requireOsBridge,async(req,res,next)=>{
