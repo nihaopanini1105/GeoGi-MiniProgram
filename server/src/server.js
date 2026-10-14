@@ -50,6 +50,9 @@ const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artif
 const { issueH5Ticket, consumeH5Ticket, readVerifiedH5Artifact } = require('./services/h5-reader-ticket');
 const { issuePdfTicket, consumePdfTicket, readVerifiedPdfArtifact } = require('./services/pdf-reader-ticket');
 const {
+  reportV2Capabilities, verifyCustomerReportAccess, revokeCustomerReportDelivery
+} = require('./services/report-v2-bridge-operations');
+const {
   OperationsBridgeError,
   configured: osBridgeConfigured,
   requireOsBridge,
@@ -545,6 +548,24 @@ app.post(
     }
   }
 );
+
+app.get('/internal/os/report-v2/capabilities', requireOsBridge, (_req,res) => {
+  return res.json({ok:true,result:reportV2Capabilities()});
+});
+
+app.post('/internal/os/report-v2/verify-customer-access',requireOsBridge,async(req,res,next)=>{
+  try {
+    const result=await verifyCustomerReportAccess(req.body||{});
+    return res.json({ok:true,result});
+  } catch(error) { return next(error); }
+});
+
+app.post('/internal/os/report-v2/revoke',requireOsBridge,async(req,res,next)=>{
+  try {
+    const result=await revokeCustomerReportDelivery(req.body||{});
+    return res.json({ok:true,result});
+  } catch(error) { return next(error); }
+});
 
 app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, next) => {
   try {
