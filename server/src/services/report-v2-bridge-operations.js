@@ -37,6 +37,28 @@ function _verifiedBytes(artifact) {
   } catch (_) { return false; }
 }
 
+async function verifyGeoGiPilotBinding({clientId,projectId}) {
+  // Read-only, private, and fail closed: do not grant the pilot based solely
+  // on env names. The exact customer and project must exist in Feishu.
+  const expectedClient=String(process.env.GEOGI_V2_PILOT_CONSUMER_CLIENT_ID||'').trim();
+  const expectedProject=String(process.env.GEOGI_V2_PILOT_CONSUMER_PROJECT_ID||'').trim();
+  if (String(process.env.GEOGI_V2_EXACT_PILOT_ENABLED||'').toLowerCase()!=='true'
+      || !expectedClient || !expectedProject
+      || clientId!==expectedClient || projectId!==expectedProject) {
+    return {ready:false};
+  }
+  try {
+    const {listOsIntakes}=require('./os-operations-bridge');
+    const candidates=await listOsIntakes();
+    const found=candidates.some(x=>
+      x.clientId===expectedClient && x.projectId===expectedProject
+      && x.project && x.project.clientId===expectedClient
+      && x.project.projectId===expectedProject
+    );
+    return {ready:Boolean(found)};
+  } catch (_) { return {ready:false}; }
+}
+
 async function verifyCustomerReportAccess(request) {
   const id=String(request.delivery_package_id||'');
   const client=String(request.client_id||'');
@@ -81,5 +103,5 @@ async function revokeCustomerReportDelivery(request) {
 
 module.exports={
   RELEASE_AUTHORITY,reportV2Capabilities,verifyCustomerReportAccess,
-  revokeCustomerReportDelivery
+  revokeCustomerReportDelivery,verifyGeoGiPilotBinding
 };
