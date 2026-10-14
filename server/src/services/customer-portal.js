@@ -56,6 +56,19 @@ async function listCustomerProjects({ clientId }) {
   }
 }
 
+function authorizedGeoGiV2Pilot(clientId,projectId,deliveryPackage) {
+  if (String(process.env.GEOGI_V2_EXACT_PILOT_ENABLED||'').toLowerCase()!=='true') return false;
+  const allowedClient=String(process.env.GEOGI_V2_PILOT_CONSUMER_CLIENT_ID||'').trim();
+  const allowedProject=String(process.env.GEOGI_V2_PILOT_CONSUMER_PROJECT_ID||'').trim();
+  return Boolean(allowedClient && allowedProject
+    && clientId===allowedClient && projectId===allowedProject
+    && deliveryPackage
+    && deliveryPackage.client_id===allowedClient
+    && deliveryPackage.project_id===allowedProject
+    && deliveryPackage.release_authority==='geo_diagnostic_html_release_v2'
+    && deliveryPackage.release_status==='released');
+}
+
 async function getCustomerReport({ clientId, projectId }) {
   try {
     const cleanClientId = clean(clientId);
@@ -81,7 +94,8 @@ async function getCustomerReport({ clientId, projectId }) {
     ]);
     const order = normalizeOrder({ lead, project, deliveryPackage, payment });
 
-    if (!deliveryPackage || !isPaidForReport(payment)) {
+    if (!deliveryPackage || (!isPaidForReport(payment)
+         && !authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage))) {
       return {
         ok: true,
         order,
@@ -98,7 +112,8 @@ async function getCustomerReport({ clientId, projectId }) {
           projectId: cleanProjectId
         }),
         status: '报告已完成',
-        reportReady: true
+        reportReady: true,
+        pilotReviewAccess: authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage)
       }
     };
   } catch (error) {
@@ -111,7 +126,10 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const leadFields = (lead && lead.fields) || {};
   const projectFields = (project && project.fields) || {};
   const paidForReport = isPaidForReport(payment);
-  const reportReady = Boolean(deliveryPackage && paidForReport);
+  const pilotReviewAccess=authorizedGeoGiV2Pilot(
+    text(leadFields.客户编号),
+    text(leadFields.项目编号)||text(projectFields.项目编号),deliveryPackage);
+  const reportReady = Boolean(deliveryPackage && (paidForReport || pilotReviewAccess));
   const leadStatus = text(leadFields.当前状态);
   const projectStage = text(projectFields.当前阶段);
   const status = reportReady
@@ -135,6 +153,7 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
     completedAt: reportReady ? deliveryPackage.released_at : '',
     status,
     reportReady,
+    pilotReviewAccess,
     paymentRequired: !(payment && payment.status === 'free'),
     payment: paymentView,
     paymentStatus: payment ? payment.status : 'unpaid',
