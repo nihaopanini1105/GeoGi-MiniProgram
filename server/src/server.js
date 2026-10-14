@@ -26,7 +26,7 @@ const {
   handlePaymentNotification,
   handleRefundNotification
 } = require('./services/wechat-pay');
-const { requireCustomerSession, resolveOwnedClientId } = require('./services/customer-session');
+const { requireCustomerSession, resolveOwnedClientId, listOwnedClientIds } = require('./services/customer-session');
 const { trackEvent } = require('./services/events');
 const { notificationConfigured } = require('./services/ops-notifications');
 const {
@@ -170,12 +170,16 @@ app.get('/api/articles/:id', async (req, res) => {
 app.get('/api/sample-report', (_req, res) => res.json(getSampleReport()));
 
 app.get('/api/customer/projects', requireCustomerSession, async (req, res) => {
-  const clientId = await resolveOwnedClientId({
-    phoneNumber: req.customerSession.phoneNumber,
-    requestedClientId: req.query && req.query.clientId
+  // Mine must list every project owned by the *authenticated phone*, even
+  // when repeat submissions produced different customer IDs. Direct report
+  // retrieval stays strictly scoped to the client/project ID of each card.
+  const owned = await listOwnedClientIds(req.customerSession.phoneNumber);
+  const requested = String(req.query && req.query.clientId || '').trim();
+  const clientIds = requested ? (owned.includes(requested) ? [requested] : []) : owned;
+  if (!clientIds.length) return res.status(404).json({
+    ok: false, userMessage: '没有找到该手机号名下的诊断记录'
   });
-  if (!clientId) return res.status(404).json({ ok: false, userMessage: '没有找到该手机号名下的诊断记录' });
-  const result = await listCustomerProjects({ clientId });
+  const result = await listCustomerProjects({ clientIds });
   return res.status(result.ok ? 200 : 400).json(result);
 });
 
