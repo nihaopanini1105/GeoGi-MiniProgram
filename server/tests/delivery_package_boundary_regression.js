@@ -203,7 +203,7 @@ async function run() {
   expectCode(() => projectDeliveryForCustomer(loaded, { clientId: 'GG-OTHER', projectId: valid.project_id }), 'DELIVERY_SCOPE_MISMATCH');
 
   const conflicting = buildValidPackage();
-  conflicting.artifacts[0].file_name = 'mutated.pdf';
+  conflicting.artifacts[1].file_name = 'mutated.pdf';
   rehash(conflicting);
   await expectCodeAsync(() => importDeliveryPackage(conflicting), 'DELIVERY_PACKAGE_IMMUTABLE_CONFLICT');
 
