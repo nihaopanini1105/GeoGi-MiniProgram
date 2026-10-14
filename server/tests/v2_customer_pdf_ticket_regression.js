@@ -34,6 +34,12 @@ try {
   assert(serverSource.includes("app.get('/api/customer/pdf-reader/:ticket'"));
   assert(serverSource.includes("app.post('/internal/os/report-v2/verify-customer-access',requireOsBridge"));
   assert(serverSource.includes("app.post('/internal/os/report-v2/revoke',requireOsBridge"));
+  assert(serverSource.includes("app.post('/internal/os/report-v2/verify-pilot-binding',requireOsBridge"));
+  const bridge=fs.readFileSync(path.join(__dirname,'../src/services/report-v2-bridge-operations.js'),'utf8');
+  assert(bridge.includes("listOsIntakes()"));
+  assert(bridge.includes("GEOGI_V2_EXACT_PILOT_ENABLED"));
+  assert(bridge.includes("x.project.clientId===expectedClient"));
+  assert(bridge.includes("x.project.projectId===expectedProject"));
   console.log('V2 CUSTOMER PDF TICKET + SECURE PRIVATE ACCESS CONTRACT: OK');
 } finally {
   fs.rmSync(root,{recursive:true,force:true});
