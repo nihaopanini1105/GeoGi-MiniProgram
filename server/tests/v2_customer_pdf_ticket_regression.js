@@ -29,7 +29,8 @@ try {
     clientId:'client',projectId:'project',sha256:'wrong',fileName:filename
   }),/SCOPE_INVALID/);
   const serverSource=fs.readFileSync(path.join(__dirname,'../src/server.js'),'utf8');
-  assert(serverSource.includes("name.endsWith('.html') || name.endsWith('.htm') || name.endsWith('.pdf')"));
+  assert(serverSource.includes("geogi-v2-[0-9a-f]{16}"));
+  assert(!serverSource.includes("name.endsWith('.pdf')"));
   assert(serverSource.includes("app.post('/api/customer/reports/:projectId/pdf-ticket', requireCustomerSession"));
   assert(serverSource.includes("app.get('/api/customer/pdf-reader/:ticket'"));
   assert(serverSource.includes("app.post('/internal/os/report-v2/verify-customer-access',requireOsBridge"));
