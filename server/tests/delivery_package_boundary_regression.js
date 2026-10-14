@@ -107,6 +107,38 @@ async function run() {
   htmlArtifact.artifacts[0].file_name = 'report.html';
   rehash(htmlArtifact);
   validateDeliveryPackage(htmlArtifact);
+  // Backwards compatible: existing single H5/PDF packages are unchanged.
+  // The same RELEASED baseline report may additionally carry a distinct PDF.
+  const both=buildValidPackage();
+  both.delivery_package_id='delivery_package_dual_v2';
+  both.artifacts.unshift({
+    ...htmlArtifact.artifacts[0],
+    artifact_id:'delivery_artifact_html_v2',
+    sha256:'d'.repeat(64),
+    size_bytes:220,
+    uri:'https://delivery.example.invalid/report.html'
+  });
+  rehash(both);
+  validateDeliveryPackage(both);
+  const projected=projectDeliveryForCustomer(both,{
+    clientId:both.client_id,projectId:both.project_id
+  });
+  assert.strictEqual(projected.artifactType,'h5');
+  assert.strictEqual(projected.pdfAvailable,true);
+  assert.strictEqual(projected.pdfArtifactSha256,'c'.repeat(64));
+  assert.strictEqual(projected.pdfArtifactFileName,'report.pdf');
+  assert.strictEqual(projected.reportLink,'');
+  const dup=JSON.parse(JSON.stringify(both));
+  dup.artifacts[1].artifact_type='h5';
+  dup.artifacts[1].mime_type='text/html';
+  dup.artifacts[1].file_name='duplicate.html';
+  rehash(dup);
+  expectCode(()=>validateDeliveryPackage(dup),'DELIVERY_DUPLICATE_ARTIFACT_KIND');
+  const unauthorizedDual=JSON.parse(JSON.stringify(both));
+  unauthorizedDual.delivery_purpose='final_outcome_report';
+  unauthorizedDual.release_authority='m09_e2c_final_release';
+  rehash(unauthorizedDual);
+  expectCode(()=>validateDeliveryPackage(unauthorizedDual),'DELIVERY_ARTIFACT_TYPE_INVALID');
   const disguised = buildValidPackage();
   disguised.artifacts[0].artifact_type = 'h5';
   rehash(disguised);
@@ -233,6 +265,11 @@ async function run() {
   }
   assert(reportPageSource.includes('正式报告完成后会在这里开放查看'));
   assert(reportPageSource.includes('打开正式诊断报告'));
+  assert(reportPageSource.includes('下载 PDF 诊断报告'));
+  assert(reportPageLogic.includes('/pdf-ticket'));
+  assert(reportPageLogic.includes('wx.downloadFile('));
+  assert(serverSource.includes("app.post('/api/customer/reports/:projectId/pdf-ticket', requireCustomerSession"));
+  assert(serverSource.includes("app.get('/api/customer/pdf-reader/:ticket'"));
 
   await fs.promises.rm(root, { recursive: true, force: true });
   console.log('GEOGI MINIPROGRAM DISPLAY-ONLY BOUNDARY: OK');
