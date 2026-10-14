@@ -6,8 +6,7 @@ const DELIVERY_CONTRACT_VERSION = '3.0.0';
 const DELIVERY_MODE = 'artifact_only';
 const PRODUCTION_AUTHORITY = 'geogi_os';
 const DELIVERY_AUTHORITIES = Object.freeze({
-  baseline_diagnostic_report: 'baseline_diagnostic_release_v1',
-  final_outcome_report: 'm09_e2c_final_release'
+  baseline_diagnostic_report: 'geo_diagnostic_html_release_v2'
 });
 const SUPPORTED_DELIVERY_CONTRACT_VERSIONS = new Set([DELIVERY_CONTRACT_VERSION]);
 
@@ -130,30 +129,47 @@ function validateDeliveryPackage(packageDocument) {
     throw new DeliveryPackageError('DELIVERY_REPORT_VERSION_PIN_MISMATCH');
   }
 
-  if (!Array.isArray(packageDocument.artifacts) || packageDocument.artifacts.length !== 1) {
-    throw new DeliveryPackageError('DELIVERY_SINGLE_ARTIFACT_REQUIRED');
+  const artifacts=packageDocument.artifacts;
+  if (!Array.isArray(artifacts) || artifacts.length !== 2) {
+    throw new DeliveryPackageError('DELIVERY_ARTIFACT_COUNT_INVALID');
   }
-  const artifact = packageDocument.artifacts[0];
-  if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
-    throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID');
+  const seenKinds=new Set();
+  for (const artifact of artifacts) {
+    if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
+      throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID');
+    }
+    for (const key of ['artifact_id', 'artifact_type', 'mime_type', 'file_name', 'render_version', 'uri']) {
+      requiredString(artifact,key,'DELIVERY_ARTIFACT_INVALID');
+    }
+    const mime=String(artifact.mime_type||'');
+    const kind=String(artifact.artifact_type||'');
+    const filename=String(artifact.file_name||'');
+    // Unified V2 package names are reserved and denied by the public
+    // /uploads handler. Never admit generic uploaded customer PDFs as reports.
+    const pdf=mime==='application/pdf' && kind==='pdf'
+      && /^GeoGi-V2-[0-9a-f]{16}\.pdf$/.test(filename);
+    const h5=mime==='text/html' && kind==='h5'
+      && /^GeoGi-V2-[0-9a-f]{16}\.html$/.test(filename)
+        && packageDocument.delivery_purpose==='baseline_diagnostic_report';
+    if (!pdf && !h5) throw new DeliveryPackageError('DELIVERY_ARTIFACT_TYPE_INVALID');
+    if (seenKinds.has(kind)) throw new DeliveryPackageError('DELIVERY_DUPLICATE_ARTIFACT_KIND');
+    seenKinds.add(kind);
+    if (!/^[0-9a-f]{64}$/.test(String(artifact.sha256||''))) {
+      throw new DeliveryPackageError('DELIVERY_ARTIFACT_HASH_INVALID');
+    }
+    if (!Number.isInteger(artifact.size_bytes) || artifact.size_bytes<1) {
+      throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID','size_bytes');
+    }
+    if (artifact.report_content_hash!==report.content_hash
+        || artifact.report_record_hash!==report.report_record_hash) {
+      throw new DeliveryPackageError('DELIVERY_ARTIFACT_REPORT_HASH_MISMATCH');
+    }
   }
-  for (const key of ['artifact_id', 'artifact_type', 'mime_type', 'file_name', 'render_version', 'uri']) {
-    requiredString(artifact, key, 'DELIVERY_ARTIFACT_INVALID');
-  }
-  const mime = String(artifact.mime_type || '');
-  const kind = String(artifact.artifact_type || '');
-  const filename = String(artifact.file_name || '');
-  const pdf = mime === 'application/pdf' && kind === 'pdf' && filename.endsWith('.pdf');
-  const h5 = mime === 'text/html' && kind === 'h5' && filename.endsWith('.html') && packageDocument.delivery_purpose === 'baseline_diagnostic_report';
-  if (!pdf && !h5) throw new DeliveryPackageError('DELIVERY_ARTIFACT_TYPE_INVALID');
-  if (!/^[0-9a-f]{64}$/.test(String(artifact.sha256 || ''))) {
-    throw new DeliveryPackageError('DELIVERY_ARTIFACT_HASH_INVALID');
-  }
-  if (!Number.isInteger(artifact.size_bytes) || artifact.size_bytes < 0) {
-    throw new DeliveryPackageError('DELIVERY_ARTIFACT_INVALID', 'size_bytes');
-  }
-  if (artifact.report_content_hash !== report.content_hash || artifact.report_record_hash !== report.report_record_hash) {
-    throw new DeliveryPackageError('DELIVERY_ARTIFACT_REPORT_HASH_MISMATCH');
+  // The optional second attachment belongs to the very same final
+  // customer report. It never changes scope, publication or payment rules.
+  if (packageDocument.delivery_purpose!=='baseline_diagnostic_report'
+      || !seenKinds.has('h5') || !seenKinds.has('pdf')) {
+    throw new DeliveryPackageError('DELIVERY_DUAL_ARTIFACT_SCOPE_INVALID');
   }
 
   const hashInput = JSON.parse(JSON.stringify(packageDocument));
@@ -193,6 +209,55 @@ async function importDeliveryPackage(packageDocument) {
   return { imported: true, idempotent: false, path: output, package: packageDocument };
 }
 
+function _revocationPath(packageId) {
+  const id=String(packageId||'');
+  if (!/^delivery_package_[a-zA-Z0-9_-]{8,100}$/.test(id)) {
+    throw new DeliveryPackageError('DELIVERY_PACKAGE_ID_INVALID');
+  }
+  return path.join(deliveryRoot(),'_revocations',id+'.json');
+}
+
+function isDeliveryRevoked(packageId) {
+  return fs.existsSync(_revocationPath(packageId));
+}
+
+async function revokeDeliveryPackage(packageId,{clientId,projectId,reason}) {
+  const file=packagePath(packageId);
+  let document;
+  try { document=JSON.parse(await fs.promises.readFile(file,'utf8')); }
+  catch (error) {
+    if (error.code==='ENOENT') throw new DeliveryPackageError('DELIVERY_PACKAGE_NOT_FOUND');
+    throw error;
+  }
+  assertScope(document,{clientId,projectId});
+  const revokedFile=_revocationPath(packageId);
+  if (fs.existsSync(revokedFile)) return {idempotent:true,status:'revoked'};
+  if (!String(reason||'').trim()) throw new DeliveryPackageError('DELIVERY_REVOCATION_REASON_REQUIRED');
+  await fs.promises.mkdir(path.dirname(revokedFile),{recursive:true});
+  const payload={packageId,clientId,projectId,
+    revokedAt:new Date().toISOString(),reason:String(reason).slice(0,400)};
+  try {
+    await fs.promises.writeFile(revokedFile,JSON.stringify(payload)+'\\n',{flag:'wx',mode:0o600});
+  } catch (error) {
+    if (error.code==='EEXIST') return {idempotent:true,status:'revoked'};
+    throw error;
+  }
+  return {idempotent:false,status:'revoked'};
+}
+
+async function getDeliveryPackageById(packageId) {
+  const file=packagePath(packageId);
+  let raw;
+  try { raw=await fs.promises.readFile(file,'utf8'); }
+  catch(error) {
+    if(error.code==='ENOENT') return null;
+    throw error;
+  }
+  const document=JSON.parse(raw);
+  validateDeliveryPackage(document);
+  return document;
+}
+
 async function listDeliveryPackages() {
   let names = [];
   try {
@@ -204,7 +269,11 @@ async function listDeliveryPackages() {
   const packages = [];
   for (const name of names.filter((item) => item.endsWith('.json')).sort()) {
     const document = JSON.parse(await fs.promises.readFile(path.join(deliveryRoot(), name), 'utf8'));
+    // Historical delivery packages are immutable archives but not an
+    // alternative customer-facing report template. Never delete them.
+    if ((document.release_authority || '') !== DELIVERY_AUTHORITIES.baseline_diagnostic_report) continue;
     validateDeliveryPackage(document);
+    if (isDeliveryRevoked(document.delivery_package_id)) continue;
     packages.push(document);
   }
   return packages;
@@ -228,7 +297,8 @@ function assertScope(packageDocument, { clientId, projectId }) {
 
 function projectDeliveryForCustomer(packageDocument, scope) {
   assertScope(packageDocument, scope);
-  const artifact = packageDocument.artifacts[0];
+  const artifact = packageDocument.artifacts.find(item=>item.artifact_type==='h5');
+  const pdfArtifact=packageDocument.artifacts.find(item=>item.artifact_type==='pdf');
   return {
     deliveryPackageId: packageDocument.delivery_package_id,
     deliveryContractVersion: packageDocument.delivery_contract_version,
@@ -251,6 +321,10 @@ function projectDeliveryForCustomer(packageDocument, scope) {
     artifactSha256: artifact.sha256,
     artifactSizeBytes: artifact.size_bytes,
     artifactRenderVersion: artifact.render_version,
+    pdfAvailable: Boolean(pdfArtifact),
+    pdfArtifactFileName: pdfArtifact ? pdfArtifact.file_name : '',
+    pdfArtifactSha256: pdfArtifact ? pdfArtifact.sha256 : '',
+    pdfArtifactSizeBytes: pdfArtifact ? pdfArtifact.size_bytes : 0,
     versionPins: { ...packageDocument.version_pins }
   };
 }
@@ -270,5 +344,8 @@ module.exports = {
   listDeliveryPackages,
   findDeliveryPackage,
   projectDeliveryForCustomer,
+  getDeliveryPackageById,
+  revokeDeliveryPackage,
+  isDeliveryRevoked,
   assertScope
 };

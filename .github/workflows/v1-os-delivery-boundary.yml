@@ -37,6 +37,9 @@ jobs:
           node --check server/src/services/customer-portal.js
           node --check server/src/server.js
           node --check server/src/services/h5-reader-ticket.js
+          node --check server/src/services/pdf-reader-ticket.js
+          node --check server/src/services/report-v2-bridge-operations.js
+          node --check pages/report-detail/report-detail.js
           node --check pages/h5-report/h5-report.js
           bash -n server/scripts/deploy-production-from-mac.sh
           bash -n server/scripts/deploy-production-release.sh
@@ -63,8 +66,10 @@ jobs:
           node tests/delivery_package_boundary_regression.js
           node tests/h5_customer_portal_guard_regression.js
           node tests/h5_reader_ticket_regression.js
+          node tests/v2_customer_pdf_ticket_regression.js
           node tests/customer_portal_status_regression.js
           node tests/customer_session_regression.js
+          node tests/multiclient_session_reports_regression.js
           node tests/customer_supplement_regression.js
           node tests/customer_experience_details_regression.js
 

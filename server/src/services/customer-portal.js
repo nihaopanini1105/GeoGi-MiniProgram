@@ -11,30 +11,44 @@ const {
   publicPaymentView
 } = require('./payment-store');
 
-async function listCustomerProjects({ clientId }) {
+async function listCustomerProjects({ clientId, clientIds }) {
   try {
-    const cleanClientId = clean(clientId);
-    if (!cleanClientId) return fail('缺少客户编号');
-
+    const owned = [...new Set(
+      (Array.isArray(clientIds) ? clientIds : [clientId])
+        .map(clean).filter(Boolean)
+    )];
+    if (!owned.length) return fail('缺少客户编号');
+    const allowed = new Set(owned);
     const tenantToken = await getTenantAccessToken();
-    const leads = await listByClient({
-      tenantToken,
-      tableId: process.env.FEISHU_LEADS_TABLE_ID,
-      clientId: cleanClientId
-    });
-    const projects = await listByClient({
-      tenantToken,
-      tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
-      clientId: cleanClientId
-    });
+    // Query Feishu once per source table; intersect every row with IDs
+    // independently confirmed against the signed-in phone session.
+    const [allLeads, allProjects] = await Promise.all([
+      listBitableRecords({
+        tenantToken,
+        appToken: process.env.FEISHU_BASE_APP_TOKEN,
+        tableId: process.env.FEISHU_LEADS_TABLE_ID,
+        pageSize: 100
+      }),
+      listBitableRecords({
+        tenantToken,
+        appToken: process.env.FEISHU_BASE_APP_TOKEN,
+        tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
+        pageSize: 100
+      })
+    ]);
+    const leads = allLeads.filter(record =>
+      allowed.has(text(record.fields && record.fields.客户编号)));
+    const projects = allProjects.filter(record =>
+      allowed.has(text(record.fields && record.fields.客户编号)));
     const projectById = new Map(projects.map((record) => [text(record.fields && record.fields.项目编号), record]));
 
     const orders = (await Promise.all(leads.map(async (lead) => {
       const fields = lead.fields || {};
       const projectId = text(fields.项目编号);
-      if (!projectId) return null;
+      const ownedClientId = text(fields.客户编号);
+      if (!projectId || !allowed.has(ownedClientId)) return null;
       const [deliveryPackage, payment] = await Promise.all([
-        findDeliveryPackage({ clientId: cleanClientId, projectId }),
+        findDeliveryPackage({ clientId: ownedClientId, projectId }),
         findPaymentByProject(projectId)
       ]);
       return normalizeOrder({
@@ -49,11 +63,24 @@ async function listCustomerProjects({ clientId }) {
     const notifications = orders
       .flatMap((order) => buildCustomerResultNotifications(order))
       .sort((a, b) => String(b.occurredAt || '').localeCompare(String(a.occurredAt || '')));
-    return { ok: true, clientId: cleanClientId, orders, notifications };
+    return { ok: true, clientId: owned[0], orders, notifications };
   } catch (error) {
     console.error('listCustomerProjects failed', error);
     return fail('报告状态读取失败，请稍后重试');
   }
+}
+
+function authorizedGeoGiV2Pilot(clientId,projectId,deliveryPackage) {
+  if (String(process.env.GEOGI_V2_EXACT_PILOT_ENABLED||'').toLowerCase()!=='true') return false;
+  const allowedClient=String(process.env.GEOGI_V2_PILOT_CONSUMER_CLIENT_ID||'').trim();
+  const allowedProject=String(process.env.GEOGI_V2_PILOT_CONSUMER_PROJECT_ID||'').trim();
+  return Boolean(allowedClient && allowedProject
+    && clientId===allowedClient && projectId===allowedProject
+    && deliveryPackage
+    && deliveryPackage.client_id===allowedClient
+    && deliveryPackage.project_id===allowedProject
+    && deliveryPackage.release_authority==='geo_diagnostic_html_release_v2'
+    && deliveryPackage.release_status==='released');
 }
 
 async function getCustomerReport({ clientId, projectId }) {
@@ -81,7 +108,8 @@ async function getCustomerReport({ clientId, projectId }) {
     ]);
     const order = normalizeOrder({ lead, project, deliveryPackage, payment });
 
-    if (!deliveryPackage || !isPaidForReport(payment)) {
+    if (!deliveryPackage || (!isPaidForReport(payment)
+         && !authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage))) {
       return {
         ok: true,
         order,
@@ -98,7 +126,8 @@ async function getCustomerReport({ clientId, projectId }) {
           projectId: cleanProjectId
         }),
         status: '报告已完成',
-        reportReady: true
+        reportReady: true,
+        pilotReviewAccess: authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage)
       }
     };
   } catch (error) {
@@ -111,7 +140,10 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const leadFields = (lead && lead.fields) || {};
   const projectFields = (project && project.fields) || {};
   const paidForReport = isPaidForReport(payment);
-  const reportReady = Boolean(deliveryPackage && paidForReport);
+  const pilotReviewAccess=authorizedGeoGiV2Pilot(
+    text(leadFields.客户编号),
+    text(leadFields.项目编号)||text(projectFields.项目编号),deliveryPackage);
+  const reportReady = Boolean(deliveryPackage && (paidForReport || pilotReviewAccess));
   const leadStatus = text(leadFields.当前状态);
   const projectStage = text(projectFields.当前阶段);
   const status = reportReady
@@ -135,6 +167,7 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
     completedAt: reportReady ? deliveryPackage.released_at : '',
     status,
     reportReady,
+    pilotReviewAccess,
     paymentRequired: !(payment && payment.status === 'free'),
     payment: paymentView,
     paymentStatus: payment ? payment.status : 'unpaid',

@@ -93,32 +93,38 @@ function text(value) {
   return String(value || '').trim();
 }
 
-async function resolveOwnedClientId({ phoneNumber, requestedClientId = '' }) {
+async function listOwnedClientIds(phoneNumber) {
+  // A phone may own several legitimate MiniProgram customer IDs from repeat
+  // submissions. Return *all* owned IDs, not merely the newest one. Exact
+  // phone equality is checked server-side against Feishu; no brand-name
+  // match, caller supplied client ID or anonymous query confers ownership.
   const cleanPhone = String(phoneNumber || '').trim();
-  if (!cleanPhone) return '';
-  const tableId = process.env.FEISHU_LEADS_TABLE_ID;
-  if (!tableId) return '';
+  if (!cleanPhone || !process.env.FEISHU_LEADS_TABLE_ID) return [];
   const tenantToken = await getTenantAccessToken();
   const records = await listBitableRecords({
     tenantToken,
     appToken: process.env.FEISHU_BASE_APP_TOKEN,
-    tableId,
+    tableId: process.env.FEISHU_LEADS_TABLE_ID,
     pageSize: 100
   });
-  const owned = records.filter((record) => text(record.fields && record.fields.联系方式) === cleanPhone);
-  if (!owned.length) return '';
+  const owned = records.filter((record) =>
+    text(record.fields && record.fields.联系方式) === cleanPhone
+  ).sort((a,b) => text(b.fields && b.fields.提交时间)
+      .localeCompare(text(a.fields && a.fields.提交时间)));
+  return [...new Set(owned.map(record =>
+    text(record.fields && record.fields.客户编号)).filter(Boolean))];
+}
+
+async function resolveOwnedClientId({ phoneNumber, requestedClientId = '' }) {
+  const owned = await listOwnedClientIds(phoneNumber);
   const requested = String(requestedClientId || '').trim();
-  if (requested) {
-    const match = owned.find((record) => text(record.fields && record.fields.客户编号) === requested);
-    return match ? requested : '';
-  }
-  owned.sort((a, b) => text(b.fields && b.fields.提交时间).localeCompare(text(a.fields && a.fields.提交时间)));
-  return text(owned[0].fields && owned[0].fields.客户编号);
+  return requested ? (owned.includes(requested) ? requested : '') : (owned[0] || '');
 }
 
 module.exports = {
   createCustomerToken,
   verifyCustomerToken,
   requireCustomerSession,
-  resolveOwnedClientId
+  resolveOwnedClientId,
+  listOwnedClientIds
 };

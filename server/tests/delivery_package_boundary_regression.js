@@ -24,7 +24,7 @@ function buildValidPackage() {
     delivery_mode: 'artifact_only',
     production_authority: 'geogi_os',
     delivery_purpose: 'baseline_diagnostic_report',
-    release_authority: 'baseline_diagnostic_release_v1',
+    release_authority: 'geo_diagnostic_html_release_v2',
     delivery_package_id: 'delivery_package_test0001',
     project_id: 'GG-P-202609-000001',
     client_id: 'GG-202609-0001',
@@ -55,16 +55,27 @@ function buildValidPackage() {
       client_diagnosis_generation_allowed: false
     },
     artifacts: [{
+      artifact_id: 'delivery_artifact_html_v2',
+      artifact_type: 'h5',
+      mime_type: 'text/html',
+      file_name: 'GeoGi-V2-aaaaaaaaaaaaaaaa.html',
+      sha256: 'd'.repeat(64),
+      size_bytes: 220,
+      render_version: '1.0.0',
+      report_content_hash: reportContentHash,
+      report_record_hash: reportRecordHash,
+      uri: 'https://delivery.example.invalid/GeoGi-V2-aaaaaaaaaaaaaaaa.html'
+    },{
       artifact_id: 'delivery_artifact_test0001',
       artifact_type: 'pdf',
       mime_type: 'application/pdf',
-      file_name: 'report.pdf',
+      file_name: 'GeoGi-V2-aaaaaaaaaaaaaaaa.pdf',
       sha256: 'c'.repeat(64),
       size_bytes: 128,
       render_version: '1.0.0',
       report_content_hash: reportContentHash,
       report_record_hash: reportRecordHash,
-      uri: 'https://delivery.example.invalid/report.pdf'
+      uri: 'https://delivery.example.invalid/GeoGi-V2-aaaaaaaaaaaaaaaa.pdf'
     }]
   };
   document.package_hash = sha256Canonical(document);
@@ -101,33 +112,35 @@ async function run() {
 
   const valid = buildValidPackage();
   validateDeliveryPackage(valid);
-  const htmlArtifact = buildValidPackage();
-  htmlArtifact.artifacts[0].artifact_type = 'h5';
-  htmlArtifact.artifacts[0].mime_type = 'text/html';
-  htmlArtifact.artifacts[0].file_name = 'report.html';
-  rehash(htmlArtifact);
-  validateDeliveryPackage(htmlArtifact);
-  const disguised = buildValidPackage();
-  disguised.artifacts[0].artifact_type = 'h5';
-  rehash(disguised);
-  expectCode(() => validateDeliveryPackage(disguised), 'DELIVERY_ARTIFACT_TYPE_INVALID');
-  const illegalOutcome = buildValidPackage();
-  illegalOutcome.delivery_purpose = 'final_outcome_report';
-  illegalOutcome.release_authority = 'm09_e2c_final_release';
-  illegalOutcome.artifacts[0].artifact_type = 'h5';
-  illegalOutcome.artifacts[0].mime_type = 'text/html';
-  illegalOutcome.artifacts[0].file_name = 'report.html';
+  // One customer-facing V2 release contract: exactly one H5 plus one PDF.
+  const projected=projectDeliveryForCustomer(valid,{clientId:valid.client_id,projectId:valid.project_id});
+  assert.strictEqual(projected.artifactType,'h5');
+  assert.strictEqual(projected.pdfAvailable,true);
+  assert.strictEqual(projected.pdfArtifactSha256,'c'.repeat(64));
+  assert.strictEqual(projected.pdfArtifactFileName,'GeoGi-V2-aaaaaaaaaaaaaaaa.pdf');
+  assert.strictEqual(projected.reportLink,'');
+  const noPdf=JSON.parse(JSON.stringify(valid));
+  noPdf.artifacts=noPdf.artifacts.filter(x=>x.artifact_type!=='pdf');
+  rehash(noPdf);
+  expectCode(()=>validateDeliveryPackage(noPdf),'DELIVERY_ARTIFACT_COUNT_INVALID');
+  const duplicate=JSON.parse(JSON.stringify(valid));
+  duplicate.artifacts[1].artifact_type='h5';
+  duplicate.artifacts[1].mime_type='text/html';
+  duplicate.artifacts[1].file_name='GeoGi-V2-aaaaaaaaaaaaaaaa.html';
+  rehash(duplicate);
+  expectCode(()=>validateDeliveryPackage(duplicate),'DELIVERY_DUPLICATE_ARTIFACT_KIND');
+  const oldAuthority=JSON.parse(JSON.stringify(valid));
+  oldAuthority.release_authority='baseline_diagnostic_release_v1';
+  rehash(oldAuthority);
+  expectCode(()=>validateDeliveryPackage(oldAuthority),'DELIVERY_PURPOSE_OR_RELEASE_AUTHORITY_INVALID');
+  const illegalOutcome=JSON.parse(JSON.stringify(valid));
+  illegalOutcome.delivery_purpose='final_outcome_report';
+  illegalOutcome.release_authority='m09_e2c_final_release';
   rehash(illegalOutcome);
-  expectCode(() => validateDeliveryPackage(illegalOutcome), 'DELIVERY_ARTIFACT_TYPE_INVALID');
+  expectCode(()=>validateDeliveryPackage(illegalOutcome),'DELIVERY_PURPOSE_OR_RELEASE_AUTHORITY_INVALID');
   assert.strictEqual(valid.version_pins.release_record_version, '1.0.0');
   assert(!Object.prototype.hasOwnProperty.call(valid.version_pins, 'report_delivery_record_version'));
 
-  const finalOutcome = buildValidPackage();
-  finalOutcome.delivery_purpose = 'final_outcome_report';
-  finalOutcome.release_authority = 'm09_e2c_final_release';
-  finalOutcome.report_reference.report_type = 'client_geo_outcome';
-  rehash(finalOutcome);
-  validateDeliveryPackage(finalOutcome);
 
   const recomposed = buildValidPackage();
   recomposed.display_summary = { keyFindings: ['客户端重新拼装'] };
@@ -178,8 +191,9 @@ async function run() {
   assert.strictEqual(customer.deliveryMode, 'artifact_only');
   assert.strictEqual(customer.productionAuthority, 'geogi_os');
   assert.strictEqual(customer.deliveryPurpose, 'baseline_diagnostic_report');
-  assert.strictEqual(customer.releaseAuthority, 'baseline_diagnostic_release_v1');
-  assert.strictEqual(customer.reportLink, valid.artifacts[0].uri);
+  assert.strictEqual(customer.releaseAuthority, 'geo_diagnostic_html_release_v2');
+  assert.strictEqual(customer.reportLink, '');
+  assert.strictEqual(customer.pdfAvailable, true);
   assert.strictEqual(customer.reportContentHash, valid.report_reference.content_hash);
   assert.strictEqual(customer.reportRecordHash, valid.report_reference.report_record_hash);
   for (const forbidden of ['overallScore','summary','conclusion','dimensions','platforms','keyFindings','recommendations','limitations','risks','scope']) {
@@ -189,7 +203,7 @@ async function run() {
   expectCode(() => projectDeliveryForCustomer(loaded, { clientId: 'GG-OTHER', projectId: valid.project_id }), 'DELIVERY_SCOPE_MISMATCH');
 
   const conflicting = buildValidPackage();
-  conflicting.artifacts[0].file_name = 'mutated.pdf';
+  conflicting.artifacts[1].file_name = 'GeoGi-V2-bbbbbbbbbbbbbbbb.pdf';
   rehash(conflicting);
   await expectCodeAsync(() => importDeliveryPackage(conflicting), 'DELIVERY_PACKAGE_IMMUTABLE_CONFLICT');
 
@@ -233,6 +247,11 @@ async function run() {
   }
   assert(reportPageSource.includes('正式报告完成后会在这里开放查看'));
   assert(reportPageSource.includes('打开正式诊断报告'));
+  assert(reportPageSource.includes('下载 PDF 诊断报告'));
+  assert(reportPageLogic.includes('/pdf-ticket'));
+  assert(reportPageLogic.includes('wx.downloadFile('));
+  assert(serverSource.includes("app.post('/api/customer/reports/:projectId/pdf-ticket', requireCustomerSession"));
+  assert(serverSource.includes("app.get('/api/customer/pdf-reader/:ticket'"));
 
   await fs.promises.rm(root, { recursive: true, force: true });
   console.log('GEOGI MINIPROGRAM DISPLAY-ONLY BOUNDARY: OK');

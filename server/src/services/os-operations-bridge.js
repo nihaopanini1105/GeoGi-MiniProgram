@@ -201,6 +201,7 @@ async function publishOsDeliveryPackage(packageDocument) {
     ? await reconcileCommission({ order: payment, releasedAt: packageDocument.released_at })
     : null;
   return {
+    status:'published',
     imported: result.imported,
     idempotent: result.idempotent,
     deliveryPackageId: packageDocument.delivery_package_id,

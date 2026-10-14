@@ -26,7 +26,7 @@ const {
   handlePaymentNotification,
   handleRefundNotification
 } = require('./services/wechat-pay');
-const { requireCustomerSession, resolveOwnedClientId } = require('./services/customer-session');
+const { requireCustomerSession, resolveOwnedClientId, listOwnedClientIds } = require('./services/customer-session');
 const { trackEvent } = require('./services/events');
 const { notificationConfigured } = require('./services/ops-notifications');
 const {
@@ -48,6 +48,11 @@ const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services
 const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
 const { issueH5Ticket, consumeH5Ticket, readVerifiedH5Artifact } = require('./services/h5-reader-ticket');
+const { issuePdfTicket, consumePdfTicket, readVerifiedPdfArtifact } = require('./services/pdf-reader-ticket');
+const {
+  reportV2Capabilities, verifyCustomerReportAccess, revokeCustomerReportDelivery,
+  verifyGeoGiPilotBinding
+} = require('./services/report-v2-bridge-operations');
 const {
   OperationsBridgeError,
   configured: osBridgeConfigured,
@@ -68,12 +73,16 @@ app.use(express.json({
     req.rawBody = Buffer.from(buffer || '');
   }
 }));
-// H5 customer reports are private; never serve HTML artifacts from public uploads.
+// Both H5 and PDF reports are private; public uploads can only host
+// non-report assets. Reading either report requires a scoped one-use token.
 app.use('/uploads', (req, res, next) => {
   let name;
   try { name = decodeURIComponent(String(req.path || '')).toLowerCase(); }
   catch (_) { return res.status(400).json({ ok: false, userMessage: '文件地址无效' }); }
-  if (name.endsWith('.html') || name.endsWith('.htm')) {
+  // Customer-uploaded PDF attachments remain accessible under their
+  // existing rules. Only immutable V2 report PDF assets are private.
+  if (name.endsWith('.html') || name.endsWith('.htm')
+      || /^\/geogi-v2-[0-9a-f]{16}\.pdf$/.test(name)) {
     return res.status(404).json({ ok: false, userMessage: '文件不可公开访问' });
   }
   return next();
@@ -161,12 +170,16 @@ app.get('/api/articles/:id', async (req, res) => {
 app.get('/api/sample-report', (_req, res) => res.json(getSampleReport()));
 
 app.get('/api/customer/projects', requireCustomerSession, async (req, res) => {
-  const clientId = await resolveOwnedClientId({
-    phoneNumber: req.customerSession.phoneNumber,
-    requestedClientId: req.query && req.query.clientId
+  // Mine must list every project owned by the *authenticated phone*, even
+  // when repeat submissions produced different customer IDs. Direct report
+  // retrieval stays strictly scoped to the client/project ID of each card.
+  const owned = await listOwnedClientIds(req.customerSession.phoneNumber);
+  const requested = String(req.query && req.query.clientId || '').trim();
+  const clientIds = requested ? (owned.includes(requested) ? [requested] : []) : owned;
+  if (!clientIds.length) return res.status(404).json({
+    ok: false, userMessage: '没有找到该手机号名下的诊断记录'
   });
-  if (!clientId) return res.status(404).json({ ok: false, userMessage: '没有找到该手机号名下的诊断记录' });
-  const result = await listCustomerProjects({ clientId });
+  const result = await listCustomerProjects({ clientIds });
   return res.status(result.ok ? 200 : 400).json(result);
 });
 
@@ -198,6 +211,55 @@ app.post('/api/customer/reports/:projectId/h5-ticket', requireCustomerSession, a
     return res.json({ ok: true, readerPath: '/api/customer/h5-reader/' + token, expiresInSeconds: 60 });
   } catch (error) {
     return res.status(503).json({ ok: false, userMessage: '报告阅读暂不可用，请稍后重试' });
+  }
+});
+
+// Download tokens are issued only through an authenticated customer session
+// after project ownership, paid-order and formally released package checks.
+// A direct PDF URL never grants cross-customer access.
+app.post('/api/customer/reports/:projectId/pdf-ticket', requireCustomerSession, async (req,res) => {
+  try {
+    const clientId=await resolveOwnedClientId({
+      phoneNumber:req.customerSession.phoneNumber,
+      requestedClientId:req.body && req.body.clientId
+    });
+    if (!clientId) return res.status(404).json({ok:false,userMessage:'无权查看该报告'});
+    const result=await getCustomerReport({clientId,projectId:req.params.projectId});
+    const report=result && result.report;
+    if (!result.ok || !report || report.reportReady!==true
+        || report.pdfAvailable!==true || !report.pdfArtifactFileName
+        || !/^[0-9a-f]{64}$/.test(String(report.pdfArtifactSha256||''))) {
+      return res.status(404).json({ok:false,userMessage:'PDF 报告暂不可用'});
+    }
+    const token=issuePdfTicket({
+      clientId,projectId:req.params.projectId,
+      sha256:report.pdfArtifactSha256,fileName:report.pdfArtifactFileName
+    });
+    res.setHeader('Cache-Control','private, no-store');
+    return res.json({ok:true,downloadPath:'/api/customer/pdf-reader/'+token,expiresInSeconds:60});
+  } catch (error) {
+    return res.status(503).json({ok:false,userMessage:'报告下载暂不可用'});
+  }
+});
+
+app.get('/api/customer/pdf-reader/:ticket', async (req,res) => {
+  res.setHeader('Cache-Control','private, no-store');
+  res.setHeader('Referrer-Policy','no-referrer');
+  res.setHeader('X-Content-Type-Options','nosniff');
+  try {
+    const ticket=consumePdfTicket(req.params.ticket);
+    const result=await getCustomerReport({clientId:ticket.clientId,projectId:ticket.projectId});
+    const report=result && result.report;
+    if (!result.ok || !report || !report.reportReady || !report.pdfAvailable
+        || report.pdfArtifactSha256!==ticket.sha256
+        || report.pdfArtifactFileName!==ticket.fileName) {
+      return res.status(404).type('text/plain').send('PDF 报告已失效');
+    }
+    const bytes=readVerifiedPdfArtifact(getUploadRoot(),ticket.fileName,ticket.sha256);
+    res.setHeader('Content-Disposition','attachment; filename="GeoGi-GEO-Report.pdf"');
+    return res.status(200).type('application/pdf').send(bytes);
+  } catch (error) {
+    return res.status(404).type('text/plain').send('PDF 下载链接无效，请返回小程序重新获取');
   }
 });
 
@@ -494,6 +556,33 @@ app.post(
     }
   }
 );
+
+app.get('/internal/os/report-v2/capabilities', requireOsBridge, (_req,res) => {
+  return res.json({ok:true,result:reportV2Capabilities()});
+});
+
+app.post('/internal/os/report-v2/verify-pilot-binding',requireOsBridge,async(req,res,next)=>{
+  try {
+    const clientId=String((req.body||{}).client_id||'');
+    const projectId=String((req.body||{}).project_id||'');
+    const result=await verifyGeoGiPilotBinding({clientId,projectId});
+    return res.json({ok:true,result});
+  } catch(error) { return next(error); }
+});
+
+app.post('/internal/os/report-v2/verify-customer-access',requireOsBridge,async(req,res,next)=>{
+  try {
+    const result=await verifyCustomerReportAccess(req.body||{});
+    return res.json({ok:true,result});
+  } catch(error) { return next(error); }
+});
+
+app.post('/internal/os/report-v2/revoke',requireOsBridge,async(req,res,next)=>{
+  try {
+    const result=await revokeCustomerReportDelivery(req.body||{});
+    return res.json({ok:true,result});
+  } catch(error) { return next(error); }
+});
 
 app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, next) => {
   try {

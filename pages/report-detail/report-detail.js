@@ -15,7 +15,8 @@ Page({
     supplementSubmitting: false,
     supplementMessage: '',
     paymentLoading: false,
-    paymentError: ''
+    paymentError: '',
+    pdfDownloadLoading: false
   },
 
   onLoad(options) {
@@ -76,9 +77,12 @@ Page({
     return {
       status: data.status || '处理中',
       reportReady: data.reportReady === true,
+      pilotReviewAccess: data.pilotReviewAccess === true,
       reportLink: data.reportLink || '',
       artifactMimeType: data.artifactMimeType || '',
       artifactType: data.artifactType || '',
+      pdfAvailable: data.pdfAvailable === true,
+      pdfArtifactSha256: data.pdfArtifactSha256 || '',
       reportVersion: data.reportVersion || '',
       releasedAt: this.formatDisplayTime(data.releasedAt),
       deliveryPackageId: data.deliveryPackageId || '',
@@ -278,6 +282,60 @@ Page({
         wx.showToast({ title: '报告下载失败', icon: 'none' });
       }
     });
+  },
+
+  async downloadPdf() {
+    if (this.data.pdfDownloadLoading) return;
+    const report=this.data.report || {};
+    if (!report.reportReady || report.pdfAvailable !== true) {
+      wx.showToast({title:'正式 PDF 报告暂不可用',icon:'none'});
+      return;
+    }
+    this.setData({pdfDownloadLoading:true});
+    try {
+      wx.showLoading({title:'获取下载授权'});
+      const ticket=await post('/api/customer/reports/'+
+        encodeURIComponent(this.data.projectId)+'/pdf-ticket',{clientId:this.data.clientId});
+      wx.hideLoading();
+      if (!ticket || !ticket.ok ||
+          !/^\/api\/customer\/pdf-reader\/[0-9a-f]{64}$/.test(ticket.downloadPath||'')) {
+        throw new Error('未获得有效的 PDF 下载授权');
+      }
+      const remote=API_BASE_URL.replace(/\/+$/,'')+ticket.downloadPath;
+      wx.showLoading({title:'下载 PDF 中'});
+      const downloaded=await new Promise((resolve,reject)=>{
+        wx.downloadFile({
+          url:remote,
+          success:result=>{
+            if (result && result.statusCode===200 && result.tempFilePath) resolve(result.tempFilePath);
+            else reject(new Error('PDF 下载失败，请重试'));
+          },
+          fail:reject
+        });
+      });
+      wx.hideLoading();
+      const saved=await new Promise((resolve,reject)=>{
+        wx.saveFile({
+          tempFilePath:downloaded,
+          success:result=>resolve(result.savedFilePath),
+          fail:reject
+        });
+      });
+      await new Promise((resolve,reject)=>{
+        wx.openDocument({
+          filePath:saved,
+          fileType:'pdf',
+          showMenu:true,
+          success:resolve,
+          fail:reject
+        });
+      });
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({title:err&&err.message?err.message:'PDF 下载失败',icon:'none'});
+    } finally {
+      this.setData({pdfDownloadLoading:false});
+    }
   },
 
   goMine() { wx.switchTab({ url: '/pages/mine/mine' }); }
