@@ -48,6 +48,7 @@ const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services
 const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
 const { issueH5Ticket, consumeH5Ticket, readVerifiedH5Artifact } = require('./services/h5-reader-ticket');
+const { issuePdfTicket, consumePdfTicket, readVerifiedPdfArtifact } = require('./services/pdf-reader-ticket');
 const {
   OperationsBridgeError,
   configured: osBridgeConfigured,
@@ -198,6 +199,55 @@ app.post('/api/customer/reports/:projectId/h5-ticket', requireCustomerSession, a
     return res.json({ ok: true, readerPath: '/api/customer/h5-reader/' + token, expiresInSeconds: 60 });
   } catch (error) {
     return res.status(503).json({ ok: false, userMessage: '报告阅读暂不可用，请稍后重试' });
+  }
+});
+
+// Download tokens are issued only through an authenticated customer session
+// after project ownership, paid-order and formally released package checks.
+// A direct PDF URL never grants cross-customer access.
+app.post('/api/customer/reports/:projectId/pdf-ticket', requireCustomerSession, async (req,res) => {
+  try {
+    const clientId=await resolveOwnedClientId({
+      phoneNumber:req.customerSession.phoneNumber,
+      requestedClientId:req.body && req.body.clientId
+    });
+    if (!clientId) return res.status(404).json({ok:false,userMessage:'无权查看该报告'});
+    const result=await getCustomerReport({clientId,projectId:req.params.projectId});
+    const report=result && result.report;
+    if (!result.ok || !report || report.reportReady!==true
+        || report.pdfAvailable!==true || !report.pdfArtifactFileName
+        || !/^[0-9a-f]{64}$/.test(String(report.pdfArtifactSha256||''))) {
+      return res.status(404).json({ok:false,userMessage:'PDF 报告暂不可用'});
+    }
+    const token=issuePdfTicket({
+      clientId,projectId:req.params.projectId,
+      sha256:report.pdfArtifactSha256,fileName:report.pdfArtifactFileName
+    });
+    res.setHeader('Cache-Control','private, no-store');
+    return res.json({ok:true,downloadPath:'/api/customer/pdf-reader/'+token,expiresInSeconds:60});
+  } catch (error) {
+    return res.status(503).json({ok:false,userMessage:'报告下载暂不可用'});
+  }
+});
+
+app.get('/api/customer/pdf-reader/:ticket', async (req,res) => {
+  res.setHeader('Cache-Control','private, no-store');
+  res.setHeader('Referrer-Policy','no-referrer');
+  res.setHeader('X-Content-Type-Options','nosniff');
+  try {
+    const ticket=consumePdfTicket(req.params.ticket);
+    const result=await getCustomerReport({clientId:ticket.clientId,projectId:ticket.projectId});
+    const report=result && result.report;
+    if (!result.ok || !report || !report.reportReady || !report.pdfAvailable
+        || report.pdfArtifactSha256!==ticket.sha256
+        || report.pdfArtifactFileName!==ticket.fileName) {
+      return res.status(404).type('text/plain').send('PDF 报告已失效');
+    }
+    const bytes=readVerifiedPdfArtifact(getUploadRoot(),ticket.fileName,ticket.sha256);
+    res.setHeader('Content-Disposition','attachment; filename="GeoGi-GEO-Report.pdf"');
+    return res.status(200).type('application/pdf').send(bytes);
+  } catch (error) {
+    return res.status(404).type('text/plain').send('PDF 下载链接无效，请返回小程序重新获取');
   }
 });
 
