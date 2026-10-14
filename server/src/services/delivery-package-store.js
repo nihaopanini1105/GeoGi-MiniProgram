@@ -144,8 +144,12 @@ function validateDeliveryPackage(packageDocument) {
     const mime=String(artifact.mime_type||'');
     const kind=String(artifact.artifact_type||'');
     const filename=String(artifact.file_name||'');
-    const pdf=mime==='application/pdf' && kind==='pdf' && filename.endsWith('.pdf');
-    const h5=mime==='text/html' && kind==='h5' && filename.endsWith('.html')
+    // Unified V2 package names are reserved and denied by the public
+    // /uploads handler. Never admit generic uploaded customer PDFs as reports.
+    const pdf=mime==='application/pdf' && kind==='pdf'
+      && /^GeoGi-V2-[0-9a-f]{16}\\.pdf$/.test(filename);
+    const h5=mime==='text/html' && kind==='h5'
+      && /^GeoGi-V2-[0-9a-f]{16}\\.html$/.test(filename)
         && packageDocument.delivery_purpose==='baseline_diagnostic_report';
     if (!pdf && !h5) throw new DeliveryPackageError('DELIVERY_ARTIFACT_TYPE_INVALID');
     if (seenKinds.has(kind)) throw new DeliveryPackageError('DELIVERY_DUPLICATE_ARTIFACT_KIND');
