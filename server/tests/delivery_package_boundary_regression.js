@@ -58,24 +58,24 @@ function buildValidPackage() {
       artifact_id: 'delivery_artifact_html_v2',
       artifact_type: 'h5',
       mime_type: 'text/html',
-      file_name: 'report.html',
+      file_name: 'GeoGi-V2-aaaaaaaaaaaaaaaa.html',
       sha256: 'd'.repeat(64),
       size_bytes: 220,
       render_version: '1.0.0',
       report_content_hash: reportContentHash,
       report_record_hash: reportRecordHash,
-      uri: 'https://delivery.example.invalid/report.html'
+      uri: 'https://delivery.example.invalid/GeoGi-V2-aaaaaaaaaaaaaaaa.html'
     },{
       artifact_id: 'delivery_artifact_test0001',
       artifact_type: 'pdf',
       mime_type: 'application/pdf',
-      file_name: 'report.pdf',
+      file_name: 'GeoGi-V2-aaaaaaaaaaaaaaaa.pdf',
       sha256: 'c'.repeat(64),
       size_bytes: 128,
       render_version: '1.0.0',
       report_content_hash: reportContentHash,
       report_record_hash: reportRecordHash,
-      uri: 'https://delivery.example.invalid/report.pdf'
+      uri: 'https://delivery.example.invalid/GeoGi-V2-aaaaaaaaaaaaaaaa.pdf'
     }]
   };
   document.package_hash = sha256Canonical(document);
@@ -117,7 +117,7 @@ async function run() {
   assert.strictEqual(projected.artifactType,'h5');
   assert.strictEqual(projected.pdfAvailable,true);
   assert.strictEqual(projected.pdfArtifactSha256,'c'.repeat(64));
-  assert.strictEqual(projected.pdfArtifactFileName,'report.pdf');
+  assert.strictEqual(projected.pdfArtifactFileName,'GeoGi-V2-aaaaaaaaaaaaaaaa.pdf');
   assert.strictEqual(projected.reportLink,'');
   const noPdf=JSON.parse(JSON.stringify(valid));
   noPdf.artifacts=noPdf.artifacts.filter(x=>x.artifact_type!=='pdf');
