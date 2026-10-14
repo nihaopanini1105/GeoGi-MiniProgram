@@ -77,6 +77,7 @@ Page({
     return {
       status: data.status || '处理中',
       reportReady: data.reportReady === true,
+      pilotReviewAccess: data.pilotReviewAccess === true,
       reportLink: data.reportLink || '',
       artifactMimeType: data.artifactMimeType || '',
       artifactType: data.artifactType || '',
