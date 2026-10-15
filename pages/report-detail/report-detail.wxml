@@ -17,10 +17,11 @@
     <view class="report-hero card">
       <text class="eyebrow">GEO DIAGNOSIS</text>
       <text class="h1">{{order.brandName || '品牌'}} GEO 诊断报告</text>
-      <text class="lead">品牌 GEO 诊断标准价 199 元，订单确认后开始处理，报告完成并审核后可在这里查看。</text>
+      <text wx:if="{{report.pilotReviewAccess}}" class="lead">这份 GeoGi 诊断报告已经授权给当前客户账号。无需再次付款，可直接阅读正式 H5 报告或下载 PDF。</text>
+      <text wx:else class="lead">品牌 GEO 诊断标准价 199 元，订单确认后开始处理，报告完成并审核后可在这里查看。</text>
       <view class="report-meta">
         <text>项目编号：{{order.projectId}}</text>
-        <text>订单金额：¥{{order.amountYuan !== undefined ? order.amountYuan : 199}}</text>
+        <text>{{report.pilotReviewAccess ? '历史订单金额：¥' : '订单金额：¥'}}{{order.amountYuan !== undefined ? order.amountYuan : 199}}</text>
         <text wx:if="{{order.payment && order.payment.sourceName}}">来源：{{order.payment.sourceName}}</text>
         <text wx:if="{{order.payment && order.payment.discountYuan > 0}}">兑换码优惠：-¥{{order.payment.discountYuan}}</text>
         <text>付款状态：{{report.pilotReviewAccess ? 'GeoGi 专属体验授权' : order.paymentStatus === 'free' ? '优惠免付' : order.paymentStatus === 'paid' ? '已付款' : order.paymentStatus === 'partially_refunded' ? '部分退款' : order.paymentStatus === 'refunded' ? '已退款' : order.paymentStatus === 'refund_processing' ? '退款处理中' : order.paymentStatus === 'paying' ? '付款确认中' : '待付款'}}</text>
@@ -39,7 +40,7 @@
       <text wx:if="{{report.reportVersion}}" class="body">报告版本：v{{report.reportVersion}}</text>
     </view>
 
-    <view wx:if="{{!report.reportReady && order.paymentStatus !== 'paid' && order.paymentStatus !== 'free' && order.paymentStatus !== 'partially_refunded' && order.paymentStatus !== 'refunded' && order.paymentStatus !== 'refund_processing'}}" class="section card payment-card">
+    <view wx:if="{{!report.reportReady && !report.pilotReviewAccess && order.paymentStatus !== 'paid' && order.paymentStatus !== 'free' && order.paymentStatus !== 'partially_refunded' && order.paymentStatus !== 'refunded' && order.paymentStatus !== 'refund_processing'}}" class="section card payment-card">
       <text class="block-title">完成付款后开始诊断</text>
       <text class="body">品牌资料已提交。请按当前订单金额完成付款，付款成功后 GeoGi 开始正式诊断。</text>
       <button class="primary-button full-button" loading="{{paymentLoading}}" disabled="{{paymentLoading}}" bindtap="payNow">立即支付</button>

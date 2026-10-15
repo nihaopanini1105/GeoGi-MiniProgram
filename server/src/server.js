@@ -331,6 +331,32 @@ app.post('/api/customer/projects/:projectId/payment', requireCustomerSession, as
       requestedClientId: req.body && req.body.clientId
     });
     if (!clientId) return res.status(404).json({ ok: false, userMessage: '没有找到该手机号名下的诊断记录' });
+    // Compatibility fence for older, already released WeChat frontend builds
+    // that may still display an "立即支付" button after the OS delivered
+    // this one independently verified pilot report. It must never create
+    // another payment for that exact scoped customer's released report.
+    const exactPilot = (
+      String(process.env.GEOGI_V2_EXACT_PILOT_ENABLED || '').toLowerCase() === 'true' &&
+      clientId === String(process.env.GEOGI_V2_PILOT_CONSUMER_CLIENT_ID || '') &&
+      req.params.projectId === String(process.env.GEOGI_V2_PILOT_CONSUMER_PROJECT_ID || '')
+    );
+    if (exactPilot) {
+      const existingReport = await getCustomerReport({
+        clientId, projectId: req.params.projectId
+      });
+      if (!existingReport || existingReport.ok !== true) {
+        return res.status(503).json({
+          ok: false, userMessage: '项目授权状态暂不可用，请稍后重试'
+        });
+      }
+      if (existingReport.report && existingReport.report.reportReady === true &&
+          existingReport.report.pilotReviewAccess === true) {
+        return res.status(409).json({
+          ok: false, code: 'REPORT_ALREADY_AUTHORIZED',
+          userMessage: '当前 GeoGi 诊断报告已获得专属体验授权，无需支付，请更新小程序后在「我的」查看报告。'
+        });
+      }
+    }
     const result = await createCustomerPayment({
       clientId,
       projectId: req.params.projectId,

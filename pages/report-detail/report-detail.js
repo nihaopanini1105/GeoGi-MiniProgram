@@ -183,7 +183,10 @@ Page({
   },
 
   async payNow() {
-    if (this.data.paymentLoading || this.paymentPaid()) return;
+    // Never request payment for an already published or pilot-authorized report.
+    // Backend enforces the same exact-customer rule for stale release clients.
+    if (this.data.paymentLoading || this.paymentPaid() ||
+        (this.data.report && (this.data.report.reportReady || this.data.report.pilotReviewAccess))) return;
     if (!isApiConfigured()) {
       this.setData({ paymentError: '支付服务暂未连接，请稍后再试。' });
       return;
