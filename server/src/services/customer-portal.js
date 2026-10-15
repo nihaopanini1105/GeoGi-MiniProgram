@@ -168,7 +168,10 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
     status,
     reportReady,
     pilotReviewAccess,
-    paymentRequired: !(payment && payment.status === 'free'),
+    // An independently verified, already released GeoGi pilot report must
+    // not be presented as requiring a new payment. Preserve the historical
+    // paymentStatus for audit; do not forge a paid order.
+    paymentRequired: !pilotReviewAccess && !(payment && payment.status === 'free'),
     payment: paymentView,
     paymentStatus: payment ? payment.status : 'unpaid',
     amountYuan: payment ? payment.amountYuan : 199,
