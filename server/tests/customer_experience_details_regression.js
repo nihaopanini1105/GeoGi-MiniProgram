@@ -52,6 +52,22 @@ function run() {
   assert(mine.includes('结果提醒'));
   assert(mine.includes('退款结果、诊断报告完成等重要状态会在这里更新'));
   assert(report.includes('wx:if="{{order.canSupplement}}"'));
+  // The 2026-09 legacy payment test account has an independently released
+  // GeoGi Report V2. It may retain historical 'unpaid' audit data, but the
+  // current customer must never see a second payment request.
+  const detailJs = read('pages/report-detail/report-detail.js');
+  const customerPortal = read('server/src/services/customer-portal.js');
+  const server = read('server/src/server.js');
+  assert(report.includes('report.pilotReviewAccess'));
+  assert(report.includes('无需再次付款'));
+  assert(report.includes('阅读正式 H5 诊断报告'));
+  assert(report.includes('下载 PDF 诊断报告'));
+  assert(report.includes('!report.reportReady && !report.pilotReviewAccess && order.paymentStatus'));
+  assert(detailJs.includes('this.data.report.reportReady || this.data.report.pilotReviewAccess'));
+  assert(customerPortal.includes("paymentRequired: !pilotReviewAccess && !(payment && payment.status === 'free')"));
+  assert(server.includes("code: 'REPORT_ALREADY_AUTHORIZED'"));
+  assert(server.includes('const existingReport = await getCustomerReport('));
+  assert(server.includes("existingReport.report.pilotReviewAccess === true"));
   assert(appJs.includes('captureAttribution'));
   assert(attributionJs.includes("ATTRIBUTION_KEY = 'geogi_source_attribution'"));
   assert(attributionJs.includes('/api/attribution/resolve'));
