@@ -1,0 +1,24 @@
+name: WeChat H5 domain verification safety
+on:
+  pull_request:
+    paths:
+      - 'server/scripts/wechat_h5_domain_verification.py'
+      - 'server/tests/test_wechat_h5_domain_verification.py'
+      - '.github/workflows/wechat-h5-domain-safety.yml'
+  push:
+    paths:
+      - 'server/scripts/wechat_h5_domain_verification.py'
+      - 'server/tests/test_wechat_h5_domain_verification.py'
+      - '.github/workflows/wechat-h5-domain-safety.yml'
+jobs:
+  offline-validation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m py_compile server/scripts/wechat_h5_domain_verification.py server/tests/test_wechat_h5_domain_verification.py
+      - run: python -m unittest discover -s server/tests -p 'test_wechat_h5_domain_verification.py' -v
