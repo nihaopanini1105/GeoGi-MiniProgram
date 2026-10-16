@@ -182,6 +182,19 @@ function validateDeliveryPackage(packageDocument) {
       throw new DeliveryPackageError('DELIVERY_ARTIFACT_REPORT_HASH_MISMATCH');
     }
   }
+  if (packageDocument.delivery_purpose === 'report_v21_diagnostic') {
+    const names=artifacts.map(a=>a.file_name.replace(/\\.(html|pdf)$/, ''));
+    if (new Set(names).size!==1) {
+      throw new DeliveryPackageError('V21_ARTIFACTS_MUST_BE_ONE_FROZEN_REVISION');
+    }
+    const digestNames=artifacts.map(a=>a.render_version);
+    if (digestNames.some(v=>v!=='report-v21-customer-1')) {
+      throw new DeliveryPackageError('V21_ARTIFACT_RENDER_VERSION_MISMATCH');
+    }
+    if (packageDocument.report_reference.report_type!=='client_geo_diagnostic') {
+      throw new DeliveryPackageError('V21_REPORT_TYPE_MISMATCH');
+    }
+  }
   // The optional second attachment belongs to the very same final
   // customer report. It never changes scope, publication or payment rules.
   if (!['baseline_diagnostic_report','report_v21_diagnostic'].includes(packageDocument.delivery_purpose)
