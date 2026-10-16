@@ -29,6 +29,14 @@ jobs:
         with:
           node-version: "20"
 
+      # The V2.1 bridge exercises real uploads and requires multer/express.
+      # A bare Node runner cannot import these dependencies. Install from the
+      # committed server package manifest before running any application tests.
+      - name: Install isolated server dependencies
+        run: |
+          cd server
+          npm install --ignore-scripts --no-audit --no-fund
+
       - name: Syntax check production boundary
         run: |
           node --check server/src/services/delivery-package-store.js
@@ -89,6 +97,9 @@ jobs:
           test -f "$tmp/stage/app.js"
           (
             cd "$tmp/stage/server"
+            # Exercise the staged release with its own dependencies, rather
+            # than relying on source checkout's node_modules or environment.
+            npm install --ignore-scripts --no-audit --no-fund
             npm test
           )
 
