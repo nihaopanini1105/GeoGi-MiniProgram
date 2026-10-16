@@ -183,7 +183,7 @@ function validateDeliveryPackage(packageDocument) {
     }
   }
   if (packageDocument.delivery_purpose === 'report_v21_diagnostic') {
-    const names=artifacts.map(a=>a.file_name.replace(/\\.(html|pdf)$/, ''));
+    const names=artifacts.map(a=>a.file_name.replace(/\.(html|pdf)$/, ''));
     if (new Set(names).size!==1) {
       throw new DeliveryPackageError('V21_ARTIFACTS_MUST_BE_ONE_FROZEN_REVISION');
     }
