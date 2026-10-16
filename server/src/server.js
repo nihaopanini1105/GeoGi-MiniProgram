@@ -54,6 +54,9 @@ const {
   verifyGeoGiPilotBinding
 } = require('./services/report-v2-bridge-operations');
 const {
+  reportV21Capabilities, verifyReportV21CustomerAccess, revokeReportV21Delivery
+} = require('./services/report-v21-bridge-operations');
+const {
   OperationsBridgeError,
   configured: osBridgeConfigured,
   requireOsBridge,
@@ -82,7 +85,8 @@ app.use('/uploads', (req, res, next) => {
   // Customer-uploaded PDF attachments remain accessible under their
   // existing rules. Only immutable V2 report PDF assets are private.
   if (name.endsWith('.html') || name.endsWith('.htm')
-      || /^\/geogi-v2-[0-9a-f]{16}\.pdf$/.test(name)) {
+      || /^\/geogi-v2-[0-9a-f]{16}\.pdf$/.test(name)
+      || /^\/geogi-v21-[0-9a-f]{16}\.pdf$/.test(name)) {
     return res.status(404).json({ ok: false, userMessage: '文件不可公开访问' });
   }
   return next();
@@ -585,6 +589,24 @@ app.post(
 
 app.get('/internal/os/report-v2/capabilities', requireOsBridge, (_req,res) => {
   return res.json({ok:true,result:reportV2Capabilities()});
+});
+
+// V2.1 bridge is opt-in and independently versioned. All routes are protected
+// by the existing OS-bridge bearer auth; no public capability or revocation.
+app.get('/internal/os/report-v21/capabilities', requireOsBridge, (_req,res) => {
+  return res.json({ok:true,result:reportV21Capabilities()});
+});
+app.post('/internal/os/report-v21/verify-customer-access',requireOsBridge,async(req,res,next)=>{
+  try {
+    const result=await verifyReportV21CustomerAccess(req.body||{});
+    return res.json({ok:true,result});
+  } catch(error) { return next(error); }
+});
+app.post('/internal/os/report-v21/revoke',requireOsBridge,async(req,res,next)=>{
+  try {
+    const result=await revokeReportV21Delivery(req.body||{});
+    return res.json({ok:true,result});
+  } catch(error) { return next(error); }
 });
 
 app.post('/internal/os/report-v2/verify-pilot-binding',requireOsBridge,async(req,res,next)=>{
