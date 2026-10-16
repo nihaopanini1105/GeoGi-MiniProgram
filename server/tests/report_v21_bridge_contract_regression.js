@@ -92,6 +92,21 @@ async function main(){
   rehash(badPins);
   verifyFailure(badPins,'V21_STRICT_VERSION_OR_AUTHORITY_INVALID');
   await importDeliveryPackage(newer);
+  // OS -> MiniProgram V2.1 uses the distinct revision branch. It must NOT
+  // invoke the legacy Feishu stage, payment completion or commission path.
+  const historical=require('../src/services/report-v2-bridge-operations');
+  const previousVerifier=historical.verifyGeoGiPilotBinding;
+  historical.verifyGeoGiPilotBinding=async()=>({ready:true});
+  try {
+    const {publishOsDeliveryPackage}=require('../src/services/os-operations-bridge');
+    const released=await publishOsDeliveryPackage(newer);
+    assert.strictEqual(released.status,'published');
+    assert.strictEqual(released.payment_mutated,false);
+    assert.strictEqual(released.commission_mutated,false);
+    assert.strictEqual(released.historical_v2_unchanged,true);
+  } finally {
+    historical.verifyGeoGiPilotBinding=previousVerifier;
+  }
   const again=await importDeliveryPackage(newer);
   assert.strictEqual(again.idempotent,true);
   assert.strictEqual((await getDeliveryPackageById(v2.delivery_package_id)).package_hash,v2.package_hash);
