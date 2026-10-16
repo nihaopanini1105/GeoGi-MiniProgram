@@ -191,6 +191,28 @@ async function updateOsProjectStage({ projectId, stage }) {
 }
 
 async function publishOsDeliveryPackage(packageDocument) {
+  // V2.1 is an immutable report revision, not a second purchase or project
+  // completion event. Its bridge flag + exact-pilot binding are independent
+  // of the existing V2 dispatch path. Never update Feishu, payment or commission.
+  if (packageDocument && packageDocument.release_authority==='geo_diagnostic_html_release_v21'
+      && packageDocument.delivery_purpose==='report_v21_diagnostic') {
+    if (String(process.env.GEOGI_REPORT_V21_BRIDGE_ENABLED||'').toLowerCase()!=='true') {
+      throw new OperationsBridgeError('V21_BRIDGE_NOT_ENABLED');
+    }
+    const {verifyGeoGiPilotBinding}=require('./report-v2-bridge-operations');
+    const scope=await verifyGeoGiPilotBinding({
+      clientId:packageDocument.client_id,projectId:packageDocument.project_id
+    });
+    if(!scope.ready) throw new OperationsBridgeError('V21_PILOT_BINDING_REQUIRED');
+    const result=await importDeliveryPackage(packageDocument);
+    return {
+      status:'published', imported:result.imported,idempotent:result.idempotent,
+      deliveryPackageId:packageDocument.delivery_package_id,
+      projectId:packageDocument.project_id,clientId:packageDocument.client_id,
+      payment_mutated:false,commission_mutated:false,
+      historical_v2_unchanged:true
+    };
+  }
   const result = await importDeliveryPackage(packageDocument);
   await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
   const payment = await markProjectReportReleased(
