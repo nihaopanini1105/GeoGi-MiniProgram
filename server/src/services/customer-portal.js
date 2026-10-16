@@ -83,6 +83,27 @@ function authorizedGeoGiV2Pilot(clientId,projectId,deliveryPackage) {
     && deliveryPackage.release_status==='released');
 }
 
+function authorizedGeoGiV21Pilot(clientId,projectId,deliveryPackage) {
+  if (String(process.env.GEOGI_REPORT_V21_BRIDGE_ENABLED||'').toLowerCase()!=='true') return false;
+  if (String(process.env.GEOGI_V2_EXACT_PILOT_ENABLED||'').toLowerCase()!=='true') return false;
+  const allowedClient=String(process.env.GEOGI_V2_PILOT_CONSUMER_CLIENT_ID||'').trim();
+  const allowedProject=String(process.env.GEOGI_V2_PILOT_CONSUMER_PROJECT_ID||'').trim();
+  return Boolean(allowedClient && allowedProject
+    && clientId===allowedClient && projectId===allowedProject
+    && deliveryPackage
+    && deliveryPackage.client_id===allowedClient
+    && deliveryPackage.project_id===allowedProject
+    && deliveryPackage.release_authority==='geo_diagnostic_html_release_v21'
+    && deliveryPackage.delivery_purpose==='report_v21_diagnostic'
+    && deliveryPackage.report_reference
+    && deliveryPackage.report_reference.object_version==='2.1.0'
+    && deliveryPackage.release_status==='released');
+}
+function authorizedGeoGiPilot(clientId,projectId,deliveryPackage) {
+  return authorizedGeoGiV2Pilot(clientId,projectId,deliveryPackage)
+      || authorizedGeoGiV21Pilot(clientId,projectId,deliveryPackage);
+}
+
 async function getCustomerReport({ clientId, projectId }) {
   try {
     const cleanClientId = clean(clientId);
@@ -109,7 +130,7 @@ async function getCustomerReport({ clientId, projectId }) {
     const order = normalizeOrder({ lead, project, deliveryPackage, payment });
 
     if (!deliveryPackage || (!isPaidForReport(payment)
-         && !authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage))) {
+         && !authorizedGeoGiPilot(cleanClientId,cleanProjectId,deliveryPackage))) {
       return {
         ok: true,
         order,
@@ -127,7 +148,7 @@ async function getCustomerReport({ clientId, projectId }) {
         }),
         status: '报告已完成',
         reportReady: true,
-        pilotReviewAccess: authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage)
+        pilotReviewAccess: authorizedGeoGiPilot(cleanClientId,cleanProjectId,deliveryPackage)
       }
     };
   } catch (error) {
@@ -140,7 +161,7 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const leadFields = (lead && lead.fields) || {};
   const projectFields = (project && project.fields) || {};
   const paidForReport = isPaidForReport(payment);
-  const pilotReviewAccess=authorizedGeoGiV2Pilot(
+  const pilotReviewAccess=authorizedGeoGiPilot(
     text(leadFields.客户编号),
     text(leadFields.项目编号)||text(projectFields.项目编号),deliveryPackage);
   const reportReady = Boolean(deliveryPackage && (paidForReport || pilotReviewAccess));
@@ -178,7 +199,9 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
     reportLink: reportReady && deliveryView ? deliveryView.reportLink : '',
     artifactMimeType: reportReady && deliveryView ? deliveryView.artifactMimeType : '',
     artifactType: reportReady && deliveryView ? deliveryView.artifactType : '',
-    version: reportReady ? String(deliveryPackage.report_reference.report_version) : '',
+    version: reportReady
+      ? String((deliveryPackage.version_pins||{}).display_report_version
+          || deliveryPackage.report_reference.report_version) : '',
     deliveryPackageId: reportReady ? deliveryPackage.delivery_package_id : '',
     canSupplement: canCustomerSupplement(payment, reportReady),
     nextAction: customerNextAction(status),
