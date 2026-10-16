@@ -6,8 +6,11 @@ const DELIVERY_CONTRACT_VERSION = '3.0.0';
 const DELIVERY_MODE = 'artifact_only';
 const PRODUCTION_AUTHORITY = 'geogi_os';
 const DELIVERY_AUTHORITIES = Object.freeze({
-  baseline_diagnostic_report: 'geo_diagnostic_html_release_v2'
+  baseline_diagnostic_report: 'geo_diagnostic_html_release_v2',
+  report_v21_diagnostic: 'geo_diagnostic_html_release_v21'
 });
+const v21Enabled = () =>
+  String(process.env.GEOGI_REPORT_V21_CUSTOMER_DELIVERY_ENABLED || '').toLowerCase() === 'true';
 const SUPPORTED_DELIVERY_CONTRACT_VERSIONS = new Set([DELIVERY_CONTRACT_VERSION]);
 
 class DeliveryPackageError extends Error {
@@ -58,6 +61,9 @@ function validateDisplayOnlyPolicy(packageDocument) {
   if (!DELIVERY_AUTHORITIES[purpose] || DELIVERY_AUTHORITIES[purpose] !== releaseAuthority) {
     throw new DeliveryPackageError('DELIVERY_PURPOSE_OR_RELEASE_AUTHORITY_INVALID');
   }
+  if (purpose === 'report_v21_diagnostic' && !v21Enabled()) {
+    throw new DeliveryPackageError('V21_DELIVERY_FEATURE_NOT_ACTIVATED');
+  }
   if (Object.prototype.hasOwnProperty.call(packageDocument, 'display_summary')) {
     throw new DeliveryPackageError('DELIVERY_CLIENT_REPORT_RECOMPOSITION_FORBIDDEN');
   }
@@ -106,6 +112,15 @@ function validateDeliveryPackage(packageDocument) {
   }
   requiredString(report, 'report_id', 'DELIVERY_REPORT_REFERENCE_INVALID');
   requiredString(report, 'object_version', 'DELIVERY_REPORT_REFERENCE_INVALID');
+  if (packageDocument.delivery_purpose === 'report_v21_diagnostic') {
+    if (report.report_version !== 2 || report.object_version !== '2.1.0'
+        || (packageDocument.version_pins || {}).report_schema_version !== '2.1.0'
+        || (packageDocument.version_pins || {}).report_object_version !== '2.1.0'
+        || (packageDocument.version_pins || {}).artifact_render_version !== 'report-v21-customer-1'
+        || (packageDocument.version_pins || {}).display_report_version !== '2.1') {
+      throw new DeliveryPackageError('V21_EXPLICIT_VERSION_PINS_REQUIRED');
+    }
+  }
   if (!Number.isInteger(report.report_version) || report.report_version < 1) {
     throw new DeliveryPackageError('DELIVERY_REPORT_REFERENCE_INVALID', 'report_version');
   }
@@ -146,11 +161,13 @@ function validateDeliveryPackage(packageDocument) {
     const filename=String(artifact.file_name||'');
     // Unified V2 package names are reserved and denied by the public
     // /uploads handler. Never admit generic uploaded customer PDFs as reports.
+    const v21=packageDocument.delivery_purpose==='report_v21_diagnostic';
+    const pattern=v21 ? /^GeoGi-V21-[0-9a-f]{16}\.(html|pdf)$/
+                      : /^GeoGi-V2-[0-9a-f]{16}\.(html|pdf)$/;
     const pdf=mime==='application/pdf' && kind==='pdf'
-      && /^GeoGi-V2-[0-9a-f]{16}\.pdf$/.test(filename);
+      && pattern.test(filename) && filename.endsWith('.pdf');
     const h5=mime==='text/html' && kind==='h5'
-      && /^GeoGi-V2-[0-9a-f]{16}\.html$/.test(filename)
-        && packageDocument.delivery_purpose==='baseline_diagnostic_report';
+      && pattern.test(filename) && filename.endsWith('.html');
     if (!pdf && !h5) throw new DeliveryPackageError('DELIVERY_ARTIFACT_TYPE_INVALID');
     if (seenKinds.has(kind)) throw new DeliveryPackageError('DELIVERY_DUPLICATE_ARTIFACT_KIND');
     seenKinds.add(kind);
@@ -167,7 +184,7 @@ function validateDeliveryPackage(packageDocument) {
   }
   // The optional second attachment belongs to the very same final
   // customer report. It never changes scope, publication or payment rules.
-  if (packageDocument.delivery_purpose!=='baseline_diagnostic_report'
+  if (!['baseline_diagnostic_report','report_v21_diagnostic'].includes(packageDocument.delivery_purpose)
       || !seenKinds.has('h5') || !seenKinds.has('pdf')) {
     throw new DeliveryPackageError('DELIVERY_DUAL_ARTIFACT_SCOPE_INVALID');
   }
@@ -271,7 +288,9 @@ async function listDeliveryPackages() {
     const document = JSON.parse(await fs.promises.readFile(path.join(deliveryRoot(), name), 'utf8'));
     // Historical delivery packages are immutable archives but not an
     // alternative customer-facing report template. Never delete them.
-    if ((document.release_authority || '') !== DELIVERY_AUTHORITIES.baseline_diagnostic_report) continue;
+    if ((document.release_authority || '') !== DELIVERY_AUTHORITIES.baseline_diagnostic_report
+        && !(v21Enabled() &&
+             document.release_authority === DELIVERY_AUTHORITIES.report_v21_diagnostic)) continue;
     validateDeliveryPackage(document);
     if (isDeliveryRevoked(document.delivery_package_id)) continue;
     packages.push(document);
@@ -311,6 +330,8 @@ function projectDeliveryForCustomer(packageDocument, scope) {
     reportId: packageDocument.report_reference.report_id,
     reportType: packageDocument.report_reference.report_type || '',
     reportVersion: packageDocument.report_reference.report_version,
+    displayReportVersion: packageDocument.version_pins.display_report_version ||
+                          String(packageDocument.report_reference.report_version),
     reportContentHash: packageDocument.report_reference.content_hash,
     reportRecordHash: packageDocument.report_reference.report_record_hash,
     reportLink: artifact.artifact_type === 'h5' ? '' : artifact.uri,
