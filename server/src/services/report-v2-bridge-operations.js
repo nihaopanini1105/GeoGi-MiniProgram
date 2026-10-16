@@ -9,6 +9,8 @@ const {
 }=require('./delivery-package-store');
 
 const RELEASE_AUTHORITY='geo_diagnostic_html_release_v2';
+const V21_RELEASE_AUTHORITY='geo_diagnostic_html_release_v21';
+const v21Enabled=()=>String(process.env.GEOGI_REPORT_V21_CUSTOMER_DELIVERY_ENABLED||'').toLowerCase()==='true';
 
 function reportV2Capabilities() {
   return {
@@ -20,6 +22,25 @@ function reportV2Capabilities() {
     authenticated_customer_access:true,
     revoke:true,
     rollback:true
+  };
+}
+
+function reportV21Capabilities() {
+  return {
+    enabled: v21Enabled(),
+    release_authority: V21_RELEASE_AUTHORITY,
+    delivery_purpose: 'report_v21_diagnostic',
+    delivery_contract_version: '3.0.0',
+    report_object_version: '2.1.0',
+    report_display_version: '2.1',
+    artifact_file_pattern: 'GeoGi-V21-<16-hex>.html|pdf',
+    customer_report_format: 'h5_plus_pdf_same_version',
+    authenticated_customer_access: true,
+    revoke: true,
+    rollback: true,
+    supersede_v2_pointers: false,
+    independent_v2_archive: true,
+    revision_does_not_resettle_payment_or_commission: true
   };
 }
 
@@ -60,6 +81,15 @@ async function verifyGeoGiPilotBinding({clientId,projectId}) {
 }
 
 async function verifyCustomerReportAccess(request) {
+  return verifyCustomerReportAccessForAuthority(request, RELEASE_AUTHORITY);
+}
+
+async function verifyV21CustomerReportAccess(request) {
+  if (!v21Enabled()) throw new Error('V21_DELIVERY_FEATURE_NOT_ACTIVATED');
+  return verifyCustomerReportAccessForAuthority(request, V21_RELEASE_AUTHORITY);
+}
+
+async function verifyCustomerReportAccessForAuthority(request, authority) {
   const id=String(request.delivery_package_id||'');
   const client=String(request.client_id||'');
   const project=String(request.project_id||'');
@@ -72,7 +102,7 @@ async function verifyCustomerReportAccess(request) {
   if (!id || !client || !project || !/^[a-f0-9]{64}$/.test(hash)) return denied;
   const pack=await getDeliveryPackageById(id);
   if (!pack || pack.client_id!==client || pack.project_id!==project
-      || pack.release_authority!==RELEASE_AUTHORITY) return denied;
+      || pack.release_authority!==authority) return denied;
   if (!pack.artifacts || pack.artifacts.length!==2
       || pack.artifacts[0].sha256!==hash) return denied;
   if (isDeliveryRevoked(id)) return denied;
@@ -85,6 +115,15 @@ async function verifyCustomerReportAccess(request) {
 }
 
 async function revokeCustomerReportDelivery(request) {
+  return revokeCustomerReportDeliveryForAuthority(request,RELEASE_AUTHORITY);
+}
+
+async function revokeV21CustomerReportDelivery(request) {
+  if (!v21Enabled()) throw new Error('V21_DELIVERY_FEATURE_NOT_ACTIVATED');
+  return revokeCustomerReportDeliveryForAuthority(request,V21_RELEASE_AUTHORITY);
+}
+
+async function revokeCustomerReportDeliveryForAuthority(request,authority) {
   const id=String(request.delivery_package_id||'');
   const client=String(request.client_id||'');
   const project=String(request.project_id||'');
@@ -92,7 +131,7 @@ async function revokeCustomerReportDelivery(request) {
   const pack=await getDeliveryPackageById(id);
   if (!pack || pack.client_id!==client || pack.project_id!==project
       || pack.artifacts[0].sha256!==hash
-      || pack.release_authority!==RELEASE_AUTHORITY) {
+      || pack.release_authority!==authority) {
     throw new Error('V2_REVOKE_SCOPE_INVALID');
   }
   const result=await revokeDeliveryPackage(id,{
@@ -102,6 +141,9 @@ async function revokeCustomerReportDelivery(request) {
 }
 
 module.exports={
-  RELEASE_AUTHORITY,reportV2Capabilities,verifyCustomerReportAccess,
-  revokeCustomerReportDelivery,verifyGeoGiPilotBinding
+  RELEASE_AUTHORITY,V21_RELEASE_AUTHORITY,
+  reportV2Capabilities,reportV21Capabilities,
+  verifyCustomerReportAccess,verifyV21CustomerReportAccess,
+  revokeCustomerReportDelivery,revokeV21CustomerReportDelivery,
+  verifyGeoGiPilotBinding
 };
