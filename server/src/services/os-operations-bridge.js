@@ -4,7 +4,7 @@ const {
   listBitableRecords,
   updateBitableRecord
 } = require('./feishu');
-const { importDeliveryPackage } = require('./delivery-package-store');
+const { importDeliveryPackage, findDeliveryPackage } = require('./delivery-package-store');
 const { findPaymentByProject, publicPaymentView, markProjectReportReleased } = require('./payment-store');
 const { reconcileCommission } = require('./channel-service');
 
@@ -191,6 +191,33 @@ async function updateOsProjectStage({ projectId, stage }) {
 }
 
 async function publishOsDeliveryPackage(packageDocument) {
+  // V2.1 is a *revision of an already released report*, NOT another sale.
+  // It must never rerun release-stage project updates, payment settlement or
+  // channel commission accounting. The old V2 stays immutable and readable
+  // again immediately if the new revision is revoked.
+  if (packageDocument.release_authority === 'geo_diagnostic_html_release_v21') {
+    if (String(process.env.GEOGI_REPORT_V21_CUSTOMER_DELIVERY_ENABLED||'').toLowerCase()!=='true') {
+      throw new OperationsBridgeError('V21_DELIVERY_FEATURE_NOT_ACTIVATED');
+    }
+    const existing=await findDeliveryPackage({
+      clientId:packageDocument.client_id,projectId:packageDocument.project_id
+    });
+    if (!existing || existing.release_authority!=='geo_diagnostic_html_release_v2'
+        && existing.release_authority!=='geo_diagnostic_html_release_v21') {
+      throw new OperationsBridgeError('V21_REVISION_REQUIRES_PRIOR_PUBLISHED_REPORT');
+    }
+    const result=await importDeliveryPackage(packageDocument);
+    return {
+      status:'published',
+      imported:result.imported,idempotent:result.idempotent,
+      deliveryPackageId:packageDocument.delivery_package_id,
+      projectId:packageDocument.project_id,clientId:packageDocument.client_id,
+      revision_of_existing_report:true,
+      project_stage_mutated:false,
+      payment_mutated:false,
+      commission_mutated:false
+    };
+  }
   const result = await importDeliveryPackage(packageDocument);
   await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
   const payment = await markProjectReportReleased(
