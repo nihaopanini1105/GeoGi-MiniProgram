@@ -79,7 +79,9 @@ function authorizedGeoGiV2Pilot(clientId,projectId,deliveryPackage) {
     && deliveryPackage
     && deliveryPackage.client_id===allowedClient
     && deliveryPackage.project_id===allowedProject
-    && deliveryPackage.release_authority==='geo_diagnostic_html_release_v2'
+    && (deliveryPackage.release_authority==='geo_diagnostic_html_release_v2'
+      || (deliveryPackage.release_authority==='geo_diagnostic_html_release_v21'
+        && String(process.env.GEOGI_REPORT_V21_CUSTOMER_DELIVERY_ENABLED||'').toLowerCase()==='true'))
     && deliveryPackage.release_status==='released');
 }
 
@@ -178,7 +180,8 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
     reportLink: reportReady && deliveryView ? deliveryView.reportLink : '',
     artifactMimeType: reportReady && deliveryView ? deliveryView.artifactMimeType : '',
     artifactType: reportReady && deliveryView ? deliveryView.artifactType : '',
-    version: reportReady ? String(deliveryPackage.report_reference.report_version) : '',
+    version: reportReady ? String(deliveryPackage.version_pins.display_report_version ||
+                                deliveryPackage.report_reference.report_version) : '',
     deliveryPackageId: reportReady ? deliveryPackage.delivery_package_id : '',
     canSupplement: canCustomerSupplement(payment, reportReady),
     nextAction: customerNextAction(status),
