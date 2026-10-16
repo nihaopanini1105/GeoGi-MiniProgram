@@ -78,6 +78,16 @@ async function main(){
 
   process.env.GEOGI_REPORT_V21_BRIDGE_ENABLED='true';
   assert.strictEqual(v21.reportV21Capabilities().enabled,true);
+  const server=fs.readFileSync(path.join(__dirname,'../src/server.js'),'utf8');
+  assert(server.includes('report-v21/capabilities'));
+  assert(server.includes('report-v21/verify-customer-access'));
+  assert(server.includes('report-v21/revoke'));
+  // The browser should NEVER receive /uploads/GeoGi-V21-*.pdf
+  // without a signed customer ticket.
+  assert(server.includes('/^\\/geogi-v21-[0-9a-f]{16}\\.pdf$/.test(name)'));
+  assert(server.includes("app.get('/api/customer/pdf-reader/:ticket'"));
+  assert(server.includes("app.get('/api/customer/h5-reader/:ticket'"));
+
   assert.strictEqual(v21.reportV21Capabilities().revision_does_not_resettle_payment_or_commission,true);
   const newer=pkg('v21');
   validateDeliveryPackage(newer);
