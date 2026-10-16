@@ -50,7 +50,9 @@ const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artif
 const { issueH5Ticket, consumeH5Ticket, readVerifiedH5Artifact } = require('./services/h5-reader-ticket');
 const { issuePdfTicket, consumePdfTicket, readVerifiedPdfArtifact } = require('./services/pdf-reader-ticket');
 const {
-  reportV2Capabilities, verifyCustomerReportAccess, revokeCustomerReportDelivery,
+  reportV2Capabilities, reportV21Capabilities,
+  verifyCustomerReportAccess, verifyV21CustomerReportAccess,
+  revokeCustomerReportDelivery, revokeV21CustomerReportDelivery,
   verifyGeoGiPilotBinding
 } = require('./services/report-v2-bridge-operations');
 const {
@@ -606,6 +608,25 @@ app.post('/internal/os/report-v2/verify-customer-access',requireOsBridge,async(r
 app.post('/internal/os/report-v2/revoke',requireOsBridge,async(req,res,next)=>{
   try {
     const result=await revokeCustomerReportDelivery(req.body||{});
+    return res.json({ok:true,result});
+  } catch(error) { return next(error); }
+});
+
+// Version 2.1 has a distinct capability and rollback authority.
+// These endpoints remain private behind the OS bridge token. They never
+// create a public report on GET and do not alter historic V2 packages.
+app.get('/internal/os/report-v21/capabilities', requireOsBridge, (_req,res) => {
+  return res.json({ok:true,result:reportV21Capabilities()});
+});
+app.post('/internal/os/report-v21/verify-customer-access',requireOsBridge,async(req,res,next)=>{
+  try {
+    const result=await verifyV21CustomerReportAccess(req.body||{});
+    return res.json({ok:true,result});
+  } catch(error) { return next(error); }
+});
+app.post('/internal/os/report-v21/revoke',requireOsBridge,async(req,res,next)=>{
+  try {
+    const result=await revokeV21CustomerReportDelivery(req.body||{});
     return res.json({ok:true,result});
   } catch(error) { return next(error); }
 });
