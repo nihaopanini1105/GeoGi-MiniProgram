@@ -39,7 +39,8 @@ function reportV21Capabilities() {
     revoke: true,
     rollback: true,
     supersede_v2_pointers: false,
-    independent_v2_archive: true
+    independent_v2_archive: true,
+    revision_does_not_resettle_payment_or_commission: true
   };
 }
 
