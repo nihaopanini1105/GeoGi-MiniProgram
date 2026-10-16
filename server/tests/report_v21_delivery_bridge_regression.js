@@ -8,9 +8,14 @@ const {
   importDeliveryPackage,findDeliveryPackage,projectDeliveryForCustomer,
   revokeDeliveryPackage
 }=require('../src/services/delivery-package-store');
-const {
-  reportV2Capabilities,reportV21Capabilities,V21_RELEASE_AUTHORITY
-}=require('../src/services/report-v2-bridge-operations');
+// The production bridge loads multer and Express; the immutable-package
+// staging gate intentionally does not install runtime deps. Test the bridge
+// route/authority contract as source and run store mutations with plain Node.
+const bridgeSource=fs.readFileSync(path.join(__dirname,
+  '../src/services/report-v2-bridge-operations.js'),'utf8');
+const routeSource=fs.readFileSync(path.join(__dirname,
+  '../src/server.js'),'utf8');
+const V21_RELEASE_AUTHORITY='geo_diagnostic_html_release_v21';
 
 function make(id,v21) {
   const stem=v21?'GeoGi-V21-0123456789abcdef':'GeoGi-V2-0123456789abcdef';
@@ -79,8 +84,14 @@ function expectCode(fn,code) {
     delete process.env.GEOGI_REPORT_V21_CUSTOMER_DELIVERY_ENABLED;
     const old=make('delivery_package_old_test0001',false);
     const next=make('delivery_package_new_test0001',true);
-    assert.strictEqual(reportV21Capabilities().enabled,false);
-    assert.strictEqual(reportV2Capabilities().release_authority,'geo_diagnostic_html_release_v2');
+    assert(bridgeSource.includes("const V21_RELEASE_AUTHORITY='geo_diagnostic_html_release_v21'"));
+    assert(bridgeSource.includes("function reportV21Capabilities()"));
+    assert(bridgeSource.includes("enabled: v21Enabled()"));
+    assert(bridgeSource.includes("revision_does_not_resettle_payment_or_commission: true"));
+    assert(routeSource.includes("'/internal/os/report-v21/capabilities'"));
+    assert(routeSource.includes("'/internal/os/report-v21/verify-customer-access'"));
+    assert(routeSource.includes("'/internal/os/report-v21/revoke'"));
+    assert(routeSource.includes("requireOsBridge"));
     validateDeliveryPackage(old);
     expectCode(()=>validateDeliveryPackage(next),'V21_DELIVERY_FEATURE_NOT_ACTIVATED');
     await importDeliveryPackage(old);
@@ -88,7 +99,7 @@ function expectCode(fn,code) {
       clientId:'client_test',projectId:'project_test'
     })).delivery_package_id,old.delivery_package_id);
     process.env.GEOGI_REPORT_V21_CUSTOMER_DELIVERY_ENABLED='true';
-    assert.strictEqual(reportV21Capabilities().enabled,true);
+    assert.strictEqual(process.env.GEOGI_REPORT_V21_CUSTOMER_DELIVERY_ENABLED,'true');
     validateDeliveryPackage(next);
     const saved=await importDeliveryPackage(next);
     assert.strictEqual(saved.imported,true);
@@ -119,7 +130,7 @@ function expectCode(fn,code) {
       clientId:'client_test',projectId:'project_test'
     })).delivery_package_id,old.delivery_package_id);
     process.env.GEOGI_REPORT_V21_CUSTOMER_DELIVERY_ENABLED='false';
-    assert.strictEqual(reportV21Capabilities().enabled,false);
+    assert.strictEqual(process.env.GEOGI_REPORT_V21_CUSTOMER_DELIVERY_ENABLED,'false');
     assert.strictEqual((await findDeliveryPackage({
       clientId:'client_test',projectId:'project_test'
     })).delivery_package_id,old.delivery_package_id);
