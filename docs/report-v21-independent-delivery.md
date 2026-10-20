@@ -61,3 +61,13 @@ OS 一侧仍须另行开启对应的 `GEOGI_REPORT_V21_GENERAL_PUBLISH_ENABLED`�
 - 原 `/uploads` 限制只匹配根层 PDF，可能让 `/./`、`/../`、大小写或编码的等价路径在静态服务规整后被读取。改为在 Express static 之前调用 `private-report-upload-guard.js`，以规范化 basename 拒绝 V2/V2.1 PDF 和 HTML，二次路径编码也 fail-closed。普通附件 PDF 未受影响。
 - Linux Node22 隔离专项真实运行：`node server/tests/report_v21_bridge_regression.js` PASS，`node server/tests/private_report_upload_guard_regression.js` **18/18** PASS，两个服务模块 `node --check` PASS。新专项纳入默认 `npm test` 及平台无关 Release Gate。
 - 这是独立专项不是精确提交的完整 MiniProgram `npm test`。Draft PR #83 仍保持未合并，发布开关仍关，严禁生产默认启用。
+
+
+## 2026-10-20 最新隐私存储路径与跨语言 HTTP 复核（隔离开发）
+
+1. V2.1 `GEOGI_REPORT_V21_PRIVATE_ROOT` 及 `packages/pointers/revocations/locks` 子目录必须在**物理路径**上与所有公开静态目录隔离（`/uploads` 与 `/source-codes`）。即使私有配置文字路径不同，符号链接到公开目录也必须 fail-closed；悬空链接、服务账本子目录软链接也拒绝。改动见 `report-v21-bridge-operations.js`。
+2. 新增常规数据根别名、悬空软链接、四类子目录软链接、第二公开静态根及其软链接的隔离回归。
+3. Linux Node22.16.0：本地源码副本执行完整 `server/npm test` 成功，日志 SHA-256 `134ee8d648f6e58ce4e37b3d5140ad0a41aa4f03deafc8f9abe53d9a3b20d5e5`，26 个串联测试脚本通过、无失败。**此副本起始于用户上传的旧分支 ZIP，手工叠加本轮两项修复，不是 GitHub 最新完整树的精确 HEAD 验收；不得误称正式版本全量 Gate PASS**。
+4. 本地通过真正的 TCP loopback HTTP 请求，使用 GeoGi OS **Python MiniProgramBridgeClient** 向 Node.js 原始 `http` 测试适配器发送认证请求，后端实际调用 `createV21Bridge` 和 `admitOsArtifact`，完成 capabilities、实名付费约束（合成订单）、跨客户拒绝、Bearer 鉴权、双原文字节上传、财务无变动、发布后的哈希验证、幂等发布、撤销和撤销后访问拒绝共 **10 项**。日志 SHA-256 `672db98af6718e2066d5aa2ba56f088a6f6b9bb2bbfcec026d8265d80a185b94`。
+5. **范围界限**：这是本机真实 HTTP + 实际 Python 客户端 + 实际 Node 域服务，但 Node 端使用测试专用 `node:http` 适配器；没有调用 Express 正式路由、真实微信/飞书/支付 API、真实供应商或生产数据，不能当生产 E2E。两个服务版本开关仍默认关闭。
+6. 后续 P0：完整最新 HEAD 的平台无关 Release Gate、装有 Express/dotenv/helmet 的正式沙盒 HTTP 服务联测、微信客户真机授权、支付/退款、真实客户品牌事实/专业指标完成与双供应商合法联调，随后方能申请生产变更许可。
