@@ -60,7 +60,21 @@ function fixture(upload){
   fs.symlinkSync(path.join(root,'non-existent-private'),dangling,'dir');
   assert.throws(()=>createV21Bridge({findIntakes:async()=>[lead],findPayment:async()=>payment,
     uploadRoot:uploads,dataRoot:dangling}),/V21_PRIVATE_STORE_PHYSICAL_PATH_INVALID/);
-  // A non-public root is not enough when a service-owned subdirectory is
+  // /source-codes is independently public. A private store must not be
+  // located there or reachable through a symlink to that second static root.
+  const publicCodes=path.join(root,'source-codes-public');
+  fs.mkdirSync(publicCodes,{recursive:true});
+  assert.throws(()=>createV21Bridge({
+    findIntakes:async()=>[lead],findPayment:async()=>payment,
+    uploadRoot:uploads,dataRoot:path.join(publicCodes,'reports'),publicRoots:[publicCodes]
+  }),/V21_PRIVATE_STORE_OUTSIDE_PUBLIC_UPLOADS_REQUIRED/);
+  const codesLink=path.join(root,'private-looking-codes-link');
+  fs.symlinkSync(publicCodes,codesLink,'dir');
+  assert.throws(()=>createV21Bridge({
+    findIntakes:async()=>[lead],findPayment:async()=>payment,
+    uploadRoot:uploads,dataRoot:path.join(codesLink,'reports'),publicRoots:[publicCodes]
+  }),/V21_PRIVATE_STORE_OUTSIDE_PUBLIC_UPLOADS_REQUIRED/);
+    // A non-public root is not enough when a service-owned subdirectory is
   // symlinked into the static upload directory, leaking customer package data.
   for (const folder of ['packages','pointers','revocations','locks']) {
     const isolated=path.join(root,'private-with-'+folder);
