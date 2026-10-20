@@ -156,13 +156,44 @@ async function atomicPointer(filename, data) {
     await fs.promises.rename(tmp, filename); }
   finally { await fs.promises.unlink(tmp).catch(e => { if (e.code !== 'ENOENT') throw e; }); }
 }
+// A configuration path can be textually outside /uploads but physically inside
+// it through symlinked ancestors. Resolve even paths not created yet.
+function physicalLocation(value) {
+  let cursor = path.resolve(value);
+  const suffix = [];
+  for (;;) {
+    try {
+      const physical = fs.realpathSync(cursor);
+      return path.resolve(physical, ...suffix.reverse());
+    } catch (error) {
+      if (!error || error.code !== 'ENOENT')
+        fail('V21_PRIVATE_STORE_PHYSICAL_PATH_INVALID');
+      // A dangling symlink must not be treated as a missing directory.
+      try {
+        fs.lstatSync(cursor);
+        fail('V21_PRIVATE_STORE_PHYSICAL_PATH_INVALID');
+      } catch (statError) {
+        if (!statError || statError.code !== 'ENOENT')
+          fail('V21_PRIVATE_STORE_PHYSICAL_PATH_INVALID');
+      }
+      const parent = path.dirname(cursor);
+      if (parent === cursor) fail('V21_PRIVATE_STORE_PHYSICAL_PATH_INVALID');
+      suffix.push(path.basename(cursor));
+      cursor = parent;
+    }
+  }
+}
 function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot}) {
   if (typeof findIntakes !== 'function' || typeof findPayment !== 'function') fail('V21_DEPENDENCIES_REQUIRED');
   const root = path.resolve(dataRoot);
   const artifactRoot = path.resolve(uploadRoot);
   // The immutable customer pointer and package registry must never be public
   // under the static /uploads handler, even with an accidental env override.
-  if (root === artifactRoot || root.startsWith(artifactRoot + path.sep))
+  const physicalRoot=physicalLocation(root);
+  const physicalUploads=physicalLocation(artifactRoot);
+  if (root === artifactRoot || root.startsWith(artifactRoot + path.sep)
+      || physicalRoot === physicalUploads
+      || physicalRoot.startsWith(physicalUploads + path.sep))
     fail('V21_PRIVATE_STORE_OUTSIDE_PUBLIC_UPLOADS_REQUIRED');
   async function binding(clientId, projectId) {
     const denied = { verified: false, paid_order_verified: false, customer_access_scoped: false,
