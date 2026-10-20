@@ -251,17 +251,28 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, public
       return validatePackage(JSON.parse(data));
     } catch (e) { if (e.code === 'ENOENT') return null; throw e; }
   }
-  async function _current(clientId, projectId) {
+  async function _pinned(clientId, projectId) {
     if (!validScope(clientId, projectId)) return null;
     const { pointer } = paths(root, clientId, projectId);
-    try {
-      const index = JSON.parse(await fs.promises.readFile(pointer, 'utf8'));
-      if (index.client_id !== clientId || index.project_id !== projectId) return null;
-      const pack = await _loadPack(index.delivery_package_id);
-      if (!pack || pack.client_id !== clientId || pack.project_id !== projectId) return null;
-      if (fs.existsSync(path.join(root, 'revocations', pack.delivery_package_id + '.json'))) return null;
-      return pack;
-    } catch (e) { if (e.code === 'ENOENT') return null; throw e; }
+    let index;
+    try { index = JSON.parse(await fs.promises.readFile(pointer,'utf8')); }
+    catch(e) {
+      if (e.code === 'ENOENT') return null;
+      fail('V21_POINTER_RECORD_INVALID');
+    }
+    if (!index || index.client_id !== clientId || index.project_id !== projectId
+        || !ID.test(index.delivery_package_id))
+      fail('V21_POINTER_SCOPE_INVALID');
+    const pack=await _loadPack(index.delivery_package_id);
+    if (!pack || pack.client_id !== clientId || pack.project_id !== projectId)
+      fail('V21_POINTER_PACKAGE_INTEGRITY_INVALID');
+    return pack;
+  }
+  async function _current(clientId, projectId) {
+    const pack=await _pinned(clientId,projectId);
+    if (!pack || fs.existsSync(path.join(root,'revocations',pack.delivery_package_id+'.json')))
+      return null;
+    return pack;
   }
   async function publish(doc) {
     if (!enabled()) fail('V21_PUBLICATION_DISABLED');
@@ -274,13 +285,21 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, public
     try { await fs.promises.mkdir(p.lock, { mode: 0o700 }); }
     catch (e) { if (e.code === 'EEXIST') fail('V21_PROJECT_RELEASE_BUSY'); throw e; }
     try {
-      const current = await _current(pack.client_id, pack.project_id);
-      if (current && current.delivery_package_id === pack.delivery_package_id)
+      // A revoked package still pins the previous release timestamp. An
+      // operator cannot resurrect it via a different older package.
+      const pinned = await _pinned(pack.client_id, pack.project_id);
+      if (fs.existsSync(path.join(root,'revocations',pack.delivery_package_id+'.json')))
+        fail('V21_REVOKED_PACKAGE_CANNOT_REPUBLISH');
+      if (pinned && pinned.delivery_package_id === pack.delivery_package_id) {
+        // Package ID does not include release timestamp. A forged packet with
+        // the same ID must not be acknowledged as an idempotent release.
+        if (json(pinned) !== json(pack)) fail('V21_IMMUTABLE_CONFLICT');
         return { status:'published', deliveryPackageId:pack.delivery_package_id,
           clientId:pack.client_id, projectId:pack.project_id, idempotent:true,
           payment_mutated:false, commission_mutated:false };
-      if (fs.existsSync(path.join(root,'revocations',pack.delivery_package_id+'.json')))
-        fail('V21_REVOKED_PACKAGE_CANNOT_REPUBLISH');
+      }
+      if (pinned && Date.parse(pack.released_at) <= Date.parse(pinned.released_at))
+        fail('V21_RELEASE_TIME_NOT_MONOTONIC');
       await writeImmutable(path.join(root,'packages',pack.delivery_package_id+'.json'), json(pack)+'\n');
       await atomicPointer(p.pointer, { client_id:pack.client_id, project_id:pack.project_id,
         delivery_package_id:pack.delivery_package_id });
