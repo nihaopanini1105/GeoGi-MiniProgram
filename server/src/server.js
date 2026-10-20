@@ -468,7 +468,7 @@ app.post('/api/payments/wechat/notify', async (req, res, next) => {
   try {
     const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody.toString('utf8') : JSON.stringify(req.body || {});
     const order = await handlePaymentNotification(req.headers, rawBody);
-    await projectPaymentProjection({ projectId: order.projectId, paymentStatus: order.status });
+    await projectPaymentProjection({ clientId: order.clientId, projectId: order.projectId, paymentStatus: order.status });
     return res.status(200).json({ code: 'SUCCESS', message: '成功' });
   } catch (error) {
     return next(error);
@@ -479,7 +479,7 @@ app.post('/api/payments/wechat/refund-notify', async (req, res, next) => {
   try {
     const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody.toString('utf8') : JSON.stringify(req.body || {});
     const order = await handleRefundNotification(req.headers, rawBody);
-    await projectPaymentProjection({ projectId: order.projectId, paymentStatus: order.status });
+    await projectPaymentProjection({ clientId: order.clientId, projectId: order.projectId, paymentStatus: order.status });
     await reconcileCommission({ order });
     return res.status(200).json({ code: 'SUCCESS', message: '成功' });
   } catch (error) {
