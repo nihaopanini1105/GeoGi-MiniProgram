@@ -39,6 +39,7 @@ JS_FILES=(
   server/src/services/os-intake.js
   server/src/services/os-operations-bridge.js
   server/src/services/report-v21-bridge-operations.js
+  server/src/services/private-report-upload-guard.js
   server/src/services/customer-portal.js
   pages/index/index.js
   pages/diagnosis/diagnosis.js
