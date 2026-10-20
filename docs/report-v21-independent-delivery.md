@@ -90,3 +90,13 @@ OS 一侧仍须另行开启对应的 `GEOGI_REPORT_V21_GENERAL_PUBLISH_ENABLED`�
 - 新增 `server/tests/customer_portal_v21_visibility_regression.js`，覆盖：已验证客户展示与提醒、没有 V2 伪链接、保留实际 paymentStatus、撤回后不再展示、跨客户不展示、服务错误 fail-closed、开关关闭零探测。
 - Linux Node22 隔离源码副本在本轮执行：完整 `npm test` **27/27** 串联脚本 PASS，无失败；复测 OS 正式 Python 客户端调用 Node 合成 HTTP 测试适配器 **10/10 PASS**。QA 日志 SHA-256 可由工作区 `geogi-v21-mine-v21-final-27-suites.log` 核实。这不等于 GitHub 最新 HEAD 精确 Release Gate，也不等于微信真机/真实客户验收。
 - 当前仍 Draft、未合并、未部署，V2.1 生产开关仍关闭。需正式 Express/飞书订单/手机号/微信支付隔离 HTTP 联调及专业报告真实源证据/双模型全量验收。
+
+
+## 2026-10-20 客户付款资格跨租户核验（新增 P0，尚未上线）
+
+- 在联测中发现潜在跨客户同项目编号导致的安全漏洞：旧客户报告 `getCustomerReport`、`listCustomerProjects` 与运营 `listOsIntakes` 的支付关联只使用 `projectId`，未交叉检查支付记录的 `clientId`，可能使另一个客户的实付订单被当作本客户的付款证明（条件：数据源存在重复 projectId 或错误关联）。
+- 修复后 **客户编号+项目编号** 必须同时与订单字段逐字一致，否则不返回该付款，也不能作为 V2/V2.1 读取或 OS 接单的财务凭据。客户展示中的 Feishu 项目索引也改用客户+项目复合键，不再让两名客户的项目行互相覆盖。
+- `payment-service` 的支付创建、查单、取消、同步与 `payment-store` 的已有订单重用必须核对复合范围；发现已有同 projectId 但不同客户的付款时，创建支付一律显式拒绝（`PAYMENT_CLIENT_PROJECT_SCOPE_CONFLICT`），防止重复购买或错误退款投影。独立补充资料流程亦不读取其他客户的退款状态。
+- `customer_portal_payment_scope_regression.js` 及 `payment_customer_scope_crossservice_regression.js` 已纳入 `npm test`，模拟两个客户拥有相同项目编号，测试对错付款、旧 V2 报告读取、运营接单资格、支付创建/同步/取消均 fail-closed。此为合成负测，不意味着生产存在实际重复项目编号。
+- 本轮隔离 Linux Node22 源码副本执行 **29/29 组 npm test PASS**；并运行平台无关、绑定本地干净 QA SHA `1503eaf427f36bd89da5f5bbd77947acb3ec1ecb` 的付费诊断 Release Gate：**PASS**，日志 SHA-256 `9fc2aded6c2ad59bd989ad78fc9f6e628b7ab3d987e9cf3ddc7da3cae91d833f`。QA 源码副本与最新 GitHub 完整文件树仍有部分差异，不得冒称最新远端分支精确 HEAD Gate。
+- 原 V2 历史业务仅改变跨客户错误绑定的安全约束；对符合真实客户、项目、已付订单三者相同的正常用户不改变金额或支付接口。小程序 Draft PR #83 未合并，配置默认关闭，生产零修改。
