@@ -155,9 +155,7 @@ async function listOsIntakes() {
   return items.sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
 }
 
-async function updateOsProjectStage({ clientId = '', projectId, stage }) {
-  const stageConfig = PROJECT_STAGES[String(stage || '').toUpperCase()];
-  if (!stageConfig) throw new OperationsBridgeError('OS_BRIDGE_STAGE_INVALID');
+async function verifiedOsProjectTarget({ clientId = '', projectId }) {
   if (!projectId) throw new OperationsBridgeError('OS_BRIDGE_PROJECT_ID_REQUIRED');
   const tenantToken = await getTenantAccessToken();
   const [leadRecords, projectRecords] = await Promise.all([
@@ -177,6 +175,13 @@ async function updateOsProjectStage({ clientId = '', projectId, stage }) {
   const projectClient = text(project.fields && project.fields.客户编号);
   if (!leadClient || leadClient !== projectClient || (clientId && clientId !== leadClient))
     throw new OperationsBridgeError('OS_BRIDGE_PROJECT_SCOPE_MISMATCH');
+  return { tenantToken, lead, project };
+}
+
+async function updateOsProjectStage({ clientId = '', projectId, stage }) {
+  const stageConfig = PROJECT_STAGES[String(stage || '').toUpperCase()];
+  if (!stageConfig) throw new OperationsBridgeError('OS_BRIDGE_STAGE_INVALID');
+  const { tenantToken, lead, project }=await verifiedOsProjectTarget({clientId,projectId});
 
   await updateBitableRecord({
     tenantToken,
@@ -203,6 +208,17 @@ async function updateOsProjectStage({ clientId = '', projectId, stage }) {
 }
 
 async function publishOsDeliveryPackage(packageDocument) {
+  if (!packageDocument || !packageDocument.client_id || !packageDocument.project_id)
+    throw new OperationsBridgeError('OS_BRIDGE_DELIVERY_SCOPE_REQUIRED');
+  // Reject incorrect customer ownership and payment scope BEFORE persisting
+  // a delivery package or mutating the customer's RELEASED stage.
+  await verifiedOsProjectTarget({
+    clientId:packageDocument.client_id,projectId:packageDocument.project_id
+  });
+  const candidatePayment=await findPaymentByProject(packageDocument.project_id);
+  if (candidatePayment && (candidatePayment.clientId !== packageDocument.client_id
+      || candidatePayment.projectId !== packageDocument.project_id))
+    throw new OperationsBridgeError('OS_BRIDGE_PAYMENT_SCOPE_MISMATCH');
   const result = await importDeliveryPackage(packageDocument);
   await updateOsProjectStage({ clientId: packageDocument.client_id, projectId: packageDocument.project_id, stage: 'RELEASED' });
   const payment = await markProjectReportReleased(
