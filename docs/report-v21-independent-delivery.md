@@ -134,3 +134,14 @@ OS 一侧仍须另行开启对应的 `GEOGI_REPORT_V21_GENERAL_PUBLISH_ENABLED`�
 - `server/tests/os_v2_release_eligibility_regression.js` **18项断言 PASS**（涵盖有/无付款、渠道优惠、历史期、试点、退款/跨客户否定）；`server/tests/os_v2_release_admission_integration_regression.js` 通过隔离模拟飞书/支付/存储，运行**8个实际 OS bridge 发布场景**并断言拒绝时无交付副作用；两者已加入本地 `npm test`，Release Gate 增加新策略文件 JS 语法检查。
 - Linux Node22 真实本地独立执行两组专项 + JS 语法检查 **PASS**；日志 SHA256 `64c1e3436bf8f02920fdbf6e10dc777532452c7e88ae180cc2375a60a6cffd19`。集成测试在用户旧 ZIP 源码上应用**等价发布入口改动**的隔离 twin，非 GitHub 当前最新 HEAD 精确代码树、非正式 Express / 真飞书支付。正式的最新 HEAD 完整 `npm test` + 真实新客户付费联调仍为上线阻断。
 - GitHub Actions 不作为门禁。Draft PR #83 未合并，未修改生产、未部署、未改变真实支付订单。
+
+
+## 2026-10-20：旧 V2 发布端与客户阅读端的资格一致性（新增客户真实体验阻断修复）
+
+- 发现旧 V2 `customer-portal.isPaidForReport` 把任意 `payment.status='free'` 都视为可读取报告，但小程序最终 `os-v2-release-eligibility` 发布门禁只认可有 `channelId+sourceId` 的渠道优惠免付；原先即使无法在发布端取得正式资格，也可能在旧客户阅读入口被误判为“优惠已生效”。已统一免费访问依据，另外未找到准确匹配的飞书项目记录时不授予可阅读权限。
+- 客户「我的」及详情页对**缺少渠道证据的 free 状态**显示“优惠资格待核验”，不得显示“优惠免付/已交付”；原始 `paymentStatus` 保留以供内部审计，后续正式付款或真实具名渠道优惠仍如常处理。
+- 同时修复反方向历史资格不一致：收费政策生效前（`2026-09-22T07:33:31Z` 前）的真实已发布 V2 订单，本来发布端允许无已付交易交付，但阅读端会误要求再次付款。现在 `customer-portal` 调用**同一 `assessV2ReleaseEligibility`** 判定，并共享原收费生效截止常量；只接受特定 V2 authority、合法项目归属且 verdict.reason 明确为 `prepaid_product_launch_legacy` 的历史记录。后来未付款、已退款/退款中、伪造项目和错误 V2 authority 都不获得历史例外。
+- 旧 GeoGi 精确试点授予仍独立且须真实项目归属；新 V2.1 正式专业报告继续使用独立 H5/PDF 验签与发布门禁，**不受历史例外的弱化**。
+- 新增 `server/tests/customer_report_free_grant_regression.js` 并纳入常规 `npm test`，验证无来源 free 拒绝、具名真实优惠允许、缺项目拒绝、历史收费前允许、退款否定、新收费后未付否定、前端显示以及旧付款状态审计保留。
+- 隔离 Node22 QA：用户上传的**较早** MiniProgram 源码 ZIP + 相同业务变更，17 个 JS 语法检查和默认25组 `npm test` **通过**，本地干净QA SHA `d08e7907aad58aff37fe95c7070025121a23bef3` 的平台无关 `paid_diagnostic_release_gate.sh` **PASS**，日志 SHA256 `89c188b58f94b14f5176b1da69c783029e5e65bd94d922c6f15a48e4f4add4d6`。
+- **证据界限：** 本地 QA 提交不是当前 GitHub 开发分支的完整同树 HEAD；旧 ZIP 测试链仅25组而新分支有更多测试。尚须最新远端全量 Gate、正式 Express/飞书/微信隔离 E2E、真实合法专业 GEO 证据与双供应商验收。没有生产客户读写、迁移、付款操作或正式部署；发布开关默认关闭，PR仍Draft，Actions不作为权威门禁。
