@@ -185,7 +185,9 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const projectStage = text(projectFields.当前阶段);
   const status = reportReady
     ? '报告已完成'
-    : paymentStatusLabel(payment) || mapCustomerStatus({ projectStage, leadStatus });
+    : payment && payment.status === 'free' && !paidForReport
+      ? '优惠资格待核验'
+      : paymentStatusLabel(payment) || mapCustomerStatus({ projectStage, leadStatus });
   const deliveryView = deliveryPackage ? projectDeliveryForCustomer(deliveryPackage, {
     clientId: text(leadFields.客户编号),
     projectId: text(leadFields.项目编号) || text(projectFields.项目编号)
@@ -339,6 +341,7 @@ function customerNextAction(status) {
   if (status === '待付款') return '完成当前订单付款后，GeoGi 才会开始本次品牌 GEO 诊断。';
   if (status === '付款确认中') return '付款结果正在确认，请稍后刷新。';
   if (status === '已付款') return '付款已确认，GeoGi 将开始品牌研究和 AI 平台检测。';
+  if (status === '优惠资格待核验') return '当前订单缺少有效优惠依据，请联系 GeoGi 顾问核验，暂不能查看正式报告。';
   if (status === '已优惠至免费') return '渠道专享优惠已生效，本次诊断无需付款，GeoGi 将开始品牌研究和 AI 平台检测。';
   if (status === '部分退款') return '订单已发生部分退款，剩余服务状态以当前项目进度为准。';
   if (status === '退款处理中') return '退款请求已提交，正在等待微信支付确认。';
