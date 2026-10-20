@@ -108,3 +108,19 @@ OS 一侧仍须另行开启对应的 `GEOGI_REPORT_V21_GENERAL_PUBLISH_ENABLED`�
 - 已将 `projectPaymentProjection` 的客户端、项目双重范围设为必填；同时检查飞书 leads/projects 各**恰好一条**符合当前 `clientId + projectId` 的记录，否则直接返回不更新，防止模糊记录或重复映射被写入。同步、取消、超时订单、运营退款、微信付款及退款 webhook 均从实际订单传入 `clientId`。
 - 新增同项目编号双客户写入负测、缺失客户时零写入、真实同范围两张飞书表写入指定 record_id 的测试；使用全合成数据与注入存储，不触达飞书线上。
 - 隔离 Linux Node22 完整本地 29组 `npm test` 通过，`/mnt/data/geogi-v21-payment-projection-29.log` 保存QA记录。前述本地独立 Gate 的绑定快照**早于本次投影写入修复**，不得冒称它已覆盖最新提交；仍需要新 HEAD 完整 Gate+非生产真实接口验收。
+
+
+## 2026-10-20 本轮：修复旧版 OS RELEASED 阶段和佣金入账边界（已入开发分支）
+
+**实际发现的兼容路径风险：** V2.1 独立交付不再使用旧财务副作用，但旧 V2 仍会收到 `POST /internal/os/projects/:projectId/stage` 和 `POST /internal/os/delivery-packages`。原 `updateOsProjectStage` 使用单一 projectId 从两张飞书表取首条记录，而 `markProjectReportReleased` 用单一 projectId 标记“报告已发布”。如果上游同项目编号跨客户重复，这两条旧链路可能写错客户。
+
+**已修复：**
+- `updateOsProjectStage` 新增可选 clientId 兼容历史调用；无 clientId 时必须确保 leads 和 projects 各唯一一个项目编号且其客户一致，有 clientId 时还须相符，否则 fail-closed、不写飞书。内部按此校验后才允许写阶段。
+- 旧 V2 `publishOsDeliveryPackage` 在**文件导入前**预检真实客户/项目唯一归属和客户订单归属，避免导入错误客户报告后才发现不匹配。
+- `markProjectReportReleased` 强制 clientId + projectId，同时核对支付订单客户归属。订单匹配后才修改 reportReleasedAt，进而允许已有佣金流程按规则结算。
+- 旧 OS bridge API 兼容：stage body 可传 `clientId` 或 `client_id`，不传时仅允许无歧义的旧项目；完整历史委托中真实客户/项目一致的合法订单继续正常执行。
+- 新增 `server/tests/os_project_scope_regression.js`，涵盖两客户同编号、两张表分别属于不同客户、显式错误客户、唯一客户无 clientId 的兼容、错误客户付款拒绝、早于导入的范围预检及正常佣金通道。已纳入 `server/npm test` 的默认测试序列。
+
+**隔离验收证据：** Linux Node22，使用用户上传的**较早小程序 ZIP**加本轮 bridge/payment-store 修复（`server/src/services/os-operations-bridge.js`, `server/src/services/payment-store.js`）在临时工作区执行 `os_project_scope_regression`、`os_operations_bridge_regression`、`channel_redemption_commission_regression` **均 PASS**；对历史 ZIP 的两条已知过期静态断言作 QA-only 兼容后，`npm test` 完成且无失败。日志 `/mnt/data/geogi-v21-os-stage-payment-scope-local-qa.log`。**并非最新远端 HEAD 全量 Gate，亦未测试真实飞书或微信支付。**
+
+发布状态：仍然 Draft PR #83，默认关闭 V2.1，未修改生产、未部署、未上线。继续需要最新 Git HEAD 对应完整 Gate、正式 Express/Feishu/微信联测及 OS 全量 GEO 实证指标/合规双供应商验收。
