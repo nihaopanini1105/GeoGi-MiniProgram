@@ -13,8 +13,8 @@ const required = [
   "reportReady: false",
   "deliveryMode: 'artifact_only'",
   "productionAuthority: 'geogi_os'",
-  "GeoGi OS 正在基于受治理证据形成诊断结论",
-  "报告已由 GeoGi OS 正式发布"
+  "GeoGi 正在分析检测结果并形成诊断结论。",
+  "诊断报告已完成，可直接查看。"
 ];
 
 const forbidden = [
