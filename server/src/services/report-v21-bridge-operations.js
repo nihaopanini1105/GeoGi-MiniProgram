@@ -150,6 +150,20 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot}) {
     if (!paid) return denied;
     return { ...denied, verified: true, paid_order_verified: true, customer_access_scoped: true };
   }
+  async function allowedScope(clientId, projectId) {
+    const paid = await binding(clientId, projectId);
+    if (paid.verified) return true;
+    // The historical explicitly named GeoGi pilot is allowed only when the
+    // existing separate pilot grant is enabled, with an actual scoped CRM row.
+    if (!enabled() || process.env.GEOGI_V2_EXACT_PILOT_ENABLED !== 'true'
+        || !validScope(clientId, projectId)
+        || clientId !== process.env.GEOGI_V2_PILOT_CONSUMER_CLIENT_ID
+        || projectId !== process.env.GEOGI_V2_PILOT_CONSUMER_PROJECT_ID) return false;
+    const leads = await findIntakes();
+    return Array.isArray(leads) && leads.some(x => x.clientId === clientId
+      && x.projectId === projectId && x.project && x.project.clientId === clientId
+      && x.project.projectId === projectId);
+  }
   async function _loadPack(id) {
     if (!ID.test(String(id || ''))) return null;
     try {
@@ -172,8 +186,8 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot}) {
   async function publish(doc) {
     if (!enabled()) fail('V21_PUBLICATION_DISABLED');
     const pack = validatePackage(doc);
-    const bound = await binding(pack.client_id, pack.project_id);
-    if (!bound.verified) fail('V21_PAID_BINDING_REQUIRED');
+    if (!await allowedScope(pack.client_id, pack.project_id))
+      fail('V21_PAID_BINDING_REQUIRED');
     if (!pack.artifacts.every(a => verifiedArtifact(a, artifactRoot))) fail('V21_ARTIFACT_BYTES_NOT_VERIFIED');
     await fs.promises.mkdir(path.join(root, 'locks'), { recursive: true, mode: 0o700 });
     const p = paths(root, pack.client_id, pack.project_id);
@@ -198,8 +212,8 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot}) {
   async function accessible({client_id,project_id,delivery_package_id,artifact_sha256}) {
     const denied={authorized:false, accessible:false,client_id,project_id,delivery_package_id,artifact_sha256};
     if (!enabled()) return denied;
-    const [bound, pack] = await Promise.all([binding(client_id,project_id),_current(client_id,project_id)]);
-    if (!bound.verified || !pack || pack.delivery_package_id !== delivery_package_id
+    const [eligible, pack] = await Promise.all([allowedScope(client_id,project_id),_current(client_id,project_id)]);
+    if (!eligible || !pack || pack.delivery_package_id !== delivery_package_id
         || pack.artifacts[0].sha256 !== artifact_sha256) return denied;
     return { ...denied, authorized:true,
       accessible:pack.artifacts.every(a => verifiedArtifact(a,artifactRoot)) };
