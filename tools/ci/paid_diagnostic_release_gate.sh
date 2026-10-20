@@ -56,10 +56,14 @@ done
 
 grep -Fq 'PRODUCT_PRICE_FEN = 19900' server/src/services/payment-store.js
 grep -Fq "amount: {" server/src/services/wechat-pay.js
-grep -Fq "total: PRODUCT_PRICE_FEN" server/src/services/wechat-pay.js
+# WeChat provider must charge the amount of the actual approved order,
+# not the list price: paid channel discounts can change amountTotal.
+grep -Fq "total: Number(order.amountTotal)" server/src/services/wechat-pay.js
 grep -Fq "wx.requestPayment" pages/submit-success/submit-success.js
-grep -Fq "支付 ¥199 获取诊断报告" pages/submit-success/submit-success.wxml
-grep -Fq "不包含在 199 元诊断报告中" pages/services/services.js
+# Customer copy must disclose the 199-yuan list price and clarify paid
+# follow-on services are not silently included in the one-time diagnosis.
+grep -Fq "品牌 GEO 诊断标准价 199 元" pages/submit-success/submit-success.wxml
+grep -Fq "不包含在本次诊断报告中" pages/services/services.js
 grep -Fq "/internal/os/payments/:outTradeNo/refund" server/src/server.js
 
 if grep -R -E '免费诊断|免费报告|初步诊断会|提交后立即开始诊断' pages --include='*.wxml' --include='*.js'; then
