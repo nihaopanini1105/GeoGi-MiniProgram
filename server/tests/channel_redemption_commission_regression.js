@@ -120,7 +120,7 @@ async function run() {
   });
   assert.strictEqual((await reconcileCommission({ order: paidOrder })), null, 'payment alone must not accrue commission');
 
-  paidOrder = await markProjectReportReleased('GG-P-A-1', '2026-09-25T02:00:00Z', 'GG-C-A-1');
+  paidOrder = await markProjectReportReleased('GG-P-A-1', '2026-09-25T02:00:00Z', 'GG-A-1');
   const commission = await reconcileCommission({
     order: paidOrder,
     releasedAt: paidOrder.reportReleasedAt
@@ -187,7 +187,7 @@ async function run() {
   });
   assert.strictEqual(bOrderResult.order.status, 'free');
   assert.strictEqual(bOrderResult.order.provider, 'channel_offer');
-  const bReleased = await markProjectReportReleased('GG-P-B-1', '2026-09-26T02:00:00Z', 'GG-C-B-1');
+  const bReleased = await markProjectReportReleased('GG-P-B-1', '2026-09-26T02:00:00Z', 'GG-B-1');
   assert(bReleased, 'free channel order must remain readable after report release');
   assert.strictEqual(bReleased.channelId, channelB.channelId, 'free order must preserve channel attribution');
   assert.strictEqual(bReleased.reportReleasedAt, '2026-09-26T02:00:00Z');
