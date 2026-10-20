@@ -26,6 +26,10 @@ const page = fs.readFileSync(path.join(__dirname,'../../pages/report-detail/repo
 assert(backend.includes("app.post('/api/customer/reports/:projectId/h5-ticket', requireCustomerSession"));
 assert(backend.includes("app.get('/api/customer/h5-reader/:ticket'"));
 assert(backend.includes("report.artifactSha256 !== ticket.sha256"));
-assert(backend.includes("name.endsWith('.html')"));
+const { isProtectedReportUploadPath } = require('../src/services/private-report-upload-guard');
+assert(backend.includes('isProtectedReportUploadPath(req.path)'));
+assert.strictEqual(isProtectedReportUploadPath('/doc.html'),true);
+assert.strictEqual(isProtectedReportUploadPath('/foo/../GeoGi-V21-0123456789abcdef.pdf'),true);
+assert.strictEqual(isProtectedReportUploadPath('/ordinary-attachment.pdf'),false);
 assert(page.includes("'/pages/h5-report/h5-report?src='"));
 console.log('H5_READER_TICKET_SECURITY_PASS');
