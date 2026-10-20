@@ -107,7 +107,11 @@ function validatePackage(doc) {
     report_object_version:'2.1.0',html_sha256:doc.artifacts[0].sha256,
     pdf_sha256:doc.artifacts[1].sha256
   }));
+  const expectedReportId='GEO-V21-'+sourceHash.slice(0,12).toUpperCase();
   if (doc.delivery_package_id !== expectedId || sharedStem !== expectedStem
+      || report.report_id !== expectedReportId
+      || doc.artifacts.some((artifact,i) =>
+        artifact.artifact_id !== 'v21_'+expectations[i][0]+'_'+expectedStem)
       || report.report_record_hash !== expectedRecord)
     fail('V21_PACKAGE_CANONICAL_IDENTITY_MISMATCH');
   if (!/^sha256:[0-9a-f]{64}$/.test(doc.package_hash || '')) fail('V21_PACKAGE_HASH_INVALID');
