@@ -19,6 +19,10 @@ const projects=clients.map(c=>({fields:{'客户编号':c,'项目编号':project,
   '品牌名称':c,'当前阶段':c==='client_A'?'INTAKE':'DIAGNOSIS'}}));
 feishu.getTenantAccessToken=async()=> 'sandbox-token';
 feishu.listBitableRecords=async({tableId})=>tableId==='leads'?leads:projects;
+let modified=[];
+feishu.updateBitableRecord=async({tableId,recordId,fields})=>{
+  modified.push({tableId,recordId,fields});return {};
+};
 const store=require('../src/services/payment-store');
 const service=require('../src/services/payment-service');
 const ops=require('../src/services/os-operations-bridge');
@@ -50,12 +54,26 @@ const ops=require('../src/services/os-operations-bridge');
   const two=current.find(x=>x.clientId==='client_B');
   assert.equal(two.project.clientId,'client_B');
   assert(two.payment && two.payment.clientId==='client_B');
+  // A webhook-derived financial update may mutate only the exact tenant and
+  // project, even when another Feishu row shares that project ID.
+  // Test source rows are returned via module injected mock; explicitly mark
+  // record IDs so the resulting mutation target can be checked.
+  for (const [i,item] of leads.entries())item.record_id='lead_'+clients[i];
+  for (const [i,item] of projects.entries())item.record_id='project_'+clients[i];
+  assert.equal(await service.projectPaymentProjection({projectId:project,
+    paymentStatus:'paid'}),false);
+  assert.equal(modified.length,0);
+  assert.equal(await service.projectPaymentProjection({clientId:'client_A',
+    projectId:project,paymentStatus:'paid'}),true);
+  assert.deepEqual(modified.map(x=>x.recordId),['lead_client_A','project_client_A']);
+  modified=[];
+  assert.equal(await service.projectPaymentProjection({clientId:'client_missing',
+    projectId:project,paymentStatus:'paid'}),false);
+  assert.equal(modified.length,0);
   // A different customer's refund never blocks a valid supplement request.
   const updated=await store.updatePaymentOrder(b.order.outTradeNo,{status:'refunded',
     refundedAmount:19900,refundableAmount:0});
   assert.equal(updated.status,'refunded');
-  let changes=0;
-  feishu.updateBitableRecord=async()=>{changes++;return {};};
   // Exact customer-portal checks are covered by a separate high-level test.
   console.log('PAYMENT_AND_OS_EXACT_CLIENT_PROJECT_SCOPE=PASS');
 }finally{fs.rmSync(root,{recursive:true,force:true});}})().catch(e=>{console.error(e);process.exitCode=1});
