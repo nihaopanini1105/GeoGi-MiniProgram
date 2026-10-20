@@ -107,7 +107,13 @@ function verifiedArtifact(artifact, root) {
   try {
     const st = fs.lstatSync(dest);
     if (!st.isFile() || st.isSymbolicLink() || st.size !== artifact.size_bytes) return false;
-    return sha(fs.readFileSync(dest)) === artifact.sha256;
+    const bytes = fs.readFileSync(dest);
+    if (sha(bytes) !== artifact.sha256) return false;
+    if (artifact.artifact_type === 'pdf')
+      return bytes.length >= 12000 && bytes.subarray(0, 5).toString('ascii') === '%PDF-';
+    if (artifact.artifact_type === 'h5')
+      return bytes.subarray(0, 80).toString('utf8').trimStart().toLowerCase().startsWith('<!doctype html>');
+    return false;
   } catch (_) { return false; }
 }
 function paths(root, client, project) {
@@ -233,7 +239,7 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot}) {
     const pack = await _loadPack(delivery_package_id);
     if (!pack || pack.client_id !== client_id || pack.project_id !== project_id
         || pack.artifacts[0].sha256 !== artifact_sha256) fail('V21_REVOCATION_SCOPE_INVALID');
-    if (typeof reason !== 'string' || !reason.trim()) fail('V21_REVOCATION_REASON_REQUIRED');
+    if (typeof reason !== 'string' || !/^[A-Za-z0-9_.-]{8,100}$/.test(reason)) fail('V21_REVOCATION_REASON_REQUIRED');
     const filename=path.join(root,'revocations',delivery_package_id+'.json');
     const existed=fs.existsSync(filename);
     await writeImmutable(filename,json({client_id,project_id,delivery_package_id,
