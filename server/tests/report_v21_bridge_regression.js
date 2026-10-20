@@ -98,6 +98,55 @@ function fixture(upload){
   let x=await bridge.publish(doc);assert.equal(x.payment_mutated,false);assert.equal(x.commission_mutated,false);
   assert.equal(x.idempotent,false);
   x=await bridge.publish(doc);assert.equal(x.idempotent,true);
+  // The release identity omits released_at. A newly signed packet with the
+  // same package ID but a modified timestamp must not be "idempotent".
+  const forgedTimestamp=structuredClone(doc);
+  forgedTimestamp.released_at='2026-10-20T13:00:00Z';
+  { const unsigned={...forgedTimestamp}; delete unsigned.package_hash;
+    forgedTimestamp.package_hash='sha256:'+sha(enc(unsigned)); }
+  await assert.rejects(bridge.publish(forgedTimestamp),/V21_IMMUTABLE_CONFLICT/);
+
+  function revised(previous, revision, released_at) {
+    const doc=structuredClone(previous), source=sha('snapshot-'+revision);
+    const hd=doc.artifacts[0].sha256,pd=doc.artifacts[1].sha256;
+    const oldNames=doc.artifacts.map(a=>a.file_name);
+    const stem=sha(['V21',doc.client_id,doc.project_id,source,hd,pd].join(':')).slice(0,16);
+    const record='sha256:'+sha(enc({client:doc.client_id,project:doc.project_id,
+      snapshot_sha256:source,report_object_version:'2.1.0',html_sha256:hd,pdf_sha256:pd}));
+    doc.released_at=released_at;
+    doc.report_reference.report_id='GEO-V21-'+source.slice(0,12).toUpperCase();
+    doc.report_reference.content_hash='sha256:'+source;
+    doc.report_reference.report_record_hash=record;
+    doc.delivery_package_id='delivery_package_v21_'+sha([doc.client_id,doc.project_id,source,hd,pd].join(':')).slice(0,24);
+    doc.artifacts.forEach((a,i)=>{
+      a.file_name='GeoGi-V21-'+stem+(i===0?'.html':'.pdf');
+      a.uri='https://assets.example/'+a.file_name;
+      a.artifact_id='v21_'+a.artifact_type+'_'+stem;
+      a.report_content_hash='sha256:'+source;
+      a.report_record_hash=record;
+      fs.copyFileSync(path.join(uploads,oldNames[i]),path.join(uploads,a.file_name));
+    });
+    delete doc.package_hash;doc.package_hash='sha256:'+sha(enc(doc));
+    return doc;
+  }
+  const versioned=createV21Bridge({findIntakes:async()=>[lead],
+    findPayment:async()=>payment,uploadRoot:uploads,dataRoot:path.join(root,'revisions')});
+  await versioned.publish(doc);
+  const fresh=revised(doc,'two','2026-10-20T14:00:00Z');
+  assert.equal((await versioned.publish(fresh)).idempotent,false);
+  assert.equal((await versioned.currentReport(doc.client_id,doc.project_id)).deliveryPackageId,fresh.delivery_package_id);
+  const stale=revised(doc,'stale','2026-10-20T13:00:00Z');
+  await assert.rejects(versioned.publish(stale),/V21_RELEASE_TIME_NOT_MONOTONIC/);
+  assert.equal((await versioned.currentReport(doc.client_id,doc.project_id)).deliveryPackageId,fresh.delivery_package_id);
+  // A corrupted customer pointer must never silently become "no current
+  // report", allowing a fresh upload to overwrite its frozen history.
+  const pointer=path.join(root,'revisions','pointers',sha(enc([doc.client_id,doc.project_id]))+'.json');
+  const authenticPointer=fs.readFileSync(pointer,'utf8');
+  fs.writeFileSync(pointer,JSON.stringify({client_id:'other_client',
+    project_id:doc.project_id,delivery_package_id:fresh.delivery_package_id})+'\n');
+  await assert.rejects(versioned.publish(revised(doc,'three','2026-10-20T15:00:00Z')),
+    /V21_POINTER_SCOPE_INVALID/);
+  fs.writeFileSync(pointer,authenticPointer);
   assert.equal((await bridge.accessible({client_id:doc.client_id,project_id:doc.project_id,
    delivery_package_id:doc.delivery_package_id,artifact_sha256:doc.artifacts[0].sha256})).accessible,true);
   assert.equal((await bridge.currentReport(doc.client_id,doc.project_id)).version,'2.1');
