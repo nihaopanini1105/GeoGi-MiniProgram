@@ -10,6 +10,10 @@ const {
   findPaymentByProject,
   publicPaymentView
 } = require('./payment-store');
+const {
+  assessV2ReleaseEligibility,
+  PAID_DIAGNOSTIC_LAUNCH_CUTOFF
+} = require('./os-v2-release-eligibility');
 
 async function listCustomerProjects({ clientId, clientIds }) {
   try {
@@ -40,23 +44,31 @@ async function listCustomerProjects({ clientId, clientIds }) {
       allowed.has(text(record.fields && record.fields.客户编号)));
     const projects = allProjects.filter(record =>
       allowed.has(text(record.fields && record.fields.客户编号)));
-    const projectById = new Map(projects.map((record) => [text(record.fields && record.fields.项目编号), record]));
+    const projectByScope = new Map(projects.map((record) => [scopeKey(
+      text(record.fields && record.fields.客户编号),
+      text(record.fields && record.fields.项目编号)), record]));
 
     const orders = (await Promise.all(leads.map(async (lead) => {
       const fields = lead.fields || {};
       const projectId = text(fields.项目编号);
       const ownedClientId = text(fields.客户编号);
       if (!projectId || !allowed.has(ownedClientId)) return null;
-      const [deliveryPackage, payment] = await Promise.all([
+      const [deliveryPackage, candidatePayment] = await Promise.all([
         findDeliveryPackage({ clientId: ownedClientId, projectId }),
         findPaymentByProject(projectId)
       ]);
-      return normalizeOrder({
-        lead,
-        project: projectById.get(projectId),
-        deliveryPackage,
-        payment
+      const payment = scopedPayment(candidatePayment,ownedClientId,projectId);
+      const order=normalizeOrder({
+        lead,project:projectByScope.get(scopeKey(ownedClientId,projectId)),
+        deliveryPackage,payment
       });
+      if (process.env.GEOGI_REPORT_V21_PUBLISH_ENABLED !== 'true') return order;
+      // Only independently verified V2.1 artifacts change customer display.
+      // Existing V2 pointers, order payments and commissions remain untouched.
+      try {
+        const { getV21CustomerReport } = require('./report-v21-bridge-operations');
+        return projectV21VerifiedReport(order,await getV21CustomerReport(ownedClientId,projectId));
+      } catch (_) { return order; }
     }))).filter(Boolean);
 
     orders.sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
@@ -68,6 +80,47 @@ async function listCustomerProjects({ clientId, clientIds }) {
     console.error('listCustomerProjects failed', error);
     return fail('报告状态读取失败，请稍后重试');
   }
+}
+
+// A project ID alone is not financial authority. Customers may have colliding
+// upstream project identifiers; only their exact payment scope can unlock a report.
+function scopeKey(clientId,projectId) {
+  return JSON.stringify([clientId,projectId]);
+}
+function scopedPayment(payment,clientId,projectId) {
+  return payment && payment.clientId === clientId && payment.projectId === projectId
+    ? payment : null;
+}
+
+function projectV21VerifiedReport(order,verified) {
+  if (!verified || verified.clientId !== order.clientId
+      || verified.projectId !== order.projectId || verified.version !== '2.1'
+      || !/^delivery_package_v21_[0-9a-f]{24}$/.test(String(verified.deliveryPackageId||'')))
+    return order;
+  return {
+    ...order,status:'报告已完成',reportReady:true,v21ReportReady:true,
+    v21DeliveryPackageId:verified.deliveryPackageId,version:'2.1',
+    completedAt:verified.releasedAt || order.completedAt || '',
+    updatedAt:verified.releasedAt || order.updatedAt,
+    canSupplement:false,nextAction:'查看正式 V2.1 GEO 诊断报告'
+    // Historical V2 pointer and payment status remain unchanged.
+  };
+}
+
+// Prelaunch V2 customers are entitled through the SAME frozen release gate,
+// not through a second, weaker set of customer-reader exemptions.
+function historicV2ReportAuthorized({lead,project,deliveryPackage,payment}) {
+  if (!lead || !project || !deliveryPackage
+      || deliveryPackage.release_authority !== 'geo_diagnostic_html_release_v2'
+      || deliveryPackage.delivery_purpose !== 'baseline_diagnostic_report') return false;
+  const leadClient=text(lead.fields && lead.fields.客户编号);
+  const leadProject=text(lead.fields && lead.fields.项目编号);
+  if (!leadClient || !leadProject
+      || text(project.fields && project.fields.客户编号)!==leadClient
+      || text(project.fields && project.fields.项目编号)!==leadProject) return false;
+  const verdict=assessV2ReleaseEligibility({packageDocument:deliveryPackage,
+    leadRecord:lead,payment,legacyCutoffAt:PAID_DIAGNOSTIC_LAUNCH_CUTOFF});
+  return verdict.allowed && verdict.reason==='prepaid_product_launch_legacy';
 }
 
 function authorizedGeoGiV2Pilot(clientId,projectId,deliveryPackage) {
@@ -102,14 +155,16 @@ async function getCustomerReport({ clientId, projectId }) {
       tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
       predicate: (fields) => text(fields.项目编号) === cleanProjectId && text(fields.客户编号) === cleanClientId
     });
-    const [deliveryPackage, payment] = await Promise.all([
+    const [deliveryPackage, candidatePayment] = await Promise.all([
       findDeliveryPackage({ clientId: cleanClientId, projectId: cleanProjectId }),
       findPaymentByProject(cleanProjectId)
     ]);
+    const payment = scopedPayment(candidatePayment,cleanClientId,cleanProjectId);
     const order = normalizeOrder({ lead, project, deliveryPackage, payment });
 
-    if (!deliveryPackage || (!isPaidForReport(payment)
-         && !authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage))) {
+    if (!project || !deliveryPackage || (!isPaidForReport(payment)
+         && !authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage)
+         && !historicV2ReportAuthorized({lead,project,deliveryPackage,payment}))) {
       return {
         ok: true,
         order,
@@ -127,7 +182,8 @@ async function getCustomerReport({ clientId, projectId }) {
         }),
         status: '报告已完成',
         reportReady: true,
-        pilotReviewAccess: authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage)
+        pilotReviewAccess: authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage),
+        legacyReviewAccess: historicV2ReportAuthorized({lead,project,deliveryPackage,payment})
       }
     };
   } catch (error) {
@@ -140,15 +196,23 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const leadFields = (lead && lead.fields) || {};
   const projectFields = (project && project.fields) || {};
   const paidForReport = isPaidForReport(payment);
-  const pilotReviewAccess=authorizedGeoGiV2Pilot(
+  const projectScopeVerified = Boolean(project
+    && text(projectFields.客户编号) === text(leadFields.客户编号)
+    && text(projectFields.项目编号) === text(leadFields.项目编号));
+  const pilotReviewAccess=projectScopeVerified && authorizedGeoGiV2Pilot(
     text(leadFields.客户编号),
     text(leadFields.项目编号)||text(projectFields.项目编号),deliveryPackage);
-  const reportReady = Boolean(deliveryPackage && (paidForReport || pilotReviewAccess));
+  const legacyReviewAccess=projectScopeVerified && historicV2ReportAuthorized({
+    lead,project,deliveryPackage,payment
+  });
+  const reportReady = Boolean(projectScopeVerified && deliveryPackage && (paidForReport || pilotReviewAccess || legacyReviewAccess));
   const leadStatus = text(leadFields.当前状态);
   const projectStage = text(projectFields.当前阶段);
   const status = reportReady
     ? '报告已完成'
-    : paymentStatusLabel(payment) || mapCustomerStatus({ projectStage, leadStatus });
+    : payment && payment.status === 'free' && !paidForReport
+      ? '优惠资格待核验'
+      : paymentStatusLabel(payment) || mapCustomerStatus({ projectStage, leadStatus });
   const deliveryView = deliveryPackage ? projectDeliveryForCustomer(deliveryPackage, {
     clientId: text(leadFields.客户编号),
     projectId: text(leadFields.项目编号) || text(projectFields.项目编号)
@@ -168,10 +232,11 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
     status,
     reportReady,
     pilotReviewAccess,
+    legacyReviewAccess,
     // An independently verified, already released GeoGi pilot report must
     // not be presented as requiring a new payment. Preserve the historical
     // paymentStatus for audit; do not forge a paid order.
-    paymentRequired: !pilotReviewAccess && !(payment && payment.status === 'free'),
+    paymentRequired: !pilotReviewAccess && !legacyReviewAccess && !paidForReport,
     payment: paymentView,
     paymentStatus: payment ? payment.status : 'unpaid',
     amountYuan: payment ? payment.amountYuan : 199,
@@ -202,7 +267,7 @@ function buildCustomerResultNotifications(order = {}) {
 
   if (order.reportReady) {
     notifications.push({
-      id: ['report_ready', projectId, order.deliveryPackageId || order.version || order.completedAt].filter(Boolean).join(':'),
+      id: ['report_ready', projectId, order.v21DeliveryPackageId || order.deliveryPackageId || order.version || order.completedAt].filter(Boolean).join(':'),
       type: 'report_ready',
       title: '诊断报告已完成',
       message: brandName + ' 的品牌 GEO 诊断报告已完成，可直接查看。',
@@ -261,7 +326,12 @@ function buildCustomerResultNotifications(order = {}) {
 }
 
 function isPaidForReport(payment) {
-  return Boolean(payment && ['paid', 'free', 'partially_refunded'].includes(String(payment.status || '')));
+  if (!payment) return false;
+  const status=String(payment.status || '');
+  if (status === 'paid' || status === 'partially_refunded') return true;
+  // A raw 'free' flag is not a release grant. Match the independently
+  // attributable channel offer required by the V2 publication gate.
+  return status === 'free' && Boolean(payment.channelId && payment.sourceId);
 }
 
 function paymentStatusLabel(payment) {
@@ -297,6 +367,7 @@ function customerNextAction(status) {
   if (status === '待付款') return '完成当前订单付款后，GeoGi 才会开始本次品牌 GEO 诊断。';
   if (status === '付款确认中') return '付款结果正在确认，请稍后刷新。';
   if (status === '已付款') return '付款已确认，GeoGi 将开始品牌研究和 AI 平台检测。';
+  if (status === '优惠资格待核验') return '当前订单缺少有效优惠依据，请联系 GeoGi 顾问核验，暂不能查看正式报告。';
   if (status === '已优惠至免费') return '渠道专享优惠已生效，本次诊断无需付款，GeoGi 将开始品牌研究和 AI 平台检测。';
   if (status === '部分退款') return '订单已发生部分退款，剩余服务状态以当前项目进度为准。';
   if (status === '退款处理中') return '退款请求已提交，正在等待微信支付确认。';
@@ -318,7 +389,7 @@ function buildPendingReport({ order }) {
   return {
     status: order.status,
     reportReady: false,
-    paymentRequired: !(order && order.paymentStatus === 'free'),
+    paymentRequired: !(order && order.paymentRequired === false),
     payment: order.payment || null,
     reportLink: '',
     reportVersion: '',
@@ -376,5 +447,6 @@ module.exports = {
   isPaidForReport,
   canCustomerSupplement,
   buildCustomerResultNotifications,
+  projectV21VerifiedReport,
   paymentStatusLabel
 };

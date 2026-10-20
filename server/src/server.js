@@ -47,12 +47,18 @@ const {
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
 const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
+const { isProtectedReportUploadPath } = require('./services/private-report-upload-guard');
 const { issueH5Ticket, consumeH5Ticket, readVerifiedH5Artifact } = require('./services/h5-reader-ticket');
 const { issuePdfTicket, consumePdfTicket, readVerifiedPdfArtifact } = require('./services/pdf-reader-ticket');
 const {
   reportV2Capabilities, verifyCustomerReportAccess, revokeCustomerReportDelivery,
   verifyGeoGiPilotBinding
 } = require('./services/report-v2-bridge-operations');
+const {
+  V21DeliveryError, reportV21Capabilities, verifyV21CustomerBinding,
+  publishV21DeliveryPackage, verifyV21CustomerAccess,
+  revokeV21Report, getV21CustomerReport
+} = require('./services/report-v21-bridge-operations');
 const {
   OperationsBridgeError,
   configured: osBridgeConfigured,
@@ -76,13 +82,9 @@ app.use(express.json({
 // Both H5 and PDF reports are private; public uploads can only host
 // non-report assets. Reading either report requires a scoped one-use token.
 app.use('/uploads', (req, res, next) => {
-  let name;
-  try { name = decodeURIComponent(String(req.path || '')).toLowerCase(); }
-  catch (_) { return res.status(400).json({ ok: false, userMessage: '文件地址无效' }); }
-  // Customer-uploaded PDF attachments remain accessible under their
-  // existing rules. Only immutable V2 report PDF assets are private.
-  if (name.endsWith('.html') || name.endsWith('.htm')
-      || /^\/geogi-v2-[0-9a-f]{16}\.pdf$/.test(name)) {
+  // Static middleware can normalize './' and '../' after the middleware
+  // check. Inspect the normalized basename, not just a root-anchored regex.
+  if (isProtectedReportUploadPath(req.path)) {
     return res.status(404).json({ ok: false, userMessage: '文件不可公开访问' });
   }
   return next();
@@ -182,6 +184,68 @@ app.get('/api/customer/projects', requireCustomerSession, async (req, res) => {
   const result = await listCustomerProjects({ clientIds });
   return res.status(result.ok ? 200 : 400).json(result);
 });
+
+// V2.1 customer reader is not the existing V2 report pointer. Ownership is
+// checked by the signed phone session, and the current paid Feishu binding
+// plus the immutable H5/PDF hashes are rechecked on every ticket/read.
+app.get('/api/customer/report-v21/:projectId', requireCustomerSession, async(req,res)=>{
+  try {
+    const clientId=await resolveOwnedClientId({
+      phoneNumber:req.customerSession.phoneNumber,
+      requestedClientId:req.query && req.query.clientId
+    });
+    const report=clientId && await getV21CustomerReport(clientId,req.params.projectId);
+    if (!report) return res.status(404).json({ok:false,userMessage:'没有可查看的正式版报告'});
+    res.setHeader('Cache-Control','private, no-store');
+    return res.json({ok:true,report:{
+      version:report.version,deliveryPackageId:report.deliveryPackageId,
+      reportReady:true,availableFormats:['h5','pdf']
+    }});
+  } catch (_) {return res.status(503).json({ok:false,userMessage:'报告服务暂不可用'});}
+});
+for (const [kind, issueTicket] of [['h5',issueH5Ticket],['pdf',issuePdfTicket]]) {
+  app.post('/api/customer/report-v21/:projectId/'+kind+'-ticket',
+    requireCustomerSession,async(req,res)=>{
+    try {
+      const clientId=await resolveOwnedClientId({
+        phoneNumber:req.customerSession.phoneNumber,
+        requestedClientId:req.body && req.body.clientId
+      });
+      const report=clientId && await getV21CustomerReport(clientId,req.params.projectId);
+      if (!report) return res.status(404).json({ok:false,userMessage:'无权查看该版本报告'});
+      const artifact=report[kind];
+      const token=issueTicket({clientId,projectId:req.params.projectId,
+        sha256:artifact.sha256,fileName:artifact.file_name});
+      res.setHeader('Cache-Control','private, no-store');
+      return res.json({ok:true,expiresInSeconds:60,
+        readerPath:'/api/customer/report-v21/'+kind+'-reader/'+token});
+    } catch (_) {return res.status(503).json({ok:false,userMessage:'报告阅读暂不可用'});}
+  });
+}
+for (const [kind, consumeTicket, readBytes] of [
+  ['h5',consumeH5Ticket,readVerifiedH5Artifact],
+  ['pdf',consumePdfTicket,readVerifiedPdfArtifact]
+]) {
+  app.get('/api/customer/report-v21/'+kind+'-reader/:ticket',async(req,res)=>{
+    res.setHeader('Cache-Control','private, no-store');
+    res.setHeader('Referrer-Policy','no-referrer');
+    res.setHeader('X-Content-Type-Options','nosniff');
+    if (kind==='h5') res.setHeader('Content-Security-Policy',
+      "default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
+    try {
+      const ticket=consumeTicket(req.params.ticket);
+      const report=await getV21CustomerReport(ticket.clientId,ticket.projectId);
+      const artifact=report && report[kind];
+      if (!artifact || artifact.sha256!==ticket.sha256 ||
+          artifact.file_name!==ticket.fileName)
+        return res.status(404).type('text/plain').send('报告已失效');
+      const bytes=readBytes(getUploadRoot(),ticket.fileName,ticket.sha256);
+      if (kind==='pdf') res.setHeader('Content-Disposition',
+        'attachment; filename="GeoGi-Report-V21.pdf"');
+      return res.status(200).type(kind==='h5'?'html':'application/pdf').send(bytes);
+    } catch (_) {return res.status(404).type('text/plain').send('阅读票据无效');}
+  });
+}
 
 app.get('/api/customer/reports/:projectId', requireCustomerSession, async (req, res) => {
   const clientId = await resolveOwnedClientId({
@@ -404,7 +468,7 @@ app.post('/api/payments/wechat/notify', async (req, res, next) => {
   try {
     const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody.toString('utf8') : JSON.stringify(req.body || {});
     const order = await handlePaymentNotification(req.headers, rawBody);
-    await projectPaymentProjection({ projectId: order.projectId, paymentStatus: order.status });
+    await projectPaymentProjection({ clientId: order.clientId, projectId: order.projectId, paymentStatus: order.status });
     return res.status(200).json({ code: 'SUCCESS', message: '成功' });
   } catch (error) {
     return next(error);
@@ -415,7 +479,7 @@ app.post('/api/payments/wechat/refund-notify', async (req, res, next) => {
   try {
     const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody.toString('utf8') : JSON.stringify(req.body || {});
     const order = await handleRefundNotification(req.headers, rawBody);
-    await projectPaymentProjection({ projectId: order.projectId, paymentStatus: order.status });
+    await projectPaymentProjection({ clientId: order.clientId, projectId: order.projectId, paymentStatus: order.status });
     await reconcileCommission({ order });
     return res.status(200).json({ code: 'SUCCESS', message: '成功' });
   } catch (error) {
@@ -555,6 +619,7 @@ app.post('/internal/os/projects/:projectId/stage', requireOsBridge, async (req, 
   try {
     const result = await updateOsProjectStage({
       projectId: req.params.projectId,
+      clientId: req.body && (req.body.clientId || req.body.client_id),
       stage: req.body && req.body.stage
     });
     res.json({ ok: true, result });
@@ -582,6 +647,29 @@ app.post(
     }
   }
 );
+
+// Report V2.1 is an independent opt-in consumer with a distinct authority.
+// Every route is protected by the OS bridge bearer and remains disabled until
+// both service capability and a real tenant-scoped customer binding are verified.
+app.get('/internal/os/report-v21/capabilities', requireOsBridge, (_req,res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  return res.json({ok:true,result:reportV21Capabilities()});
+});
+app.post('/internal/os/report-v21/verify-customer-binding', requireOsBridge, async(req,res,next)=>{
+  try {
+    const body=req.body||{};
+    const result=await verifyV21CustomerBinding(String(body.client_id||''),String(body.project_id||''));
+    return res.json({ok:true,result});
+  } catch(error) {return next(error);}
+});
+app.post('/internal/os/report-v21/verify-customer-access', requireOsBridge, async(req,res,next)=>{
+  try {return res.json({ok:true,result:await verifyV21CustomerAccess(req.body||{})});}
+  catch(error) {return next(error);}
+});
+app.post('/internal/os/report-v21/revoke', requireOsBridge, async(req,res,next)=>{
+  try {return res.json({ok:true,result:await revokeV21Report(req.body||{})});}
+  catch(error) {return next(error);}
+});
 
 app.get('/internal/os/report-v2/capabilities', requireOsBridge, (_req,res) => {
   return res.json({ok:true,result:reportV2Capabilities()});
@@ -612,7 +700,13 @@ app.post('/internal/os/report-v2/revoke',requireOsBridge,async(req,res,next)=>{
 
 app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, next) => {
   try {
-    const result = await publishOsDeliveryPackage(req.body || {});
+    const payload=req.body||{};
+    // Never send a V2.1 package through the V2 payment/commission saga.
+    const v21 = payload.delivery_purpose === 'report_v21_diagnostic'
+      || payload.release_authority === 'geo_diagnostic_html_release_v21';
+    const result = v21
+      ? await publishV21DeliveryPackage(payload)
+      : await publishOsDeliveryPackage(payload);
     res.json({ ok: true, result });
   } catch (error) {
     next(error);
@@ -620,6 +714,12 @@ app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, nex
 });
 
 app.use((error, _req, res, _next) => {
+  if (error instanceof V21DeliveryError) {
+    const denied = error.code === 'V21_PUBLICATION_DISABLED' ||
+      error.code === 'V21_REVOCATION_DISABLED' ||
+      error.code === 'V21_PAID_BINDING_REQUIRED';
+    return res.status(denied ? 403 : 409).json({ok:false,error:error.code});
+  }
   if (error instanceof OperationsBridgeError) {
     const status = error.code === 'OS_BRIDGE_PROJECT_NOT_FOUND' ? 404 : 400;
     return res.status(status).json({ ok: false, error: error.code });

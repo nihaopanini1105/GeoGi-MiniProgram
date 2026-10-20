@@ -108,7 +108,9 @@ function paymentProjectionDecision(currentStage, paymentStatus) {
   };
 }
 
-async function projectPaymentProjection({ projectId, paymentStatus }) {
+async function projectPaymentProjection({ clientId, projectId, paymentStatus }) {
+  // Never write a financial projection using only a project identifier.
+  if (!clientId || !projectId) return false;
   const tenantToken = await getTenantAccessToken();
   const [leads, projects] = await Promise.all([
     listBitableRecords({
@@ -124,9 +126,11 @@ async function projectPaymentProjection({ projectId, paymentStatus }) {
       pageSize: 100
     })
   ]);
-  const lead = leads.find((record) => text(record.fields && record.fields.项目编号) === projectId);
-  const project = projects.find((record) => text(record.fields && record.fields.项目编号) === projectId);
-  if (!lead || !project) return false;
+  const belongs = (record) => text(record.fields && record.fields.客户编号) === clientId
+    && text(record.fields && record.fields.项目编号) === projectId;
+  const matchingLeads=leads.filter(belongs),matchingProjects=projects.filter(belongs);
+  if (matchingLeads.length !== 1 || matchingProjects.length !== 1) return false;
+  const lead=matchingLeads[0],project=matchingProjects[0];
 
   const currentStage = text(project.fields && project.fields.当前阶段) || 'PAYMENT_PENDING';
   const decision = paymentProjectionDecision(currentStage, paymentStatus);
@@ -193,6 +197,11 @@ async function cancelActivePaymentOrder(order) {
   }
 }
 
+function customerPayment(order,clientId,projectId) {
+  return order && order.clientId === clientId && order.projectId === projectId
+    ? order : null;
+}
+
 async function ensureOrder({ clientId, projectId, phoneNumber }) {
   const context = await findProjectContext({ clientId, projectId });
   if (!context) {
@@ -200,10 +209,16 @@ async function ensureOrder({ clientId, projectId, phoneNumber }) {
     error.code = 'PAYMENT_PROJECT_NOT_FOUND';
     throw error;
   }
-  const existing = await findPaymentByProject(projectId);
+  const candidate = await findPaymentByProject(projectId);
+  if (candidate && !customerPayment(candidate,clientId,projectId)) {
+    const error = new Error('PAYMENT_CLIENT_PROJECT_SCOPE_CONFLICT');
+    error.code = 'PAYMENT_CLIENT_PROJECT_SCOPE_CONFLICT';
+    throw error;
+  }
+  const existing = candidate;
   if (existing && isPaymentOrderExpired(existing)) {
     const expired = await refreshExpiredPaymentOrder(existing);
-    await projectPaymentProjection({ projectId, paymentStatus: expired.status });
+    await projectPaymentProjection({ clientId, projectId, paymentStatus: expired.status });
   }
   const fields = context.lead.fields || {};
   const result = await createOrGetPaymentOrder({
@@ -251,10 +266,10 @@ async function createCustomerPayment({ clientId, projectId, phoneNumber, loginCo
 async function getCustomerPayment({ clientId, projectId }) {
   const context = await findProjectContext({ clientId, projectId });
   if (!context) return { ok: false, userMessage: '没有找到这条诊断记录' };
-  let order = await findPaymentByProject(projectId);
+  let order = customerPayment(await findPaymentByProject(projectId),clientId,projectId);
   if (order && isPaymentOrderExpired(order)) {
     order = await refreshExpiredPaymentOrder(order);
-    await projectPaymentProjection({ projectId, paymentStatus: order.status });
+    await projectPaymentProjection({ clientId, projectId, paymentStatus: order.status });
   }
   return {
     ok: true,
@@ -274,11 +289,11 @@ async function getCustomerPayment({ clientId, projectId }) {
 async function syncCustomerPayment({ clientId, projectId }) {
   const context = await findProjectContext({ clientId, projectId });
   if (!context) return { ok: false, userMessage: '没有找到这条诊断记录' };
-  let order = await findPaymentByProject(projectId);
+  let order = customerPayment(await findPaymentByProject(projectId),clientId,projectId);
   if (!order) return { ok: false, userMessage: '还没有创建支付订单' };
   if (isPaymentOrderExpired(order)) {
     order = await refreshExpiredPaymentOrder(order);
-    await projectPaymentProjection({ projectId, paymentStatus: order.status });
+    await projectPaymentProjection({ clientId, projectId, paymentStatus: order.status });
     return { ok: true, payment: publicPaymentView(order) };
   }
   if (order.status === 'closed' || order.status === 'free') return { ok: true, payment: publicPaymentView(order) };
@@ -286,7 +301,7 @@ async function syncCustomerPayment({ clientId, projectId }) {
   const wasPaid = Boolean(order.paidAt || order.transactionId)
     || ['paid', 'refund_processing', 'partially_refunded', 'refunded'].includes(previousStatus);
   const synced = await syncPaymentOrder(order);
-  await projectPaymentProjection({ projectId, paymentStatus: synced.status });
+  await projectPaymentProjection({ clientId, projectId, paymentStatus: synced.status });
   if (synced.status === 'paid' && !wasPaid) {
     notifyPaymentPaid(synced);
   }
@@ -296,14 +311,14 @@ async function syncCustomerPayment({ clientId, projectId }) {
 async function cancelCustomerPayment({ clientId, projectId }) {
   const context = await findProjectContext({ clientId, projectId });
   if (!context) return { ok: false, userMessage: '没有找到这条诊断记录' };
-  let order = await findPaymentByProject(projectId);
+  let order = customerPayment(await findPaymentByProject(projectId),clientId,projectId);
   if (!order) return { ok: false, userMessage: '还没有创建支付订单' };
   if (isPaymentOrderExpired(order)) {
     order = await refreshExpiredPaymentOrder(order);
   } else {
     order = await cancelActivePaymentOrder(order);
   }
-  await projectPaymentProjection({ projectId, paymentStatus: order.status });
+  await projectPaymentProjection({ clientId, projectId, paymentStatus: order.status });
   return {
     ok: true,
     payment: publicPaymentView(order),
@@ -349,7 +364,7 @@ async function refundPaymentForOs({ outTradeNo, amountFen, reason, operatorId })
     reason,
     operatorId
   });
-  await projectPaymentProjection({ projectId: refunded.projectId, paymentStatus: refunded.status });
+  await projectPaymentProjection({ clientId: refunded.clientId, projectId: refunded.projectId, paymentStatus: refunded.status });
   await reconcileCommission({ order: refunded });
   return publicPaymentView(refunded);
 }

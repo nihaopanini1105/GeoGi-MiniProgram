@@ -7,8 +7,8 @@ const {
 const { importDeliveryPackage } = require('./delivery-package-store');
 const { findPaymentByProject, publicPaymentView, markProjectReportReleased } = require('./payment-store');
 const { reconcileCommission } = require('./channel-service');
+const { assessV2ReleaseEligibility, PAID_DIAGNOSTIC_LAUNCH_CUTOFF } = require('./os-v2-release-eligibility');
 
-const PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z';
 const LEGACY_PAYMENT_EXEMPTION_REASON = 'submitted_before_paid_diagnostic_launch';
 
 const PROJECT_STAGES = Object.freeze({
@@ -128,43 +128,73 @@ async function listOsIntakes() {
     listBitableRecords({ tenantToken, appToken: process.env.FEISHU_BASE_APP_TOKEN, tableId: process.env.FEISHU_LEADS_TABLE_ID, pageSize: 100 }),
     listBitableRecords({ tenantToken, appToken: process.env.FEISHU_BASE_APP_TOKEN, tableId: process.env.FEISHU_PROJECTS_TABLE_ID, pageSize: 100 })
   ]);
+  // Never let a Feishu Map silently turn duplicate rows into CRM authority.
+  const scopeKey = (clientId,projectId) => JSON.stringify([clientId,projectId]);
+  const projectCounts = new Map(), leadCounts = new Map();
   const projects = new Map(projectRecords.map((record) => {
-    const project = projectView(record);
-    return [project.projectId, project];
+    const project = projectView(record),key=scopeKey(project.clientId,project.projectId);
+    projectCounts.set(key,(projectCounts.get(key)||0)+1);
+    return [key,project];
   }));
+  for (const record of leadRecords) {
+    const fields=record.fields||{},key=scopeKey(text(fields.客户编号),text(fields.项目编号));
+    leadCounts.set(key,(leadCounts.get(key)||0)+1);
+  }
   const items = await Promise.all(leadRecords.map(async (record) => {
     const lead = leadView(record);
-    const payment = await findPaymentByProject(lead.projectId);
+    const candidate = await findPaymentByProject(lead.projectId);
+    const payment = candidate && candidate.clientId === lead.clientId
+      && candidate.projectId === lead.projectId ? candidate : null;
     const paymentView = publicPaymentView(payment);
     const paid = Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status));
     const freeChannelOffer = Boolean(payment && payment.status === 'free' && payment.channelId && payment.sourceId);
     const legacyExemption = legacyPaymentExemption(lead.submittedAt);
     const legacyEligible = legacyExemption.eligible && !paid;
+    const scope=scopeKey(lead.clientId,lead.projectId);
+    const crmScopeUnique=Boolean(lead.clientId && lead.projectId &&
+      leadCounts.get(scope)===1 && projectCounts.get(scope)===1);
     return {
       ...lead,
-      project: projects.get(lead.projectId) || null,
+      project: crmScopeUnique ? projects.get(scope) : null,
+      crmScopeUnique,
       payment: paymentView,
-      paymentRequired: !legacyEligible && !freeChannelOffer,
-      paymentEligibleForProcessing: paid || freeChannelOffer || legacyEligible,
-      paymentAdmissionMode: paid ? 'paid' : (freeChannelOffer ? 'channel_offer' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required')),
+      paymentRequired: !crmScopeUnique || (!legacyEligible && !freeChannelOffer),
+      paymentEligibleForProcessing: crmScopeUnique && (paid || freeChannelOffer || legacyEligible),
+      paymentAdmissionMode: !crmScopeUnique ? 'crm_scope_ambiguous' :
+        (paid ? 'paid' : (freeChannelOffer ? 'channel_offer' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required'))),
       legacyPaymentExemption: legacyExemption
     };
   }));
   return items.sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
 }
 
-async function updateOsProjectStage({ projectId, stage }) {
-  const stageConfig = PROJECT_STAGES[String(stage || '').toUpperCase()];
-  if (!stageConfig) throw new OperationsBridgeError('OS_BRIDGE_STAGE_INVALID');
+async function verifiedOsProjectTarget({ clientId = '', projectId }) {
   if (!projectId) throw new OperationsBridgeError('OS_BRIDGE_PROJECT_ID_REQUIRED');
   const tenantToken = await getTenantAccessToken();
   const [leadRecords, projectRecords] = await Promise.all([
     listBitableRecords({ tenantToken, appToken: process.env.FEISHU_BASE_APP_TOKEN, tableId: process.env.FEISHU_LEADS_TABLE_ID, pageSize: 100 }),
     listBitableRecords({ tenantToken, appToken: process.env.FEISHU_BASE_APP_TOKEN, tableId: process.env.FEISHU_PROJECTS_TABLE_ID, pageSize: 100 })
   ]);
-  const lead = leadRecords.find((record) => text(record.fields && record.fields.项目编号) === projectId);
-  const project = projectRecords.find((record) => text(record.fields && record.fields.项目编号) === projectId);
-  if (!lead || !project) throw new OperationsBridgeError('OS_BRIDGE_PROJECT_NOT_FOUND');
+  // The historical OS stage API may omit clientId. Such calls are safe only
+  // if BOTH Feishu tables have exactly one row for this project, and they
+  // identify the same customer. A specified clientId must match that owner.
+  const projectMatches = (records) => records.filter((record) =>
+    text(record.fields && record.fields.项目编号) === projectId);
+  const leads = projectMatches(leadRecords), projects = projectMatches(projectRecords);
+  if (leads.length !== 1 || projects.length !== 1)
+    throw new OperationsBridgeError('OS_BRIDGE_PROJECT_SCOPE_AMBIGUOUS');
+  const lead = leads[0], project = projects[0];
+  const leadClient = text(lead.fields && lead.fields.客户编号);
+  const projectClient = text(project.fields && project.fields.客户编号);
+  if (!leadClient || leadClient !== projectClient || (clientId && clientId !== leadClient))
+    throw new OperationsBridgeError('OS_BRIDGE_PROJECT_SCOPE_MISMATCH');
+  return { tenantToken, lead, project };
+}
+
+async function updateOsProjectStage({ clientId = '', projectId, stage }) {
+  const stageConfig = PROJECT_STAGES[String(stage || '').toUpperCase()];
+  if (!stageConfig) throw new OperationsBridgeError('OS_BRIDGE_STAGE_INVALID');
+  const { tenantToken, lead, project }=await verifiedOsProjectTarget({clientId,projectId});
 
   await updateBitableRecord({
     tenantToken,
@@ -191,11 +221,32 @@ async function updateOsProjectStage({ projectId, stage }) {
 }
 
 async function publishOsDeliveryPackage(packageDocument) {
+  if (!packageDocument || !packageDocument.client_id || !packageDocument.project_id)
+    throw new OperationsBridgeError('OS_BRIDGE_DELIVERY_SCOPE_REQUIRED');
+  // Reject incorrect customer ownership and payment scope BEFORE persisting
+  // a delivery package or mutating the customer's RELEASED stage.
+  const target=await verifiedOsProjectTarget({
+    clientId:packageDocument.client_id,projectId:packageDocument.project_id
+  });
+  const candidatePayment=await findPaymentByProject(packageDocument.project_id);
+  if (candidatePayment && (candidatePayment.clientId !== packageDocument.client_id
+      || candidatePayment.projectId !== packageDocument.project_id))
+    throw new OperationsBridgeError('OS_BRIDGE_PAYMENT_SCOPE_MISMATCH');
+  // Successful validation of a release package is not proof of payment.
+  // Keep explicit legacy prelaunch and exact GeoGi pilot exceptions, but
+  // never import a postlaunch unpaid V2 diagnostic report.
+  const eligibility=assessV2ReleaseEligibility({
+    packageDocument,leadRecord:target.lead,payment:candidatePayment,
+    legacyCutoffAt:PAID_DIAGNOSTIC_LAUNCH_CUTOFF
+  });
+  if (!eligibility.allowed)
+    throw new OperationsBridgeError('OS_BRIDGE_V2_RELEASE_NOT_ELIGIBLE');
   const result = await importDeliveryPackage(packageDocument);
-  await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
+  await updateOsProjectStage({ clientId: packageDocument.client_id, projectId: packageDocument.project_id, stage: 'RELEASED' });
   const payment = await markProjectReportReleased(
     packageDocument.project_id,
-    packageDocument.released_at
+    packageDocument.released_at,
+    packageDocument.client_id
   );
   const commission = payment
     ? await reconcileCommission({ order: payment, releasedAt: packageDocument.released_at })

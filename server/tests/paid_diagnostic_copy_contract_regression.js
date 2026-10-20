@@ -107,7 +107,8 @@ function run() {
   assert(intake.includes("status: free ? '已优惠至免费' : '待付款'"));
   assert(intake.includes('paymentRequired: !free'));
   assert(intake.includes('payment: publicPaymentView(order)'));
-  assert(operationsBridge.includes("PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z'"));
+  assert(require('../src/services/os-v2-release-eligibility').PAID_DIAGNOSTIC_LAUNCH_CUTOFF === '2026-09-22T07:33:31Z');
+  assert(operationsBridge.includes('assessV2ReleaseEligibility, PAID_DIAGNOSTIC_LAUNCH_CUTOFF'));
   assert(operationsBridge.includes("freeChannelOffer ? 'channel_offer'"));
   assert(operationsBridge.includes("legacyEligible ? 'legacy_pre_payment' : 'payment_required'"));
   assert(operationsBridge.includes('paymentEligibleForProcessing: paid || freeChannelOffer || legacyEligible'));

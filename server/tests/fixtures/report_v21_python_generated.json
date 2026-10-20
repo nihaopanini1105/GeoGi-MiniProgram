@@ -1,0 +1,65 @@
+{
+  "object_type": "delivery_package",
+  "delivery_contract_version": "3.0.0",
+  "delivery_mode": "artifact_only",
+  "production_authority": "geogi_os",
+  "delivery_purpose": "report_v21_diagnostic",
+  "release_authority": "geo_diagnostic_html_release_v21",
+  "delivery_package_id": "delivery_package_v21_02f309720191e79c999b9388",
+  "client_id": "client_one",
+  "project_id": "project_one",
+  "release_status": "released",
+  "released_at": "2026-10-20T12:00:00Z",
+  "report_reference": {
+    "report_id": "GEO-V21-35E0A10AF7FA",
+    "report_type": "client_geo_diagnostic",
+    "report_version": 2,
+    "object_version": "2.1.0",
+    "content_hash": "sha256:35e0a10af7faf846e27181b284d4a99df71cd9ceb5167a22505a5ca83c6056a5",
+    "report_record_hash": "sha256:d46ccb2b442d654eb0fbf25a952278e77739ab29724a5c126b31e7350eaff4b5"
+  },
+  "version_pins": {
+    "report_schema_version": "2.1.0",
+    "report_object_version": "2.1.0",
+    "report_version": 2,
+    "release_record_version": "2.1.0",
+    "artifact_render_version": "report-v21-customer-1",
+    "canonical_client_id": "client_one",
+    "canonical_project_id": "project_one",
+    "display_report_version": "2.1"
+  },
+  "display_policy": {
+    "artifact_only": true,
+    "client_recomposition_allowed": false,
+    "client_scoring_allowed": false,
+    "client_summary_generation_allowed": false,
+    "client_diagnosis_generation_allowed": false
+  },
+  "artifacts": [
+    {
+      "artifact_id": "v21_h5_4ac2a9a8a680f1c7",
+      "artifact_type": "h5",
+      "mime_type": "text/html",
+      "file_name": "GeoGi-V21-4ac2a9a8a680f1c7.html",
+      "render_version": "report-v21-customer-1",
+      "uri": "https://files.example/uploads/GeoGi-V21-4ac2a9a8a680f1c7.html",
+      "sha256": "25abcc1a68614366af55095089032eee18ef1c4ab79bcdc863438861a5a0eea0",
+      "size_bytes": 61,
+      "report_content_hash": "sha256:35e0a10af7faf846e27181b284d4a99df71cd9ceb5167a22505a5ca83c6056a5",
+      "report_record_hash": "sha256:d46ccb2b442d654eb0fbf25a952278e77739ab29724a5c126b31e7350eaff4b5"
+    },
+    {
+      "artifact_id": "v21_pdf_4ac2a9a8a680f1c7",
+      "artifact_type": "pdf",
+      "mime_type": "application/pdf",
+      "file_name": "GeoGi-V21-4ac2a9a8a680f1c7.pdf",
+      "render_version": "report-v21-customer-1",
+      "uri": "https://files.example/uploads/GeoGi-V21-4ac2a9a8a680f1c7.pdf",
+      "sha256": "1c7221d8414985f32bae551d159f7ba9be6358d384018386d8f7531433a8ba02",
+      "size_bytes": 23409,
+      "report_content_hash": "sha256:35e0a10af7faf846e27181b284d4a99df71cd9ceb5167a22505a5ca83c6056a5",
+      "report_record_hash": "sha256:d46ccb2b442d654eb0fbf25a952278e77739ab29724a5c126b31e7350eaff4b5"
+    }
+  ],
+  "package_hash": "sha256:96765998df3036adf54c4a29f3b60a8e2ca8560ac8f3edb682fcf5ef59337fac"
+}

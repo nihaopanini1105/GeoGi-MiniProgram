@@ -9,6 +9,8 @@ Page({
     projectId: '',
     order: null,
     report: null,
+    v21Report: null,
+    v21PdfLoading: false,
     supplementCompanyName: '',
     supplementNote: '',
     supplementFile: null,
@@ -43,9 +45,18 @@ Page({
       const result = await get(`/api/customer/reports/${encodeURIComponent(projectId)}`, { clientId });
       if (!result || !result.ok) throw new Error(result && result.userMessage ? result.userMessage : '报告读取失败');
       const order = this.normalizeOrder(result.order);
+      let v21Report = null;
+      try {
+        const v21 = await get('/api/customer/report-v21/' + encodeURIComponent(projectId), { clientId });
+        if (v21 && v21.ok && v21.report && v21.report.reportReady === true) {
+          v21Report = { version: '2.1', reportReady: true,
+            deliveryPackageId: v21.report.deliveryPackageId || '' };
+        }
+      } catch (_) { /* Old V2 orders remain fully usable without V2.1. */ }
       this.setData({
         order,
         report: this.normalizeReport(result.report),
+        v21Report,
         supplementCompanyName: this.data.supplementCompanyName || (order && order.companyName) || '',
         error: ''
       });
@@ -240,6 +251,53 @@ Page({
 
   refresh() { this.loadReport(); },
   goContact() { wx.navigateTo({ url: '/pages/contact/contact' }); },
+
+  async openV21H5() {
+    if (!this.data.v21Report || !this.data.v21Report.reportReady) return;
+    try {
+      wx.showLoading({title:'验证正式版报告权限'});
+      const result = await post('/api/customer/report-v21/' +
+        encodeURIComponent(this.data.projectId) + '/h5-ticket', {clientId:this.data.clientId});
+      wx.hideLoading();
+      if (!result || !result.ok ||
+          !/^\/api\/customer\/report-v21\/h5-reader\/[0-9a-f]{64}$/.test(result.readerPath || '')) {
+        throw new Error('没有有效的正式版阅读授权');
+      }
+      const src = API_BASE_URL.replace(/\/+$/,'') + result.readerPath;
+      wx.navigateTo({url:'/pages/h5-report/h5-report?src='+encodeURIComponent(src)});
+    } catch (_) {
+      wx.hideLoading();
+      wx.showToast({title:'正式版报告暂不可读取，请稍后再试',icon:'none'});
+    }
+  },
+
+  async downloadV21Pdf() {
+    if (this.data.v21PdfLoading || !this.data.v21Report || !this.data.v21Report.reportReady) return;
+    this.setData({v21PdfLoading:true});
+    try {
+      wx.showLoading({title:'验证下载权限'});
+      const result = await post('/api/customer/report-v21/' +
+        encodeURIComponent(this.data.projectId) + '/pdf-ticket', {clientId:this.data.clientId});
+      wx.hideLoading();
+      if (!result || !result.ok ||
+          !/^\/api\/customer\/report-v21\/pdf-reader\/[0-9a-f]{64}$/.test(result.readerPath || '')) {
+        throw new Error('没有有效的正式版下载授权');
+      }
+      const url = API_BASE_URL.replace(/\/+$/,'') + result.readerPath;
+      wx.showLoading({title:'下载正式版 PDF'});
+      const local = await new Promise((resolve,reject)=>wx.downloadFile({
+        url,success:out=>out && out.statusCode===200 && out.tempFilePath
+          ? resolve(out.tempFilePath) : reject(new Error('下载失败')),fail:reject
+      }));
+      wx.hideLoading();
+      await new Promise((resolve,reject)=>wx.openDocument({
+        filePath:local,fileType:'pdf',showMenu:true,success:resolve,fail:reject
+      }));
+    } catch (_) {
+      wx.hideLoading();
+      wx.showToast({title:'正式版 PDF 暂不可用，请稍后再试',icon:'none'});
+    } finally {this.setData({v21PdfLoading:false});}
+  },
 
   async openPdf() {
     const report = this.data.report || {};
