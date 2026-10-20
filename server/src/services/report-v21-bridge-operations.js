@@ -183,17 +183,19 @@ function physicalLocation(value) {
     }
   }
 }
-function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot}) {
+function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, publicRoots=[]}) {
   if (typeof findIntakes !== 'function' || typeof findPayment !== 'function') fail('V21_DEPENDENCIES_REQUIRED');
   const root = path.resolve(dataRoot);
   const artifactRoot = path.resolve(uploadRoot);
   // The immutable customer pointer and package registry must never be public
   // under the static /uploads handler, even with an accidental env override.
   const physicalRoot=physicalLocation(root);
-  const physicalUploads=physicalLocation(artifactRoot);
-  if (root === artifactRoot || root.startsWith(artifactRoot + path.sep)
-      || physicalRoot === physicalUploads
-      || physicalRoot.startsWith(physicalUploads + path.sep))
+  // /uploads is not the only public static mount: /source-codes is also
+  // exposed. Only service-owned private storage outside every static root
+  // may contain tenant reports and append-only authorization records.
+  const staticRoots=[artifactRoot,...publicRoots].map(physicalLocation);
+  if (staticRoots.some(publicRoot =>
+      physicalRoot === publicRoot || physicalRoot.startsWith(publicRoot + path.sep)))
     fail('V21_PRIVATE_STORE_OUTSIDE_PUBLIC_UPLOADS_REQUIRED');
   // Separate service-owned subfolders can themselves be symlinks even when
   // the configured private root is safe. Refuse such overrides rather than
@@ -209,8 +211,8 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot}) {
         fail('V21_PRIVATE_STORE_DIRECTORY_INVALID');
     }
     const physicalFolder=physicalLocation(folder);
-    if (physicalFolder===physicalUploads ||
-        physicalFolder.startsWith(physicalUploads+path.sep))
+    if (staticRoots.some(publicRoot =>
+        physicalFolder===publicRoot || physicalFolder.startsWith(publicRoot+path.sep)))
       fail('V21_PRIVATE_STORE_OUTSIDE_PUBLIC_UPLOADS_REQUIRED');
   }
   async function binding(clientId, projectId) {
@@ -340,8 +342,10 @@ function live() {
   const { listOsIntakes } = require('./os-operations-bridge');
   const { findPaymentByProject } = require('./payment-store');
   const { getUploadRoot } = require('./uploads');
+  const { sourceCodeRoot } = require('./channel-service');
   return createV21Bridge({findIntakes:listOsIntakes,findPayment:findPaymentByProject,
-    uploadRoot:getUploadRoot(),dataRoot:process.env.GEOGI_REPORT_V21_PRIVATE_ROOT || path.join(__dirname,'../../data/report-v21')});
+    uploadRoot:getUploadRoot(),publicRoots:[sourceCodeRoot()],
+    dataRoot:process.env.GEOGI_REPORT_V21_PRIVATE_ROOT || path.join(__dirname,'../../data/report-v21')});
 }
 module.exports = { V21DeliveryError, capabilities, createV21Bridge, validatePackage, verifiedArtifact,
   reportV21Capabilities:capabilities,
