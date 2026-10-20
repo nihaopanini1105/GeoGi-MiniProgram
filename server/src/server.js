@@ -588,6 +588,29 @@ app.post(
   }
 );
 
+// Report V2.1 is an independent opt-in consumer with a distinct authority.
+// Every route is protected by the OS bridge bearer and remains disabled until
+// both service capability and a real tenant-scoped customer binding are verified.
+app.get('/internal/os/report-v21/capabilities', requireOsBridge, (_req,res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  return res.json({ok:true,result:reportV21Capabilities()});
+});
+app.post('/internal/os/report-v21/verify-customer-binding', requireOsBridge, async(req,res,next)=>{
+  try {
+    const body=req.body||{};
+    const result=await verifyV21CustomerBinding(String(body.client_id||''),String(body.project_id||''));
+    return res.json({ok:true,result});
+  } catch(error) {return next(error);}
+});
+app.post('/internal/os/report-v21/verify-customer-access', requireOsBridge, async(req,res,next)=>{
+  try {return res.json({ok:true,result:await verifyV21CustomerAccess(req.body||{})});}
+  catch(error) {return next(error);}
+});
+app.post('/internal/os/report-v21/revoke', requireOsBridge, async(req,res,next)=>{
+  try {return res.json({ok:true,result:await revokeV21Report(req.body||{})});}
+  catch(error) {return next(error);}
+});
+
 app.get('/internal/os/report-v2/capabilities', requireOsBridge, (_req,res) => {
   return res.json({ok:true,result:reportV2Capabilities()});
 });
@@ -617,7 +640,13 @@ app.post('/internal/os/report-v2/revoke',requireOsBridge,async(req,res,next)=>{
 
 app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, next) => {
   try {
-    const result = await publishOsDeliveryPackage(req.body || {});
+    const payload=req.body||{};
+    // Never send a V2.1 package through the V2 payment/commission saga.
+    const v21 = payload.delivery_purpose === 'report_v21_diagnostic'
+      || payload.release_authority === 'geo_diagnostic_html_release_v21';
+    const result = v21
+      ? await publishV21DeliveryPackage(payload)
+      : await publishOsDeliveryPackage(payload);
     res.json({ ok: true, result });
   } catch (error) {
     next(error);
@@ -625,6 +654,12 @@ app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, nex
 });
 
 app.use((error, _req, res, _next) => {
+  if (error instanceof V21DeliveryError) {
+    const denied = error.code === 'V21_PUBLICATION_DISABLED' ||
+      error.code === 'V21_REVOCATION_DISABLED' ||
+      error.code === 'V21_PAID_BINDING_REQUIRED';
+    return res.status(denied ? 403 : 409).json({ok:false,error:error.code});
+  }
   if (error instanceof OperationsBridgeError) {
     const status = error.code === 'OS_BRIDGE_PROJECT_NOT_FOUND' ? 404 : 400;
     return res.status(status).json({ ok: false, error: error.code });
