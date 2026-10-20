@@ -60,6 +60,17 @@ function fixture(upload){
   fs.symlinkSync(path.join(root,'non-existent-private'),dangling,'dir');
   assert.throws(()=>createV21Bridge({findIntakes:async()=>[lead],findPayment:async()=>payment,
     uploadRoot:uploads,dataRoot:dangling}),/V21_PRIVATE_STORE_PHYSICAL_PATH_INVALID/);
+  // A non-public root is not enough when a service-owned subdirectory is
+  // symlinked into the static upload directory, leaking customer package data.
+  for (const folder of ['packages','pointers','revocations','locks']) {
+    const isolated=path.join(root,'private-with-'+folder);
+    fs.mkdirSync(isolated,{recursive:true});
+    fs.symlinkSync(uploads,path.join(isolated,folder),'dir');
+    assert.throws(()=>createV21Bridge({
+      findIntakes:async()=>[lead],findPayment:async()=>payment,
+      uploadRoot:uploads,dataRoot:isolated
+    }),/V21_PRIVATE_STORE_DIRECTORY_INVALID/);
+  }
   assert.equal(capabilities().enabled,false);
   assert.equal((await bridge.binding(doc.client_id,doc.project_id)).verified,false);
   await assert.rejects(bridge.publish(doc),/V21_PUBLICATION_DISABLED/);
