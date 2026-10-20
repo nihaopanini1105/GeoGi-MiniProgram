@@ -7,6 +7,7 @@ const {
 const { importDeliveryPackage } = require('./delivery-package-store');
 const { findPaymentByProject, publicPaymentView, markProjectReportReleased } = require('./payment-store');
 const { reconcileCommission } = require('./channel-service');
+const { assessV2ReleaseEligibility } = require('./os-v2-release-eligibility');
 
 const PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z';
 const LEGACY_PAYMENT_EXEMPTION_REASON = 'submitted_before_paid_diagnostic_launch';
@@ -212,13 +213,22 @@ async function publishOsDeliveryPackage(packageDocument) {
     throw new OperationsBridgeError('OS_BRIDGE_DELIVERY_SCOPE_REQUIRED');
   // Reject incorrect customer ownership and payment scope BEFORE persisting
   // a delivery package or mutating the customer's RELEASED stage.
-  await verifiedOsProjectTarget({
+  const target=await verifiedOsProjectTarget({
     clientId:packageDocument.client_id,projectId:packageDocument.project_id
   });
   const candidatePayment=await findPaymentByProject(packageDocument.project_id);
   if (candidatePayment && (candidatePayment.clientId !== packageDocument.client_id
       || candidatePayment.projectId !== packageDocument.project_id))
     throw new OperationsBridgeError('OS_BRIDGE_PAYMENT_SCOPE_MISMATCH');
+  // Successful validation of a release package is not proof of payment.
+  // Keep explicit legacy prelaunch and exact GeoGi pilot exceptions, but
+  // never import a postlaunch unpaid V2 diagnostic report.
+  const eligibility=assessV2ReleaseEligibility({
+    packageDocument,leadRecord:target.lead,payment:candidatePayment,
+    legacyCutoffAt:PAID_DIAGNOSTIC_LAUNCH_CUTOFF
+  });
+  if (!eligibility.allowed)
+    throw new OperationsBridgeError('OS_BRIDGE_V2_RELEASE_NOT_ELIGIBLE');
   const result = await importDeliveryPackage(packageDocument);
   await updateOsProjectStage({ clientId: packageDocument.client_id, projectId: packageDocument.project_id, stage: 'RELEASED' });
   const payment = await markProjectReportReleased(
