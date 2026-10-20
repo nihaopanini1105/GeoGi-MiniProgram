@@ -71,6 +71,17 @@ function fixture(upload){
    delivery_package_id:doc.delivery_package_id,artifact_sha256:doc.artifacts[0].sha256})).accessible,false);
   const tampered=structuredClone(doc);tampered.artifacts[0].sha256='0'.repeat(64);
   assert.throws(()=>validatePackage(tampered),/V21_PACKAGE_CANONICAL_IDENTITY_MISMATCH/);
+  // Even a freshly recomputed outer package hash may not reassign the
+  // evidence-linked report ID or individual artifact identities.
+  for (const changed of ['report_id','artifact_id']) {
+    const manipulated=structuredClone(doc);
+    if (changed==='report_id') manipulated.report_reference.report_id='GEO-V21-MALICIOUSID';
+    else manipulated.artifacts[0].artifact_id='v21_h5_unrelated012345';
+    const unsigned={...manipulated};delete unsigned.package_hash;
+    manipulated.package_hash='sha256:'+sha(enc(unsigned));
+    assert.throws(()=>validatePackage(manipulated),/V21_PACKAGE_CANONICAL_IDENTITY_MISMATCH/);
+  }
+
   payment={...payment,status:'refunded'};
   assert.equal((await bridge.binding(doc.client_id,doc.project_id)).verified,false);
   assert.equal(await bridge.currentReport(doc.client_id,doc.project_id),null);
