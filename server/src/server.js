@@ -54,6 +54,11 @@ const {
   verifyGeoGiPilotBinding
 } = require('./services/report-v2-bridge-operations');
 const {
+  V21DeliveryError, reportV21Capabilities, verifyV21CustomerBinding,
+  publishV21DeliveryPackage, verifyV21CustomerAccess,
+  revokeV21Report, getV21CustomerReport
+} = require('./services/report-v21-bridge-operations');
+const {
   OperationsBridgeError,
   configured: osBridgeConfigured,
   requireOsBridge,
@@ -82,7 +87,7 @@ app.use('/uploads', (req, res, next) => {
   // Customer-uploaded PDF attachments remain accessible under their
   // existing rules. Only immutable V2 report PDF assets are private.
   if (name.endsWith('.html') || name.endsWith('.htm')
-      || /^\/geogi-v2-[0-9a-f]{16}\.pdf$/.test(name)) {
+      || /^\/geogi-v2[1]?-[0-9a-f]{16}\.pdf$/.test(name)) {
     return res.status(404).json({ ok: false, userMessage: '文件不可公开访问' });
   }
   return next();
