@@ -211,6 +211,14 @@ function fixture(upload){
   assert.equal((await pilot.binding(doc.client_id,doc.project_id)).verified,false);
   assert.equal((await pilot.publish(doc)).payment_mutated,false);
   assert.equal((await pilot.currentReport(doc.client_id,doc.project_id)).version,'2.1');
+  // Even the explicitly named pilot must not resolve a duplicated or
+  // CRM-ambiguous project into a valid privileged report publication.
+  const ambiguousPilot=createV21Bridge({findIntakes:async()=>[lead,lead],findPayment:async()=>payment,
+    uploadRoot:uploads,dataRoot:path.join(root,'ambiguous-pilot')});
+  await assert.rejects(ambiguousPilot.publish(doc),/V21_PAID_BINDING_REQUIRED/);
+  const flaggedPilot=createV21Bridge({findIntakes:async()=>[{...lead,crmScopeUnique:false}],findPayment:async()=>payment,
+    uploadRoot:uploads,dataRoot:path.join(root,'flagged-pilot')});
+  await assert.rejects(flaggedPilot.publish(doc),/V21_PAID_BINDING_REQUIRED/);
   process.env.GEOGI_V2_EXACT_PILOT_ENABLED='false';
   assert.equal(await pilot.currentReport(doc.client_id,doc.project_id),null);
   process.env.GEOGI_REPORT_V21_GENERAL_CUSTOMER_DELIVERY_ENABLED='true';
