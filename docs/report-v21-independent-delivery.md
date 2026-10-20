@@ -71,3 +71,12 @@ OS 一侧仍须另行开启对应的 `GEOGI_REPORT_V21_GENERAL_PUBLISH_ENABLED`�
 4. 本地通过真正的 TCP loopback HTTP 请求，使用 GeoGi OS **Python MiniProgramBridgeClient** 向 Node.js 原始 `http` 测试适配器发送认证请求，后端实际调用 `createV21Bridge` 和 `admitOsArtifact`，完成 capabilities、实名付费约束（合成订单）、跨客户拒绝、Bearer 鉴权、双原文字节上传、财务无变动、发布后的哈希验证、幂等发布、撤销和撤销后访问拒绝共 **10 项**。日志 SHA-256 `672db98af6718e2066d5aa2ba56f088a6f6b9bb2bbfcec026d8265d80a185b94`。
 5. **范围界限**：这是本机真实 HTTP + 实际 Python 客户端 + 实际 Node 域服务，但 Node 端使用测试专用 `node:http` 适配器；没有调用 Express 正式路由、真实微信/飞书/支付 API、真实供应商或生产数据，不能当生产 E2E。两个服务版本开关仍默认关闭。
 6. 后续 P0：完整最新 HEAD 的平台无关 Release Gate、装有 Express/dotenv/helmet 的正式沙盒 HTTP 服务联测、微信客户真机授权、支付/退款、真实客户品牌事实/专业指标完成与双供应商合法联调，随后方能申请生产变更许可。
+
+
+## 2026-10-20 追加：防版本回退与可复现跨语言 HTTP 验收
+
+- `report-v21-bridge-operations.js` 增加 **冻结客户发布指针** 检查：不可变发布包 ID 相同但时间或其它字段不同时不允许冒称幂等发布；新报告必须有严格晚于已发布报告的 `released_at`；上一版本撤回不解除时间单调性约束；客户指针失配或不可解析时阻断而非当作不存在。对应 `report_v21_bridge_regression.js` 新增正常升级、恶意重复包、旧版回滚、客户指针篡改和撤回后旧版复活负测。
+- Linux Node22 隔离源码副本的默认 26 组 `npm test` 全部成功。日志：`geogi-v21-rollback-release-regression-20261020.log`，SHA-256 `134ee8d648f6e58ce4e37b3d5140ad0a41aa4f03deafc8f9abe53d9a3b20d5e5`。日志文件在本次对话隔离工作区，**并非当前 GitHub 精确 HEAD Gate**；测试副本包含对应逻辑补丁，其他来源文件与远端最新 HEAD 不能认定逐字一致。
+- 为避免之前10项 HTTP 联测仅存在于临时脚本，新增可重复运行的 `server/tests/v21_cross_repo_http_adapter.js`，由 OS 仓库 `tools/ci/report_v21_miniprogram_crossrepo_http.py` 启动。使用随机本机端口、合成客户、临时文件夹和合成凭据；验证真实 Python urllib 客户端到 Node 域服务的 10 项 TCP HTTP 契约，不需要 npm 外部依赖。
+- 在 OS 仓库根目录运行：`GEOGI_V21_MINIPROGRAM_CHECKOUT=/absolute/path/to/GeoGi-MiniProgram PYTHONPATH=.:capture_agent/src python tools/ci/report_v21_miniprogram_crossrepo_http.py`。本次隔离实跑 `REAL_LOCAL_HTTP_CONTRACT=PASS`，日志 SHA-256 `672db98af6718e2066d5aa2ba56f088a6f6b9bb2bbfcec026d8265d80a185b94`；Python/Node 源码语法检查通过。**此联测 Node 端使用独立 node:http 测试适配器，不是生产 Express/WeChat/真实支付 API**。
+- 两仓库生产均未修改，MiniProgram Draft PR #83 未合并，V2.1 发布开关默认关闭；未发出真实客户内容，不使用 GitHub Actions 做 Release Gate。
