@@ -147,6 +147,13 @@ function fixture(upload){
   await assert.rejects(versioned.publish(revised(doc,'three','2026-10-20T15:00:00Z')),
     /V21_POINTER_SCOPE_INVALID/);
   fs.writeFileSync(pointer,authenticPointer);
+  // Revocation hides the current customer view, not the monotonic version
+  // barrier: an older signed packet must never resurrect a revoked revision.
+  await versioned.revoke({client_id:doc.client_id,project_id:doc.project_id,
+    delivery_package_id:fresh.delivery_package_id,
+    artifact_sha256:fresh.artifacts[0].sha256,reason:'test_revoked_revision'});
+  assert.equal(await versioned.currentReport(doc.client_id,doc.project_id),null);
+  await assert.rejects(versioned.publish(stale),/V21_RELEASE_TIME_NOT_MONOTONIC/);
   assert.equal((await bridge.accessible({client_id:doc.client_id,project_id:doc.project_id,
    delivery_package_id:doc.delivery_package_id,artifact_sha256:doc.artifacts[0].sha256})).accessible,true);
   assert.equal((await bridge.currentReport(doc.client_id,doc.project_id)).version,'2.1');
