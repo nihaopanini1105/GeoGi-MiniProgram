@@ -38,6 +38,7 @@ JS_FILES=(
   server/src/services/wechat-pay.js
   server/src/services/os-intake.js
   server/src/services/os-operations-bridge.js
+  server/src/services/os-v2-release-eligibility.js
   server/src/services/report-v21-bridge-operations.js
   server/src/services/private-report-upload-guard.js
   server/src/services/customer-portal.js
