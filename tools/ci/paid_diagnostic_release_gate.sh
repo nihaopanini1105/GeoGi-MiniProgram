@@ -38,6 +38,7 @@ JS_FILES=(
   server/src/services/wechat-pay.js
   server/src/services/os-intake.js
   server/src/services/os-operations-bridge.js
+  server/src/services/report-v21-bridge-operations.js
   server/src/services/customer-portal.js
   pages/index/index.js
   pages/diagnosis/diagnosis.js
@@ -45,6 +46,7 @@ JS_FILES=(
   pages/services/services.js
   pages/mine/mine.js
   pages/report-detail/report-detail.js
+  pages/h5-report/h5-report.js
 )
 for file in "${JS_FILES[@]}"; do
   node --check "$file" >/dev/null
