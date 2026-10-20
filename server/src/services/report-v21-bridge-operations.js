@@ -215,14 +215,21 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, public
         physicalFolder===publicRoot || physicalFolder.startsWith(publicRoot+path.sep)))
       fail('V21_PRIVATE_STORE_OUTSIDE_PUBLIC_UPLOADS_REQUIRED');
   }
+  function uniqueCrmRow(rows, clientId, projectId) {
+    if (!Array.isArray(rows)) return false;
+    // Duplicate records, even for the same customer, cannot become payment
+    // or exact-pilot authority via Array.some's first matching record.
+    const scoped=rows.filter(x=>x && x.clientId===clientId && x.projectId===projectId);
+    return scoped.length===1 && scoped[0].crmScopeUnique!==false &&
+      scoped[0].project && scoped[0].project.clientId===clientId &&
+      scoped[0].project.projectId===projectId;
+  }
   async function binding(clientId, projectId) {
     const denied = { verified: false, paid_order_verified: false, customer_access_scoped: false,
       client_id: clientId, project_id: projectId };
     if (!validScope(clientId, projectId) || !generalEnabled()) return denied;
     const leads = await findIntakes();
-    if (!Array.isArray(leads) || !leads.some(x =>
-      x.clientId === clientId && x.projectId === projectId && x.project
-      && x.project.clientId === clientId && x.project.projectId === projectId)) return denied;
+    if (!uniqueCrmRow(leads,clientId,projectId)) return denied;
     const payment = await findPayment(projectId);
     const paid = payment && payment.clientId === clientId && payment.projectId === projectId
       && ['paid', 'partially_refunded'].includes(payment.status)
@@ -240,9 +247,7 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, public
         || clientId !== process.env.GEOGI_V2_PILOT_CONSUMER_CLIENT_ID
         || projectId !== process.env.GEOGI_V2_PILOT_CONSUMER_PROJECT_ID) return false;
     const leads = await findIntakes();
-    return Array.isArray(leads) && leads.some(x => x.clientId === clientId
-      && x.projectId === projectId && x.project && x.project.clientId === clientId
-      && x.project.projectId === projectId);
+    return uniqueCrmRow(leads,clientId,projectId);
   }
   async function _loadPack(id) {
     if (!ID.test(String(id || ''))) return null;

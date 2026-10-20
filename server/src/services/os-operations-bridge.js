@@ -128,10 +128,18 @@ async function listOsIntakes() {
     listBitableRecords({ tenantToken, appToken: process.env.FEISHU_BASE_APP_TOKEN, tableId: process.env.FEISHU_LEADS_TABLE_ID, pageSize: 100 }),
     listBitableRecords({ tenantToken, appToken: process.env.FEISHU_BASE_APP_TOKEN, tableId: process.env.FEISHU_PROJECTS_TABLE_ID, pageSize: 100 })
   ]);
+  // Never let a Feishu Map silently turn duplicate rows into CRM authority.
+  const scopeKey = (clientId,projectId) => JSON.stringify([clientId,projectId]);
+  const projectCounts = new Map(), leadCounts = new Map();
   const projects = new Map(projectRecords.map((record) => {
-    const project = projectView(record);
-    return [JSON.stringify([project.clientId,project.projectId]), project];
+    const project = projectView(record),key=scopeKey(project.clientId,project.projectId);
+    projectCounts.set(key,(projectCounts.get(key)||0)+1);
+    return [key,project];
   }));
+  for (const record of leadRecords) {
+    const fields=record.fields||{},key=scopeKey(text(fields.客户编号),text(fields.项目编号));
+    leadCounts.set(key,(leadCounts.get(key)||0)+1);
+  }
   const items = await Promise.all(leadRecords.map(async (record) => {
     const lead = leadView(record);
     const candidate = await findPaymentByProject(lead.projectId);
@@ -142,13 +150,18 @@ async function listOsIntakes() {
     const freeChannelOffer = Boolean(payment && payment.status === 'free' && payment.channelId && payment.sourceId);
     const legacyExemption = legacyPaymentExemption(lead.submittedAt);
     const legacyEligible = legacyExemption.eligible && !paid;
+    const scope=scopeKey(lead.clientId,lead.projectId);
+    const crmScopeUnique=Boolean(lead.clientId && lead.projectId &&
+      leadCounts.get(scope)===1 && projectCounts.get(scope)===1);
     return {
       ...lead,
-      project: projects.get(JSON.stringify([lead.clientId,lead.projectId])) || null,
+      project: crmScopeUnique ? projects.get(scope) : null,
+      crmScopeUnique,
       payment: paymentView,
-      paymentRequired: !legacyEligible && !freeChannelOffer,
-      paymentEligibleForProcessing: paid || freeChannelOffer || legacyEligible,
-      paymentAdmissionMode: paid ? 'paid' : (freeChannelOffer ? 'channel_offer' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required')),
+      paymentRequired: !crmScopeUnique || (!legacyEligible && !freeChannelOffer),
+      paymentEligibleForProcessing: crmScopeUnique && (paid || freeChannelOffer || legacyEligible),
+      paymentAdmissionMode: !crmScopeUnique ? 'crm_scope_ambiguous' :
+        (paid ? 'paid' : (freeChannelOffer ? 'channel_offer' : (legacyEligible ? 'legacy_pre_payment' : 'payment_required'))),
       legacyPaymentExemption: legacyExemption
     };
   }));
