@@ -53,9 +53,9 @@ const {isPaidForReport,getCustomerReport,listCustomerProjects,buildPendingReport
  assert.equal(isPaidForReport({status:'partially_refunded'}),true);
  assert.equal(isPaidForReport({status:'refund_processing'}),false);
  const fs=require('node:fs'),path=require('node:path');
- const mine=fs.readFileSync(path.join(__dirname,'../../pages/mine/mine.wxml'),'utf8');
- const detail=fs.readFileSync(path.join(__dirname,'../../pages/report-detail/report-detail.wxml'),'utf8');
- assert(mine.includes("item.paymentStatus === 'free' && item.paymentRequired"));
- assert(detail.includes("order.paymentStatus === 'free' && order.paymentRequired"));
+ const mineMarkup=fs.readFileSync(path.join(__dirname,'../../pages/mine/mine.wxml'),'utf8');
+ const detailMarkup=fs.readFileSync(path.join(__dirname,'../../pages/report-detail/report-detail.wxml'),'utf8');
+ assert(mineMarkup.includes("item.paymentStatus === 'free' && item.paymentRequired"));
+ assert(detailMarkup.includes("order.paymentStatus === 'free' && order.paymentRequired"));
  console.log('CUSTOMER_FREE_ORDER_GRANT_AND_PROJECT_SCOPE=PASS');
 })().catch(e=>{console.error(e);process.exitCode=1});
