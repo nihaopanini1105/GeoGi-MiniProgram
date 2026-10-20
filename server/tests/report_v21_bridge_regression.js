@@ -78,6 +78,23 @@ function fixture(upload){
   const rev=await bridge.revoke({client_id:doc.client_id,project_id:doc.project_id,
     delivery_package_id:doc.delivery_package_id,artifact_sha256:doc.artifacts[0].sha256,reason:'test_revoke'});
   assert.equal(rev.status,'revoked');
+  assert.equal(rev.idempotent,false);
+  const revokedFile=path.join(data,'revocations',doc.delivery_package_id+'.json');
+  const firstRevocation=fs.readFileSync(revokedFile,'utf8');
+  const again=await bridge.revoke({client_id:doc.client_id,project_id:doc.project_id,
+    delivery_package_id:doc.delivery_package_id,artifact_sha256:doc.artifacts[0].sha256,reason:'test_revoke'});
+  assert.equal(again.idempotent,true);
+  assert.equal(fs.readFileSync(revokedFile,'utf8'),firstRevocation);
+  const concurrent=await Promise.all([0,1,2].map(()=>bridge.revoke({
+    client_id:doc.client_id,project_id:doc.project_id,
+    delivery_package_id:doc.delivery_package_id,artifact_sha256:doc.artifacts[0].sha256,reason:'test_revoke'})));
+  assert(concurrent.every(x=>x.idempotent));
+  const changed=JSON.parse(firstRevocation);changed.client_id='other_client';
+  fs.writeFileSync(revokedFile,JSON.stringify(changed)+'\n');
+  await assert.rejects(bridge.revoke({client_id:doc.client_id,project_id:doc.project_id,
+    delivery_package_id:doc.delivery_package_id,artifact_sha256:doc.artifacts[0].sha256,reason:'test_revoke'}),
+    /V21_REVOCATION_IMMUTABLE_SCOPE_CONFLICT/);
+  fs.writeFileSync(revokedFile,firstRevocation);
   assert.equal(await bridge.currentReport(doc.client_id,doc.project_id),null);
   await assert.rejects(bridge.publish(doc),/V21_REVOKED_PACKAGE_CANNOT_REPUBLISH/);
   // Pilot review is an explicit separate grant; it cannot make generic
