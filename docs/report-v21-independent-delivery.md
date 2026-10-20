@@ -53,3 +53,11 @@ OS 一侧仍须另行开启对应的 `GEOGI_REPORT_V21_GENERAL_PUBLISH_ENABLED`�
 - 启用前还需在非生产真实隔离服务完成：OS→小程序字节上传→付费归属→独立包发布→客户手机号登录→两种票据→H5/PDF→撤销/退款与跨客户拒绝的完整 HTTP E2E，以及数据库、备份、恢复和配置验收。
 
 当前仅完成合成样本及 Node 层专项，不表示真实新客户已获可发布资格。正式生产数据迁移、真实客户模型外发、补采和部署仍需分别授权。
+
+
+## 2026-10-20 补充：实际复测发现并修复的隐私与撤回缺陷
+
+- V2.1 追加撤回审计记录最初由于每次更新 `revoked_at` 而不满足幂等，现对既有记录校验 `client_id/project_id/delivery_package_id/artifact_sha256`，原子写入、并发 `EEXIST` 复核、异常篡改 fail-closed；重复撤回不覆盖第一次撤回时间。专项增补重复/并发/篡改用例。
+- 原 `/uploads` 限制只匹配根层 PDF，可能让 `/./`、`/../`、大小写或编码的等价路径在静态服务规整后被读取。改为在 Express static 之前调用 `private-report-upload-guard.js`，以规范化 basename 拒绝 V2/V2.1 PDF 和 HTML，二次路径编码也 fail-closed。普通附件 PDF 未受影响。
+- Linux Node22 隔离专项真实运行：`node server/tests/report_v21_bridge_regression.js` PASS，`node server/tests/private_report_upload_guard_regression.js` **18/18** PASS，两个服务模块 `node --check` PASS。新专项纳入默认 `npm test` 及平台无关 Release Gate。
+- 这是独立专项不是精确提交的完整 MiniProgram `npm test`。Draft PR #83 仍保持未合并，发布开关仍关，严禁生产默认启用。
