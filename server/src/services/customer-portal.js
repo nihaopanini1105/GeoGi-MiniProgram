@@ -40,19 +40,23 @@ async function listCustomerProjects({ clientId, clientIds }) {
       allowed.has(text(record.fields && record.fields.客户编号)));
     const projects = allProjects.filter(record =>
       allowed.has(text(record.fields && record.fields.客户编号)));
-    const projectById = new Map(projects.map((record) => [text(record.fields && record.fields.项目编号), record]));
+    const projectByScope = new Map(projects.map((record) => [scopeKey(
+      text(record.fields && record.fields.客户编号),
+      text(record.fields && record.fields.项目编号)), record]));
 
     const orders = (await Promise.all(leads.map(async (lead) => {
       const fields = lead.fields || {};
       const projectId = text(fields.项目编号);
       const ownedClientId = text(fields.客户编号);
       if (!projectId || !allowed.has(ownedClientId)) return null;
-      const [deliveryPackage, payment] = await Promise.all([
+      const [deliveryPackage, candidatePayment] = await Promise.all([
         findDeliveryPackage({ clientId: ownedClientId, projectId }),
         findPaymentByProject(projectId)
       ]);
+      const payment = scopedPayment(candidatePayment,ownedClientId,projectId);
       const order=normalizeOrder({
-        lead,project:projectById.get(projectId),deliveryPackage,payment
+        lead,project:projectByScope.get(scopeKey(ownedClientId,projectId)),
+        deliveryPackage,payment
       });
       if (process.env.GEOGI_REPORT_V21_PUBLISH_ENABLED !== 'true') return order;
       // Only independently verified V2.1 artifacts change customer display.
@@ -72,6 +76,16 @@ async function listCustomerProjects({ clientId, clientIds }) {
     console.error('listCustomerProjects failed', error);
     return fail('报告状态读取失败，请稍后重试');
   }
+}
+
+// A project ID alone is not financial authority. Customers may have colliding
+// upstream project identifiers; only their exact payment scope can unlock a report.
+function scopeKey(clientId,projectId) {
+  return JSON.stringify([clientId,projectId]);
+}
+function scopedPayment(payment,clientId,projectId) {
+  return payment && payment.clientId === clientId && payment.projectId === projectId
+    ? payment : null;
 }
 
 function projectV21VerifiedReport(order,verified) {
@@ -121,10 +135,11 @@ async function getCustomerReport({ clientId, projectId }) {
       tableId: process.env.FEISHU_PROJECTS_TABLE_ID,
       predicate: (fields) => text(fields.项目编号) === cleanProjectId && text(fields.客户编号) === cleanClientId
     });
-    const [deliveryPackage, payment] = await Promise.all([
+    const [deliveryPackage, candidatePayment] = await Promise.all([
       findDeliveryPackage({ clientId: cleanClientId, projectId: cleanProjectId }),
       findPaymentByProject(cleanProjectId)
     ]);
+    const payment = scopedPayment(candidatePayment,cleanClientId,cleanProjectId);
     const order = normalizeOrder({ lead, project, deliveryPackage, payment });
 
     if (!deliveryPackage || (!isPaidForReport(payment)
