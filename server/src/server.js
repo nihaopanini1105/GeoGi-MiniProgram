@@ -619,6 +619,7 @@ app.post('/internal/os/projects/:projectId/stage', requireOsBridge, async (req, 
   try {
     const result = await updateOsProjectStage({
       projectId: req.params.projectId,
+      clientId: req.body && (req.body.clientId || req.body.client_id),
       stage: req.body && req.body.stage
     });
     res.json({ ok: true, result });

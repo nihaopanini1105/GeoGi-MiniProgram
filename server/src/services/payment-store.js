@@ -221,9 +221,19 @@ async function updatePaymentOrder(outTradeNo, patch) {
   return next;
 }
 
-async function markProjectReportReleased(projectId, releasedAt) {
+async function markProjectReportReleased(projectId, releasedAt, clientId) {
+  if (!clientId || !projectId) {
+    const error = new Error('PAYMENT_REPORT_RELEASE_SCOPE_REQUIRED');
+    error.code = 'PAYMENT_REPORT_RELEASE_SCOPE_REQUIRED';
+    throw error;
+  }
   const order = await findPaymentByProject(projectId);
   if (!order) return null;
+  if (order.clientId !== clientId || order.projectId !== projectId) {
+    const error = new Error('PAYMENT_REPORT_RELEASE_SCOPE_MISMATCH');
+    error.code = 'PAYMENT_REPORT_RELEASE_SCOPE_MISMATCH';
+    throw error;
+  }
   if (order.reportReleasedAt) return order;
   return updatePaymentOrder(order.outTradeNo, {
     reportReleasedAt: String(releasedAt || new Date().toISOString())

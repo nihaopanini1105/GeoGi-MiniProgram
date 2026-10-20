@@ -155,7 +155,7 @@ async function listOsIntakes() {
   return items.sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
 }
 
-async function updateOsProjectStage({ projectId, stage }) {
+async function updateOsProjectStage({ clientId = '', projectId, stage }) {
   const stageConfig = PROJECT_STAGES[String(stage || '').toUpperCase()];
   if (!stageConfig) throw new OperationsBridgeError('OS_BRIDGE_STAGE_INVALID');
   if (!projectId) throw new OperationsBridgeError('OS_BRIDGE_PROJECT_ID_REQUIRED');
@@ -164,9 +164,19 @@ async function updateOsProjectStage({ projectId, stage }) {
     listBitableRecords({ tenantToken, appToken: process.env.FEISHU_BASE_APP_TOKEN, tableId: process.env.FEISHU_LEADS_TABLE_ID, pageSize: 100 }),
     listBitableRecords({ tenantToken, appToken: process.env.FEISHU_BASE_APP_TOKEN, tableId: process.env.FEISHU_PROJECTS_TABLE_ID, pageSize: 100 })
   ]);
-  const lead = leadRecords.find((record) => text(record.fields && record.fields.项目编号) === projectId);
-  const project = projectRecords.find((record) => text(record.fields && record.fields.项目编号) === projectId);
-  if (!lead || !project) throw new OperationsBridgeError('OS_BRIDGE_PROJECT_NOT_FOUND');
+  // The historical OS stage API may omit clientId. Such calls are safe only
+  // if BOTH Feishu tables have exactly one row for this project, and they
+  // identify the same customer. A specified clientId must match that owner.
+  const projectMatches = (records) => records.filter((record) =>
+    text(record.fields && record.fields.项目编号) === projectId);
+  const leads = projectMatches(leadRecords), projects = projectMatches(projectRecords);
+  if (leads.length !== 1 || projects.length !== 1)
+    throw new OperationsBridgeError('OS_BRIDGE_PROJECT_SCOPE_AMBIGUOUS');
+  const lead = leads[0], project = projects[0];
+  const leadClient = text(lead.fields && lead.fields.客户编号);
+  const projectClient = text(project.fields && project.fields.客户编号);
+  if (!leadClient || leadClient !== projectClient || (clientId && clientId !== leadClient))
+    throw new OperationsBridgeError('OS_BRIDGE_PROJECT_SCOPE_MISMATCH');
 
   await updateBitableRecord({
     tenantToken,
@@ -194,10 +204,11 @@ async function updateOsProjectStage({ projectId, stage }) {
 
 async function publishOsDeliveryPackage(packageDocument) {
   const result = await importDeliveryPackage(packageDocument);
-  await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
+  await updateOsProjectStage({ clientId: packageDocument.client_id, projectId: packageDocument.project_id, stage: 'RELEASED' });
   const payment = await markProjectReportReleased(
     packageDocument.project_id,
-    packageDocument.released_at
+    packageDocument.released_at,
+    packageDocument.client_id
   );
   const commission = payment
     ? await reconcileCommission({ order: payment, releasedAt: packageDocument.released_at })

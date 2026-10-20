@@ -52,7 +52,7 @@ async function main() {
     'const result = await importDeliveryPackage(packageDocument);'
   );
   const releasedProjectionIndex = bridgeSource.indexOf(
-    "await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });"
+    "await updateOsProjectStage({ clientId: packageDocument.client_id, projectId: packageDocument.project_id, stage: 'RELEASED' });"
   );
   assert(packageImportIndex >= 0, 'delivery package import must remain explicit');
   assert(
