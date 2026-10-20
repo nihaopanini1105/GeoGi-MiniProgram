@@ -29,4 +29,4 @@ assert.equal(call({leadRecord:{fields:{...legacyLead.fields,提交时间:cutoff}
 assert.equal(call({env:{GEOGI_V2_EXACT_PILOT_ENABLED:'true',GEOGI_V2_PILOT_CONSUMER_CLIENT_ID:'client_A',GEOGI_V2_PILOT_CONSUMER_PROJECT_ID:'project_1'}}).reason,'exact_geogi_pilot');
 assert.equal(call({env:{GEOGI_V2_EXACT_PILOT_ENABLED:'true',GEOGI_V2_PILOT_CONSUMER_CLIENT_ID:'client_B',GEOGI_V2_PILOT_CONSUMER_PROJECT_ID:'project_1'}}).allowed,false);
 assert.equal(call({packageDocument:{...base.packageDocument,release_authority:'baseline_diagnostic_release_v1'}}).reason,'other_authority_not_applicable');
-console.log('OS_V2_RELEASE_PAID_OR_EXACT_GRANT=PASS (19 cases)');
+console.log('OS_V2_RELEASE_PAID_OR_EXACT_GRANT=PASS (18 assertions)');
