@@ -80,3 +80,13 @@ OS 一侧仍须另行开启对应的 `GEOGI_REPORT_V21_GENERAL_PUBLISH_ENABLED`�
 - 为避免之前10项 HTTP 联测仅存在于临时脚本，新增可重复运行的 `server/tests/v21_cross_repo_http_adapter.js`，由 OS 仓库 `tools/ci/report_v21_miniprogram_crossrepo_http.py` 启动。使用随机本机端口、合成客户、临时文件夹和合成凭据；验证真实 Python urllib 客户端到 Node 域服务的 10 项 TCP HTTP 契约，不需要 npm 外部依赖。
 - 在 OS 仓库根目录运行：`GEOGI_V21_MINIPROGRAM_CHECKOUT=/absolute/path/to/GeoGi-MiniProgram PYTHONPATH=.:capture_agent/src python tools/ci/report_v21_miniprogram_crossrepo_http.py`。本次隔离实跑 `REAL_LOCAL_HTTP_CONTRACT=PASS`，日志 SHA-256 `672db98af6718e2066d5aa2ba56f088a6f6b9bb2bbfcec026d8265d80a185b94`；Python/Node 源码语法检查通过。**此联测 Node 端使用独立 node:http 测试适配器，不是生产 Express/WeChat/真实支付 API**。
 - 两仓库生产均未修改，MiniProgram Draft PR #83 未合并，V2.1 发布开关默认关闭；未发出真实客户内容，不使用 GitHub Actions 做 Release Gate。
+
+
+## 2026-10-20 客户「我的」完成状态联动（隔离开发，未上线）
+
+- 真实业务缺口：V2.1 采用独立交付指针，旧 V2/Feishu 诊断订单可能仍显示“诊断处理中”，即使 V2.1 已正式发布，导致客户没有报告完成提醒。
+- `customer-portal.listCustomerProjects` 在 V2.1 发布开关打开时，只根据服务端 `getV21CustomerReport(clientId,projectId)` **独立确认**的当前客户/项目/签名版本/当前付费/双文件哈希可访问结果，更新订单**展示投影**与结果通知。校验失败、撤回、跨客户、服务错误时保持 V2 状态，不得伪造已发布。不会修改旧 V2 客户指针、支付/佣金记录或生产数据库。
+- 客户「我的」增加 V2.1 已交付文案；报告详情页 V2.1 独立状态和“无需重复付款”说明，已有旧 V2 报告仍通过原入口访问；V2.1 阅读使用现有独立 ticket/reader 鉴权。
+- 新增 `server/tests/customer_portal_v21_visibility_regression.js`，覆盖：已验证客户展示与提醒、没有 V2 伪链接、保留实际 paymentStatus、撤回后不再展示、跨客户不展示、服务错误 fail-closed、开关关闭零探测。
+- Linux Node22 隔离源码副本在本轮执行：完整 `npm test` **27/27** 串联脚本 PASS，无失败；复测 OS 正式 Python 客户端调用 Node 合成 HTTP 测试适配器 **10/10 PASS**。QA 日志 SHA-256 可由工作区 `geogi-v21-mine-v21-final-27-suites.log` 核实。这不等于 GitHub 最新 HEAD 精确 Release Gate，也不等于微信真机/真实客户验收。
+- 当前仍 Draft、未合并、未部署，V2.1 生产开关仍关闭。需正式 Express/飞书订单/手机号/微信支付隔离 HTTP 联调及专业报告真实源证据/双模型全量验收。
