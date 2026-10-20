@@ -11,7 +11,9 @@ async function submitCustomerSupplement(input = {}) {
     const validationError = validateSupplement(supplement);
     if (validationError) return fail(validationError);
 
-    const payment = await findPaymentByProject(supplement.projectId);
+    const candidate = await findPaymentByProject(supplement.projectId);
+    const payment = candidate && candidate.clientId === supplement.clientId
+      && candidate.projectId === supplement.projectId ? candidate : null;
     if (payment && ['refund_processing', 'refunded'].includes(String(payment.status || ''))) {
       return fail('退款订单不能再提交补充资料');
     }

@@ -193,6 +193,11 @@ async function cancelActivePaymentOrder(order) {
   }
 }
 
+function customerPayment(order,clientId,projectId) {
+  return order && order.clientId === clientId && order.projectId === projectId
+    ? order : null;
+}
+
 async function ensureOrder({ clientId, projectId, phoneNumber }) {
   const context = await findProjectContext({ clientId, projectId });
   if (!context) {
@@ -200,7 +205,13 @@ async function ensureOrder({ clientId, projectId, phoneNumber }) {
     error.code = 'PAYMENT_PROJECT_NOT_FOUND';
     throw error;
   }
-  const existing = await findPaymentByProject(projectId);
+  const candidate = await findPaymentByProject(projectId);
+  if (candidate && !customerPayment(candidate,clientId,projectId)) {
+    const error = new Error('PAYMENT_CLIENT_PROJECT_SCOPE_CONFLICT');
+    error.code = 'PAYMENT_CLIENT_PROJECT_SCOPE_CONFLICT';
+    throw error;
+  }
+  const existing = candidate;
   if (existing && isPaymentOrderExpired(existing)) {
     const expired = await refreshExpiredPaymentOrder(existing);
     await projectPaymentProjection({ projectId, paymentStatus: expired.status });
@@ -251,7 +262,7 @@ async function createCustomerPayment({ clientId, projectId, phoneNumber, loginCo
 async function getCustomerPayment({ clientId, projectId }) {
   const context = await findProjectContext({ clientId, projectId });
   if (!context) return { ok: false, userMessage: '没有找到这条诊断记录' };
-  let order = await findPaymentByProject(projectId);
+  let order = customerPayment(await findPaymentByProject(projectId),clientId,projectId);
   if (order && isPaymentOrderExpired(order)) {
     order = await refreshExpiredPaymentOrder(order);
     await projectPaymentProjection({ projectId, paymentStatus: order.status });
@@ -274,7 +285,7 @@ async function getCustomerPayment({ clientId, projectId }) {
 async function syncCustomerPayment({ clientId, projectId }) {
   const context = await findProjectContext({ clientId, projectId });
   if (!context) return { ok: false, userMessage: '没有找到这条诊断记录' };
-  let order = await findPaymentByProject(projectId);
+  let order = customerPayment(await findPaymentByProject(projectId),clientId,projectId);
   if (!order) return { ok: false, userMessage: '还没有创建支付订单' };
   if (isPaymentOrderExpired(order)) {
     order = await refreshExpiredPaymentOrder(order);
@@ -296,7 +307,7 @@ async function syncCustomerPayment({ clientId, projectId }) {
 async function cancelCustomerPayment({ clientId, projectId }) {
   const context = await findProjectContext({ clientId, projectId });
   if (!context) return { ok: false, userMessage: '没有找到这条诊断记录' };
-  let order = await findPaymentByProject(projectId);
+  let order = customerPayment(await findPaymentByProject(projectId),clientId,projectId);
   if (!order) return { ok: false, userMessage: '还没有创建支付订单' };
   if (isPaymentOrderExpired(order)) {
     order = await refreshExpiredPaymentOrder(order);

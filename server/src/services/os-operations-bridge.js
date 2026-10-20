@@ -130,11 +130,13 @@ async function listOsIntakes() {
   ]);
   const projects = new Map(projectRecords.map((record) => {
     const project = projectView(record);
-    return [project.projectId, project];
+    return [JSON.stringify([project.clientId,project.projectId]), project];
   }));
   const items = await Promise.all(leadRecords.map(async (record) => {
     const lead = leadView(record);
-    const payment = await findPaymentByProject(lead.projectId);
+    const candidate = await findPaymentByProject(lead.projectId);
+    const payment = candidate && candidate.clientId === lead.clientId
+      && candidate.projectId === lead.projectId ? candidate : null;
     const paymentView = publicPaymentView(payment);
     const paid = Boolean(payment && ['paid', 'partially_refunded'].includes(payment.status));
     const freeChannelOffer = Boolean(payment && payment.status === 'free' && payment.channelId && payment.sourceId);
@@ -142,7 +144,7 @@ async function listOsIntakes() {
     const legacyEligible = legacyExemption.eligible && !paid;
     return {
       ...lead,
-      project: projects.get(lead.projectId) || null,
+      project: projects.get(JSON.stringify([lead.clientId,lead.projectId])) || null,
       payment: paymentView,
       paymentRequired: !legacyEligible && !freeChannelOffer,
       paymentEligibleForProcessing: paid || freeChannelOffer || legacyEligible,

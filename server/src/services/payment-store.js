@@ -127,6 +127,13 @@ function makeOutTradeNo(projectId) {
 
 async function createOrGetPaymentOrder(input) {
   const existing = await findPaymentByProject(input.projectId);
+  // A canonical project ID collision must not hand another customer a payment.
+  if (existing && (existing.clientId !== String(input.clientId || '').trim()
+      || existing.projectId !== String(input.projectId || '').trim())) {
+    const error = new Error('PAYMENT_CLIENT_PROJECT_SCOPE_CONFLICT');
+    error.code = 'PAYMENT_CLIENT_PROJECT_SCOPE_CONFLICT';
+    throw error;
+  }
   if (existing && existing.status !== 'closed') return { created: false, order: existing };
   const nowMs = Date.now();
   const now = new Date(nowMs).toISOString();
