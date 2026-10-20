@@ -11,7 +11,7 @@ const enc=v=>JSON.stringify(canonical(v));
 function fixture(upload){
  const name='GeoGi-V21-abcdeffedcba1234',client='client_one',project='project_one',snapshot=sha('snapshot');
  const html=Buffer.from('<!doctype html><html><body>synthetic report</body></html>');
- const pdf=Buffer.from('%PDF-1.7\n'+'synthetic PDF\n'.repeat(150));
+ const pdf=Buffer.from('%PDF-1.7\n'+'synthetic PDF\n'.repeat(1200));
  const contentHash='sha256:'+snapshot, recordHash='sha256:'+sha('record');
  const artifacts=[['h5','text/html',html,'html'],['pdf','application/pdf',pdf,'pdf']].map(([kind,mime,raw,extension])=>({
   artifact_id:'v21_'+kind+'_abcdeffedcba1234',artifact_type:kind,mime_type:mime,
@@ -68,12 +68,27 @@ function fixture(upload){
   assert.equal(await bridge.currentReport(doc.client_id,doc.project_id),null);
   payment={...payment,status:'paid'};
   const rev=await bridge.revoke({client_id:doc.client_id,project_id:doc.project_id,
-    delivery_package_id:doc.delivery_package_id,artifact_sha256:doc.artifacts[0].sha256,reason:'test revoke'});
+    delivery_package_id:doc.delivery_package_id,artifact_sha256:doc.artifacts[0].sha256,reason:'test_revoke'});
   assert.equal(rev.status,'revoked');
   assert.equal(await bridge.currentReport(doc.client_id,doc.project_id),null);
   await assert.rejects(bridge.publish(doc),/V21_REVOKED_PACKAGE_CANNOT_REPUBLISH/);
+  // Pilot review is an explicit separate grant; it cannot make generic
+  // customers eligible or bypass the real customer/project registry.
+  process.env.GEOGI_REPORT_V21_GENERAL_CUSTOMER_DELIVERY_ENABLED='false';
+  process.env.GEOGI_V2_EXACT_PILOT_ENABLED='true';
+  process.env.GEOGI_V2_PILOT_CONSUMER_CLIENT_ID=doc.client_id;
+  process.env.GEOGI_V2_PILOT_CONSUMER_PROJECT_ID=doc.project_id;
+  payment={...payment,status:'refunded'};
+  const pilot=createV21Bridge({findIntakes:async()=>[lead],findPayment:async()=>payment,
+    uploadRoot:uploads,dataRoot:path.join(root,'pilot')});
+  assert.equal((await pilot.binding(doc.client_id,doc.project_id)).verified,false);
+  assert.equal((await pilot.publish(doc)).payment_mutated,false);
+  assert.equal((await pilot.currentReport(doc.client_id,doc.project_id)).version,'2.1');
+  process.env.GEOGI_V2_EXACT_PILOT_ENABLED='false';
+  assert.equal(await pilot.currentReport(doc.client_id,doc.project_id),null);
+  process.env.GEOGI_REPORT_V21_GENERAL_CUSTOMER_DELIVERY_ENABLED='true';
   const bad=structuredClone(doc);bad.version_pins.report_object_version='2.0.0';
   assert.throws(()=>validatePackage(bad),/V21_VERSION_PINS_INVALID/);
-  console.log('V21 bridge regression: 18 assertions + isolation/revocation checks passed');
+  console.log('V21 bridge regression: 25 assertions passed, including isolation/revocation/pilot guards');
  }finally{fs.rmSync(root,{recursive:true,force:true});process.env=previous;}
 })().catch(e=>{console.error(e);process.exitCode=1});
