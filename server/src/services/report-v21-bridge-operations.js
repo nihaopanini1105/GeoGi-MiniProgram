@@ -260,10 +260,26 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot}) {
         || pack.artifacts[0].sha256 !== artifact_sha256) fail('V21_REVOCATION_SCOPE_INVALID');
     if (typeof reason !== 'string' || !/^[A-Za-z0-9_.-]{8,100}$/.test(reason)) fail('V21_REVOCATION_REASON_REQUIRED');
     const filename=path.join(root,'revocations',delivery_package_id+'.json');
-    const existed=fs.existsSync(filename);
-    await writeImmutable(filename,json({client_id,project_id,delivery_package_id,
-      artifact_sha256,reason:reason.slice(0,200),revoked_at:new Date().toISOString()})+'\n');
-    return {status:'revoked',delivery_package_id,idempotent:existed};
+    const expected={client_id,project_id,delivery_package_id,artifact_sha256};
+    // The original revocation is immutable. Retried or concurrent calls must
+    // not create a different timestamp and fail their intended idempotency.
+    const verifyExisting=async()=>{
+      let previous;
+      try { previous=JSON.parse(await fs.promises.readFile(filename,'utf8')); }
+      catch (_) { fail('V21_REVOCATION_RECORD_INVALID'); }
+      if (!Object.entries(expected).every(([key,value])=>previous[key]===value))
+        fail('V21_REVOCATION_IMMUTABLE_SCOPE_CONFLICT');
+      return {status:'revoked',delivery_package_id,idempotent:true};
+    };
+    await fs.promises.mkdir(path.dirname(filename),{recursive:true,mode:0o700});
+    if (fs.existsSync(filename)) return verifyExisting();
+    const record={...expected,reason,revoked_at:new Date().toISOString()};
+    try { await fs.promises.writeFile(filename,json(record)+'\n',{flag:'wx',mode:0o600}); }
+    catch(e) {
+      if (e.code==='EEXIST') return verifyExisting();
+      throw e;
+    }
+    return {status:'revoked',delivery_package_id,idempotent:false};
   }
   return { capabilities,binding,publish,accessible,currentReport,revoke };
 }
