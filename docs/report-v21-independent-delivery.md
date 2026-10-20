@@ -124,3 +124,13 @@ OS 一侧仍须另行开启对应的 `GEOGI_REPORT_V21_GENERAL_PUBLISH_ENABLED`�
 **隔离验收证据：** Linux Node22，使用用户上传的**较早小程序 ZIP**加本轮 bridge/payment-store 修复（`server/src/services/os-operations-bridge.js`, `server/src/services/payment-store.js`）在临时工作区执行 `os_project_scope_regression`、`os_operations_bridge_regression`、`channel_redemption_commission_regression` **均 PASS**；对历史 ZIP 的两条已知过期静态断言作 QA-only 兼容后，`npm test` 完成且无失败。日志 `/mnt/data/geogi-v21-os-stage-payment-scope-local-qa.log`。**并非最新远端 HEAD 全量 Gate，亦未测试真实飞书或微信支付。**
 
 发布状态：仍然 Draft PR #83，默认关闭 V2.1，未修改生产、未部署、未上线。继续需要最新 Git HEAD 对应完整 Gate、正式 Express/Feishu/微信联测及 OS 全量 GEO 实证指标/合规双供应商验收。
+
+
+## 2026-10-20：旧 V2 付费诊断最后一道发布门禁（P0）
+
+- 核查发现：在修复客户/项目归属后，`publishOsDeliveryPackage` 仍没有在**真正导入并交付 V2 诊断包前**重新确认客户付费资格。只要 OS Bridge Bearer 获得授权，即使是 2026-09-22 正式付费产品推出后的未付款订单，也可能由旧 V2 包的发布入口导入，违反小程序付费交付规则。此项为**代码级风险**，未发现生产实际发生证据。
+- 在 `server/src/services/os-v2-release-eligibility.js` 新增无副作用的判断：`geo_diagnostic_html_release_v2 + baseline_diagnostic_report` 必须满足已付费/部分退款有效单、合法渠道优惠免付、付费产品上线前真实历史记录、或**明确配置且客户+项目严格匹配的 GeoGi 试点**之一。已退款/退款处理中、未付款、无合法渠道的免费订单、付款客户错配或 CRM 身份错配拒绝；已有其它报告 authority 不被此专项错误误伤。
+- `os-operations-bridge.publishOsDeliveryPackage` 在真正 `importDeliveryPackage` 和 `updateOsProjectStage(RELEASED)` **之前**调用上述判断，不满足则返回 `OS_BRIDGE_V2_RELEASE_NOT_ELIGIBLE`，没有包导入、阶段回写、付款标记或佣金写入。
+- `server/tests/os_v2_release_eligibility_regression.js` **18项断言 PASS**（涵盖有/无付款、渠道优惠、历史期、试点、退款/跨客户否定）；`server/tests/os_v2_release_admission_integration_regression.js` 通过隔离模拟飞书/支付/存储，运行**8个实际 OS bridge 发布场景**并断言拒绝时无交付副作用；两者已加入本地 `npm test`，Release Gate 增加新策略文件 JS 语法检查。
+- Linux Node22 真实本地独立执行两组专项 + JS 语法检查 **PASS**；日志 SHA256 `64c1e3436bf8f02920fdbf6e10dc777532452c7e88ae180cc2375a60a6cffd19`。集成测试在用户旧 ZIP 源码上应用**等价发布入口改动**的隔离 twin，非 GitHub 当前最新 HEAD 精确代码树、非正式 Express / 真飞书支付。正式的最新 HEAD 完整 `npm test` + 真实新客户付费联调仍为上线阻断。
+- GitHub Actions 不作为门禁。Draft PR #83 未合并，未修改生产、未部署、未改变真实支付订单。
