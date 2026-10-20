@@ -160,6 +160,6 @@ function fixture(upload){
   process.env.GEOGI_REPORT_V21_GENERAL_CUSTOMER_DELIVERY_ENABLED='true';
   const bad=structuredClone(doc);bad.version_pins.report_object_version='2.0.0';
   assert.throws(()=>validatePackage(bad),/V21_VERSION_PINS_INVALID/);
-  console.log('V21 bridge regression: 27 assertions passed, including isolation/revocation/pilot guards');
+  console.log('V21 bridge regression: PASS (tenant/payment, audit, immutable identity, private storage and symlink guards)');
  }finally{fs.rmSync(root,{recursive:true,force:true});process.env=previous;}
 })().catch(e=>{console.error(e);process.exitCode=1});
