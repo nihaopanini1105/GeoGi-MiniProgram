@@ -64,7 +64,7 @@ function run() {
   assert(report.includes('下载 PDF 诊断报告'));
   assert(report.includes('!report.reportReady && !v21Report && !report.pilotReviewAccess && order.paymentStatus'));
   assert(detailJs.includes('this.data.report.reportReady || this.data.report.pilotReviewAccess'));
-  assert(customerPortal.includes("paymentRequired: !pilotReviewAccess && !(payment && payment.status === 'free')"));
+  assert(customerPortal.includes('paymentRequired: !pilotReviewAccess && !paidForReport'));
   assert(server.includes("code: 'REPORT_ALREADY_AUTHORIZED'"));
   assert(server.includes('const existingReport = await getCustomerReport('));
   assert(server.includes("existingReport.report.pilotReviewAccess === true"));
