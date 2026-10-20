@@ -29,7 +29,10 @@ try {
     clientId:'client',projectId:'project',sha256:'wrong',fileName:filename
   }),/SCOPE_INVALID/);
   const serverSource=fs.readFileSync(path.join(__dirname,'../src/server.js'),'utf8');
-  assert(serverSource.includes("geogi-v2-[0-9a-f]{16}"));
+  assert(serverSource.includes('isProtectedReportUploadPath(req.path)'));
+  const {isProtectedReportUploadPath}=require('../src/services/private-report-upload-guard');
+  assert.strictEqual(isProtectedReportUploadPath('/GeoGi-V2-0123456789abcdef.pdf'),true);
+  assert.strictEqual(isProtectedReportUploadPath('/uploads/../GeoGi-V2-0123456789abcdef.pdf'),true);
   assert(!serverSource.includes("name.endsWith('.pdf')"));
   assert(serverSource.includes("app.post('/api/customer/reports/:projectId/pdf-ticket', requireCustomerSession"));
   assert(serverSource.includes("app.get('/api/customer/pdf-reader/:ticket'"));
