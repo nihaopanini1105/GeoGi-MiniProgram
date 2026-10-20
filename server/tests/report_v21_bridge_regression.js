@@ -50,6 +50,16 @@ function fixture(upload){
   const bridge=createV21Bridge({findIntakes:async()=>[lead],findPayment:async()=>payment,uploadRoot:uploads,dataRoot:data});
   assert.throws(()=>createV21Bridge({findIntakes:async()=>[lead],findPayment:async()=>payment,
     uploadRoot:uploads,dataRoot:path.join(uploads,'private')}),/V21_PRIVATE_STORE_OUTSIDE_PUBLIC_UPLOADS_REQUIRED/);
+  // The path is lexically private, but an existing symlink points into the
+  // public static upload root. This must fail at initialization.
+  const alias=path.join(root,'outside-looking-symlink');
+  fs.symlinkSync(uploads,alias,'dir');
+  assert.throws(()=>createV21Bridge({findIntakes:async()=>[lead],findPayment:async()=>payment,
+    uploadRoot:uploads,dataRoot:path.join(alias,'private')}),/V21_PRIVATE_STORE_OUTSIDE_PUBLIC_UPLOADS_REQUIRED/);
+  const dangling=path.join(root,'dangling-private-symlink');
+  fs.symlinkSync(path.join(root,'non-existent-private'),dangling,'dir');
+  assert.throws(()=>createV21Bridge({findIntakes:async()=>[lead],findPayment:async()=>payment,
+    uploadRoot:uploads,dataRoot:dangling}),/V21_PRIVATE_STORE_PHYSICAL_PATH_INVALID/);
   assert.equal(capabilities().enabled,false);
   assert.equal((await bridge.binding(doc.client_id,doc.project_id)).verified,false);
   await assert.rejects(bridge.publish(doc),/V21_PUBLICATION_DISABLED/);
