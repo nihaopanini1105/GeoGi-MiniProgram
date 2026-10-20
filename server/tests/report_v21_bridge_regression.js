@@ -1,0 +1,79 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const os=require('node:os');
+const path=require('node:path');
+const crypto=require('node:crypto');
+const {createV21Bridge,capabilities,validatePackage,V21DeliveryError}=require('../src/services/report-v21-bridge-operations');
+const sha=d=>crypto.createHash('sha256').update(d).digest('hex');
+function canonical(v){if(Array.isArray(v))return v.map(canonical);if(v!==null&&typeof v==='object'){const o={};for(const k of Object.keys(v).sort())o[k]=canonical(v[k]);return o;}return v;}
+const enc=v=>JSON.stringify(canonical(v));
+function fixture(upload){
+ const name='GeoGi-V21-abcdeffedcba1234',client='client_one',project='project_one',snapshot=sha('snapshot');
+ const html=Buffer.from('<!doctype html><html><body>synthetic report</body></html>');
+ const pdf=Buffer.from('%PDF-1.7\n'+'synthetic PDF\n'.repeat(150));
+ const contentHash='sha256:'+snapshot, recordHash='sha256:'+sha('record');
+ const artifacts=[['h5','text/html',html,'html'],['pdf','application/pdf',pdf,'pdf']].map(([kind,mime,raw,extension])=>({
+  artifact_id:'v21_'+kind+'_abcdeffedcba1234',artifact_type:kind,mime_type:mime,
+  file_name:name+'.'+extension,render_version:'report-v21-customer-1',
+  uri:'https://assets.example/'+name+'.'+extension,
+  sha256:sha(raw),size_bytes:raw.length,report_content_hash:contentHash,report_record_hash:recordHash
+ }));
+ fs.mkdirSync(upload,{recursive:true});for(const [kind,mime,raw,extension] of [['h5','text/html',html,'html'],['pdf','application/pdf',pdf,'pdf']]){
+  fs.writeFileSync(path.join(upload,name+'.'+extension),raw,{mode:0o600});
+ }
+ const p={object_type:'delivery_package',delivery_contract_version:'3.0.0',delivery_mode:'artifact_only',
+ production_authority:'geogi_os',delivery_purpose:'report_v21_diagnostic',
+ release_authority:'geo_diagnostic_html_release_v21',delivery_package_id:'delivery_package_v21_'+sha('package').slice(0,24),
+ client_id:client,project_id:project,release_status:'released',released_at:'2026-10-20T12:00:00Z',
+ report_reference:{report_id:'GEO-V21-'+snapshot.slice(0,12).toUpperCase(),report_type:'client_geo_diagnostic',report_version:2,
+ object_version:'2.1.0',content_hash:contentHash,report_record_hash:recordHash},
+ version_pins:{report_schema_version:'2.1.0',report_object_version:'2.1.0',report_version:2,
+ release_record_version:'2.1.0',artifact_render_version:'report-v21-customer-1',canonical_client_id:client,
+ canonical_project_id:project,display_report_version:'2.1'},
+ display_policy:{artifact_only:true,client_recomposition_allowed:false,client_scoring_allowed:false,
+ client_summary_generation_allowed:false,client_diagnosis_generation_allowed:false},artifacts};
+ p.package_hash='sha256:'+sha(enc(p));return p;
+}
+(async()=>{
+ const previous={...process.env};
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'geogi-v21-'));
+ const uploads=path.join(root,'uploads');const data=path.join(root,'v21');
+ try{
+  const doc=fixture(uploads);
+  const lead={clientId:doc.client_id,projectId:doc.project_id,project:{clientId:doc.client_id,projectId:doc.project_id}};
+  let payment={clientId:doc.client_id,projectId:doc.project_id,status:'paid',paidAt:'2026-10-20T01:00:00Z'};
+  const bridge=createV21Bridge({findIntakes:async()=>[lead],findPayment:async()=>payment,uploadRoot:uploads,dataRoot:data});
+  assert.equal(capabilities().enabled,false);
+  assert.equal((await bridge.binding(doc.client_id,doc.project_id)).verified,false);
+  await assert.rejects(bridge.publish(doc),/V21_PUBLICATION_DISABLED/);
+  process.env.GEOGI_REPORT_V21_PUBLISH_ENABLED='true';
+  process.env.GEOGI_REPORT_V21_GENERAL_CUSTOMER_DELIVERY_ENABLED='true';
+  assert.equal(capabilities().general_customer_delivery_enabled,true);
+  assert.equal((await bridge.binding(doc.client_id,doc.project_id)).verified,true);
+  assert.equal(validatePackage(doc),doc);
+  let x=await bridge.publish(doc);assert.equal(x.payment_mutated,false);assert.equal(x.commission_mutated,false);
+  assert.equal(x.idempotent,false);
+  x=await bridge.publish(doc);assert.equal(x.idempotent,true);
+  assert.equal((await bridge.accessible({client_id:doc.client_id,project_id:doc.project_id,
+   delivery_package_id:doc.delivery_package_id,artifact_sha256:doc.artifacts[0].sha256})).accessible,true);
+  assert.equal((await bridge.currentReport(doc.client_id,doc.project_id)).version,'2.1');
+  assert.equal(await bridge.currentReport('other_client',doc.project_id),null);
+  assert.equal((await bridge.accessible({client_id:'other_client',project_id:doc.project_id,
+   delivery_package_id:doc.delivery_package_id,artifact_sha256:doc.artifacts[0].sha256})).accessible,false);
+  const tampered=structuredClone(doc);tampered.artifacts[0].sha256='0'.repeat(64);
+  assert.throws(()=>validatePackage(tampered),/V21_PACKAGE_HASH_MISMATCH/);
+  payment={...payment,status:'refunded'};
+  assert.equal((await bridge.binding(doc.client_id,doc.project_id)).verified,false);
+  assert.equal(await bridge.currentReport(doc.client_id,doc.project_id),null);
+  payment={...payment,status:'paid'};
+  const rev=await bridge.revoke({client_id:doc.client_id,project_id:doc.project_id,
+    delivery_package_id:doc.delivery_package_id,artifact_sha256:doc.artifacts[0].sha256,reason:'test revoke'});
+  assert.equal(rev.status,'revoked');
+  assert.equal(await bridge.currentReport(doc.client_id,doc.project_id),null);
+  await assert.rejects(bridge.publish(doc),/V21_REVOKED_PACKAGE_CANNOT_REPUBLISH/);
+  const bad=structuredClone(doc);bad.version_pins.report_object_version='2.0.0';
+  assert.throws(()=>validatePackage(bad),/V21_VERSION_PINS_INVALID/);
+  console.log('V21 bridge regression: 18 assertions + isolation/revocation checks passed');
+ }finally{fs.rmSync(root,{recursive:true,force:true});process.env=previous;}
+})().catch(e=>{console.error(e);process.exitCode=1});
