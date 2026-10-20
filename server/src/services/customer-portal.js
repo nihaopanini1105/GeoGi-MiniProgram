@@ -51,12 +51,16 @@ async function listCustomerProjects({ clientId, clientIds }) {
         findDeliveryPackage({ clientId: ownedClientId, projectId }),
         findPaymentByProject(projectId)
       ]);
-      return normalizeOrder({
-        lead,
-        project: projectById.get(projectId),
-        deliveryPackage,
-        payment
+      const order=normalizeOrder({
+        lead,project:projectById.get(projectId),deliveryPackage,payment
       });
+      if (process.env.GEOGI_REPORT_V21_PUBLISH_ENABLED !== 'true') return order;
+      // Only independently verified V2.1 artifacts change customer display.
+      // Existing V2 pointers, order payments and commissions remain untouched.
+      try {
+        const { getV21CustomerReport } = require('./report-v21-bridge-operations');
+        return projectV21VerifiedReport(order,await getV21CustomerReport(ownedClientId,projectId));
+      } catch (_) { return order; }
     }))).filter(Boolean);
 
     orders.sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
@@ -68,6 +72,21 @@ async function listCustomerProjects({ clientId, clientIds }) {
     console.error('listCustomerProjects failed', error);
     return fail('报告状态读取失败，请稍后重试');
   }
+}
+
+function projectV21VerifiedReport(order,verified) {
+  if (!verified || verified.clientId !== order.clientId
+      || verified.projectId !== order.projectId || verified.version !== '2.1'
+      || !/^delivery_package_v21_[0-9a-f]{24}$/.test(String(verified.deliveryPackageId||'')))
+    return order;
+  return {
+    ...order,status:'报告已完成',reportReady:true,v21ReportReady:true,
+    v21DeliveryPackageId:verified.deliveryPackageId,version:'2.1',
+    completedAt:verified.releasedAt || order.completedAt || '',
+    updatedAt:verified.releasedAt || order.updatedAt,
+    canSupplement:false,nextAction:'查看正式 V2.1 GEO 诊断报告'
+    // Historical V2 pointer and payment status remain unchanged.
+  };
 }
 
 function authorizedGeoGiV2Pilot(clientId,projectId,deliveryPackage) {
@@ -202,7 +221,7 @@ function buildCustomerResultNotifications(order = {}) {
 
   if (order.reportReady) {
     notifications.push({
-      id: ['report_ready', projectId, order.deliveryPackageId || order.version || order.completedAt].filter(Boolean).join(':'),
+      id: ['report_ready', projectId, order.v21DeliveryPackageId || order.deliveryPackageId || order.version || order.completedAt].filter(Boolean).join(':'),
       type: 'report_ready',
       title: '诊断报告已完成',
       message: brandName + ' 的品牌 GEO 诊断报告已完成，可直接查看。',
@@ -376,5 +395,6 @@ module.exports = {
   isPaidForReport,
   canCustomerSupplement,
   buildCustomerResultNotifications,
+  projectV21VerifiedReport,
   paymentStatusLabel
 };
