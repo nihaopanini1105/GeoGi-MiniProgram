@@ -17,7 +17,7 @@ Module._load=function(request,parent,isMain) {
   };
   return oldLoad.apply(this,arguments);
 };
-const { updateOsProjectStage }=require('../src/services/os-operations-bridge');
+const { updateOsProjectStage, publishOsDeliveryPackage }=require('../src/services/os-operations-bridge');
 Module._load=oldLoad;
 const row=(client,project,id)=>({record_id:id,fields:{客户编号:client,项目编号:project,当前阶段:'INTAKE'}});
 (async()=>{
@@ -46,6 +46,18 @@ const row=(client,project,id)=>({record_id:id,fields:{客户编号:client,项目
   await updateOsProjectStage({projectId:'SINGLE',stage:'REVIEW'});
   assert.deepEqual(writes.map(v=>v.recordId),['L-A','P-A']);
 
+  // A delivery record must not be written before project and payment scopes
+  // have been validated. This fake package should never reach import logic.
+  leads=[row('A','DUP','L-A'),row('B','DUP','L-B')];
+  projects=[row('A','DUP','P-A'),row('B','DUP','P-B')];
+  await assert.rejects(publishOsDeliveryPackage({client_id:'A',project_id:'DUP'}),
+    e=>e.code==='OS_BRIDGE_PROJECT_SCOPE_AMBIGUOUS');
+  leads=[row('A','COLLISION','L-A')];projects=[row('A','COLLISION','P-A')];
+  await createOrGetPaymentOrder({clientId:'B',projectId:'COLLISION',submissionId:'SYNTH-B',
+    brandName:'WRONG',phoneNumber:'13800138001',amountTotal:19900});
+  await assert.rejects(publishOsDeliveryPackage({client_id:'A',project_id:'COLLISION'}),
+    e=>e.code==='OS_BRIDGE_PAYMENT_SCOPE_MISMATCH');
+  leads=[row('A','SINGLE','L-A')];projects=[row('A','SINGLE','P-A')];
   const created=await createOrGetPaymentOrder({clientId:'A',projectId:'SINGLE',submissionId:'SYNTH',
     brandName:'TEST',phoneNumber:'13800138000',amountTotal:19900});
   await assert.rejects(markProjectReportReleased('SINGLE','2026-10-20T12:00:00Z'),
