@@ -19,7 +19,7 @@ feishu.listBitableRecords=async({tableId})=>tableId==='leads'?[lead]:(includePro
 payments.findPaymentByProject=async()=>payment;
 delivery.findDeliveryPackage=async()=>({client_id:clientId,project_id:projectId,
   delivery_package_id:'delivery_package_test',release_authority:'geo_diagnostic_html_release_v2',
-  release_status:'released',released_at:'2026-10-20T12:00:00Z',report_reference:{report_version:2}});
+  release_status:'released',delivery_purpose:'baseline_diagnostic_report',released_at:'2026-10-20T12:00:00Z',report_reference:{report_version:2}});
 delivery.projectDeliveryForCustomer=()=>({deliveryPackageId:'delivery_package_test',artifactType:'h5'});
 const {isPaidForReport,getCustomerReport,listCustomerProjects,buildPendingReport,normalizeOrder}=require('../src/services/customer-portal');
 (async()=>{
@@ -49,6 +49,20 @@ const {isPaidForReport,getCustomerReport,listCustomerProjects,buildPendingReport
  assert.equal((await listCustomerProjects({clientId})).orders[0].reportReady,false);
  // Keep historical raw payment audit separate from authorization.
  assert.equal(result.order.paymentStatus,'free');
+ includeProject=true;
+ // Published prelaunch cases should remain available to the true owner even
+ // without a paid transaction; this must not create a postlaunch exemption.
+ lead.fields['提交时间']='2026-09-22T07:00:00Z';
+ payment={clientId,projectId,status:'unpaid'};
+ result=await getCustomerReport({clientId,projectId});
+ assert.equal(result.report.reportReady,true);
+ assert.equal(result.report.legacyReviewAccess,true);
+ assert.equal(result.order.paymentRequired,false);
+ payment={clientId,projectId,status:'refunded'};
+ assert.equal((await getCustomerReport({clientId,projectId})).report.reportReady,false);
+ lead.fields['提交时间']='2026-09-22T08:00:00Z';
+ payment={clientId,projectId,status:'unpaid'};
+ assert.equal((await getCustomerReport({clientId,projectId})).report.reportReady,false);
  assert.equal(isPaidForReport({status:'paid'}),true);
  assert.equal(isPaidForReport({status:'partially_refunded'}),true);
  assert.equal(isPaidForReport({status:'refund_processing'}),false);
