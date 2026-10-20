@@ -325,7 +325,7 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, public
       delivery_package_id:pack.delivery_package_id,artifact_sha256:pack.artifacts[0].sha256});
     if (!result.accessible) return null;
     return { clientId,projectId,version:'2.1',deliveryPackageId:pack.delivery_package_id,
-      h5:pack.artifacts[0],pdf:pack.artifacts[1] };
+      releasedAt:pack.released_at,h5:pack.artifacts[0],pdf:pack.artifacts[1] };
   }
   async function revoke({client_id,project_id,delivery_package_id,artifact_sha256,reason}) {
     if (!enabled()) fail('V21_REVOCATION_DISABLED');

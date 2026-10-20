@@ -118,6 +118,7 @@
         <view class="order-title-wrap">
           <text class="order-brand">{{item.brandName || '品牌诊断'}}</text>
           <text class="order-meta">{{item.industry}} {{item.segment}}</text>
+          <text wx:if="{{item.v21ReportReady}}" class="order-meta">已交付 V2.1 专业诊断报告</text>
         </view>
         <text class="status-pill {{item.reportReady ? 'ready' : ''}}">{{item.status}}</text>
       </view>
