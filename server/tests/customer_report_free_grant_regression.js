@@ -30,6 +30,7 @@ const {isPaidForReport,getCustomerReport,listCustomerProjects,buildPendingReport
  assert.equal(result.report.reportReady,false);
  assert.equal(result.report.paymentRequired,true);
  assert.equal(result.order.paymentRequired,true);
+ assert.equal(result.order.status,'优惠资格待核验');
  let mine=await listCustomerProjects({clientId});
  assert.equal(mine.orders[0].reportReady,false);
  assert.equal(mine.orders[0].paymentRequired,true);
@@ -51,5 +52,10 @@ const {isPaidForReport,getCustomerReport,listCustomerProjects,buildPendingReport
  assert.equal(isPaidForReport({status:'paid'}),true);
  assert.equal(isPaidForReport({status:'partially_refunded'}),true);
  assert.equal(isPaidForReport({status:'refund_processing'}),false);
+ const fs=require('node:fs'),path=require('node:path');
+ const mine=fs.readFileSync(path.join(__dirname,'../../pages/mine/mine.wxml'),'utf8');
+ const detail=fs.readFileSync(path.join(__dirname,'../../pages/report-detail/report-detail.wxml'),'utf8');
+ assert(mine.includes("item.paymentStatus === 'free' && item.paymentRequired"));
+ assert(detail.includes("order.paymentStatus === 'free' && order.paymentRequired"));
  console.log('CUSTOMER_FREE_ORDER_GRANT_AND_PROJECT_SCOPE=PASS');
 })().catch(e=>{console.error(e);process.exitCode=1});
