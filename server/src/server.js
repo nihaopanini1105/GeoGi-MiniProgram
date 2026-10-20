@@ -47,6 +47,7 @@ const {
 const { uploadMiddleware, normalizeUpload, getUploadRoot } = require('./services/uploads');
 const { DELIVERY_CONTRACT_VERSION } = require('./services/delivery-package-store');
 const { OsArtifactIngressError, admitOsArtifact } = require('./services/os-artifact-ingress');
+const { isProtectedReportUploadPath } = require('./services/private-report-upload-guard');
 const { issueH5Ticket, consumeH5Ticket, readVerifiedH5Artifact } = require('./services/h5-reader-ticket');
 const { issuePdfTicket, consumePdfTicket, readVerifiedPdfArtifact } = require('./services/pdf-reader-ticket');
 const {
@@ -81,13 +82,9 @@ app.use(express.json({
 // Both H5 and PDF reports are private; public uploads can only host
 // non-report assets. Reading either report requires a scoped one-use token.
 app.use('/uploads', (req, res, next) => {
-  let name;
-  try { name = decodeURIComponent(String(req.path || '')).toLowerCase(); }
-  catch (_) { return res.status(400).json({ ok: false, userMessage: '文件地址无效' }); }
-  // Customer-uploaded PDF attachments remain accessible under their
-  // existing rules. Only immutable V2 report PDF assets are private.
-  if (name.endsWith('.html') || name.endsWith('.htm')
-      || /^\/geogi-v2[1]?-[0-9a-f]{16}\.pdf$/.test(name)) {
+  // Static middleware can normalize './' and '../' after the middleware
+  // check. Inspect the normalized basename, not just a root-anchored regex.
+  if (isProtectedReportUploadPath(req.path)) {
     return res.status(404).json({ ok: false, userMessage: '文件不可公开访问' });
   }
   return next();
