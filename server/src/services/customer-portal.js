@@ -174,12 +174,12 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const leadFields = (lead && lead.fields) || {};
   const projectFields = (project && project.fields) || {};
   const paidForReport = isPaidForReport(payment);
-  const pilotReviewAccess=authorizedGeoGiV2Pilot(
-    text(leadFields.客户编号),
-    text(leadFields.项目编号)||text(projectFields.项目编号),deliveryPackage);
   const projectScopeVerified = Boolean(project
     && text(projectFields.客户编号) === text(leadFields.客户编号)
     && text(projectFields.项目编号) === text(leadFields.项目编号));
+  const pilotReviewAccess=projectScopeVerified && authorizedGeoGiV2Pilot(
+    text(leadFields.客户编号),
+    text(leadFields.项目编号)||text(projectFields.项目编号),deliveryPackage);
   const reportReady = Boolean(projectScopeVerified && deliveryPackage && (paidForReport || pilotReviewAccess));
   const leadStatus = text(leadFields.当前状态);
   const projectStage = text(projectFields.当前阶段);
