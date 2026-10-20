@@ -142,7 +142,7 @@ async function getCustomerReport({ clientId, projectId }) {
     const payment = scopedPayment(candidatePayment,cleanClientId,cleanProjectId);
     const order = normalizeOrder({ lead, project, deliveryPackage, payment });
 
-    if (!deliveryPackage || (!isPaidForReport(payment)
+    if (!project || !deliveryPackage || (!isPaidForReport(payment)
          && !authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage))) {
       return {
         ok: true,
@@ -177,7 +177,10 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const pilotReviewAccess=authorizedGeoGiV2Pilot(
     text(leadFields.客户编号),
     text(leadFields.项目编号)||text(projectFields.项目编号),deliveryPackage);
-  const reportReady = Boolean(deliveryPackage && (paidForReport || pilotReviewAccess));
+  const projectScopeVerified = Boolean(project
+    && text(projectFields.客户编号) === text(leadFields.客户编号)
+    && text(projectFields.项目编号) === text(leadFields.项目编号));
+  const reportReady = Boolean(projectScopeVerified && deliveryPackage && (paidForReport || pilotReviewAccess));
   const leadStatus = text(leadFields.当前状态);
   const projectStage = text(projectFields.当前阶段);
   const status = reportReady
@@ -205,7 +208,7 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
     // An independently verified, already released GeoGi pilot report must
     // not be presented as requiring a new payment. Preserve the historical
     // paymentStatus for audit; do not forge a paid order.
-    paymentRequired: !pilotReviewAccess && !(payment && payment.status === 'free'),
+    paymentRequired: !pilotReviewAccess && !paidForReport,
     payment: paymentView,
     paymentStatus: payment ? payment.status : 'unpaid',
     amountYuan: payment ? payment.amountYuan : 199,
@@ -295,7 +298,12 @@ function buildCustomerResultNotifications(order = {}) {
 }
 
 function isPaidForReport(payment) {
-  return Boolean(payment && ['paid', 'free', 'partially_refunded'].includes(String(payment.status || '')));
+  if (!payment) return false;
+  const status=String(payment.status || '');
+  if (status === 'paid' || status === 'partially_refunded') return true;
+  // A raw 'free' flag is not a release grant. Match the independently
+  // attributable channel offer required by the V2 publication gate.
+  return status === 'free' && Boolean(payment.channelId && payment.sourceId);
 }
 
 function paymentStatusLabel(payment) {
@@ -352,7 +360,7 @@ function buildPendingReport({ order }) {
   return {
     status: order.status,
     reportReady: false,
-    paymentRequired: !(order && order.paymentStatus === 'free'),
+    paymentRequired: !(order && order.paymentRequired === false),
     payment: order.payment || null,
     reportLink: '',
     reportVersion: '',
