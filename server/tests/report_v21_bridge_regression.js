@@ -58,6 +58,8 @@ function fixture(upload){
   assert.equal(capabilities().general_customer_delivery_enabled,true);
   assert.equal((await bridge.binding(doc.client_id,doc.project_id)).verified,true);
   assert.equal(validatePackage(doc),doc);
+  const osPythonFixture=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/report_v21_python_generated.json')));
+  assert.equal(validatePackage(osPythonFixture),osPythonFixture);
   let x=await bridge.publish(doc);assert.equal(x.payment_mutated,false);assert.equal(x.commission_mutated,false);
   assert.equal(x.idempotent,false);
   x=await bridge.publish(doc);assert.equal(x.idempotent,true);
@@ -95,6 +97,6 @@ function fixture(upload){
   process.env.GEOGI_REPORT_V21_GENERAL_CUSTOMER_DELIVERY_ENABLED='true';
   const bad=structuredClone(doc);bad.version_pins.report_object_version='2.0.0';
   assert.throws(()=>validatePackage(bad),/V21_VERSION_PINS_INVALID/);
-  console.log('V21 bridge regression: 26 assertions passed, including isolation/revocation/pilot guards');
+  console.log('V21 bridge regression: 27 assertions passed, including isolation/revocation/pilot guards');
  }finally{fs.rmSync(root,{recursive:true,force:true});process.env=previous;}
 })().catch(e=>{console.error(e);process.exitCode=1});
