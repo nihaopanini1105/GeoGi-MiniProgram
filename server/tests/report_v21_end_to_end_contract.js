@@ -16,7 +16,8 @@ assert(server.includes("app.post('/internal/os/report-v21/verify-customer-access
 assert(server.includes("app.post('/internal/os/report-v21/revoke'"));
 assert(server.includes('await publishV21DeliveryPackage(payload)'));
 assert(server.includes('await publishOsDeliveryPackage(payload)'));
-assert(server.includes("/^\\/geogi-v2[1]?-[0-9a-f]{16}\\.pdf$/.test(name)"));
+assert(server.includes("isProtectedReportUploadPath(req.path)"));
+assert(server.includes("require('./services/private-report-upload-guard')"));
 assert(server.includes("app.get('/api/customer/report-v21/:projectId'"));
 assert(server.includes("'/api/customer/report-v21/'+kind+'-reader/:ticket'"));
 assert(server.includes('requireCustomerSession'));
