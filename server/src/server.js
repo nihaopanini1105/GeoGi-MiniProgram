@@ -188,6 +188,68 @@ app.get('/api/customer/projects', requireCustomerSession, async (req, res) => {
   return res.status(result.ok ? 200 : 400).json(result);
 });
 
+// V2.1 customer reader is not the existing V2 report pointer. Ownership is
+// checked by the signed phone session, and the current paid Feishu binding
+// plus the immutable H5/PDF hashes are rechecked on every ticket/read.
+app.get('/api/customer/report-v21/:projectId', requireCustomerSession, async(req,res)=>{
+  try {
+    const clientId=await resolveOwnedClientId({
+      phoneNumber:req.customerSession.phoneNumber,
+      requestedClientId:req.query && req.query.clientId
+    });
+    const report=clientId && await getV21CustomerReport(clientId,req.params.projectId);
+    if (!report) return res.status(404).json({ok:false,userMessage:'没有可查看的正式版报告'});
+    res.setHeader('Cache-Control','private, no-store');
+    return res.json({ok:true,report:{
+      version:report.version,deliveryPackageId:report.deliveryPackageId,
+      reportReady:true,availableFormats:['h5','pdf']
+    }});
+  } catch (_) {return res.status(503).json({ok:false,userMessage:'报告服务暂不可用'});}
+});
+for (const [kind, issueTicket] of [['h5',issueH5Ticket],['pdf',issuePdfTicket]]) {
+  app.post('/api/customer/report-v21/:projectId/'+kind+'-ticket',
+    requireCustomerSession,async(req,res)=>{
+    try {
+      const clientId=await resolveOwnedClientId({
+        phoneNumber:req.customerSession.phoneNumber,
+        requestedClientId:req.body && req.body.clientId
+      });
+      const report=clientId && await getV21CustomerReport(clientId,req.params.projectId);
+      if (!report) return res.status(404).json({ok:false,userMessage:'无权查看该版本报告'});
+      const artifact=report[kind];
+      const token=issueTicket({clientId,projectId:req.params.projectId,
+        sha256:artifact.sha256,fileName:artifact.file_name});
+      res.setHeader('Cache-Control','private, no-store');
+      return res.json({ok:true,expiresInSeconds:60,
+        readerPath:'/api/customer/report-v21/'+kind+'-reader/'+token});
+    } catch (_) {return res.status(503).json({ok:false,userMessage:'报告阅读暂不可用'});}
+  });
+}
+for (const [kind, consumeTicket, readBytes] of [
+  ['h5',consumeH5Ticket,readVerifiedH5Artifact],
+  ['pdf',consumePdfTicket,readVerifiedPdfArtifact]
+]) {
+  app.get('/api/customer/report-v21/'+kind+'-reader/:ticket',async(req,res)=>{
+    res.setHeader('Cache-Control','private, no-store');
+    res.setHeader('Referrer-Policy','no-referrer');
+    res.setHeader('X-Content-Type-Options','nosniff');
+    if (kind==='h5') res.setHeader('Content-Security-Policy',
+      "default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
+    try {
+      const ticket=consumeTicket(req.params.ticket);
+      const report=await getV21CustomerReport(ticket.clientId,ticket.projectId);
+      const artifact=report && report[kind];
+      if (!artifact || artifact.sha256!==ticket.sha256 ||
+          artifact.file_name!==ticket.fileName)
+        return res.status(404).type('text/plain').send('报告已失效');
+      const bytes=readBytes(getUploadRoot(),ticket.fileName,ticket.sha256);
+      if (kind==='pdf') res.setHeader('Content-Disposition',
+        'attachment; filename="GeoGi-Report-V21.pdf"');
+      return res.status(200).type(kind==='h5'?'html':'application/pdf').send(bytes);
+    } catch (_) {return res.status(404).type('text/plain').send('阅读票据无效');}
+  });
+}
+
 app.get('/api/customer/reports/:projectId', requireCustomerSession, async (req, res) => {
   const clientId = await resolveOwnedClientId({
     phoneNumber: req.customerSession.phoneNumber,
