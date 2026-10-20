@@ -10,6 +10,10 @@ const {
   findPaymentByProject,
   publicPaymentView
 } = require('./payment-store');
+const {
+  assessV2ReleaseEligibility,
+  PAID_DIAGNOSTIC_LAUNCH_CUTOFF
+} = require('./os-v2-release-eligibility');
 
 async function listCustomerProjects({ clientId, clientIds }) {
   try {
@@ -103,6 +107,22 @@ function projectV21VerifiedReport(order,verified) {
   };
 }
 
+// Prelaunch V2 customers are entitled through the SAME frozen release gate,
+// not through a second, weaker set of customer-reader exemptions.
+function historicV2ReportAuthorized({lead,project,deliveryPackage,payment}) {
+  if (!lead || !project || !deliveryPackage
+      || deliveryPackage.release_authority !== 'geo_diagnostic_html_release_v2'
+      || deliveryPackage.delivery_purpose !== 'baseline_diagnostic_report') return false;
+  const leadClient=text(lead.fields && lead.fields.客户编号);
+  const leadProject=text(lead.fields && lead.fields.项目编号);
+  if (!leadClient || !leadProject
+      || text(project.fields && project.fields.客户编号)!==leadClient
+      || text(project.fields && project.fields.项目编号)!==leadProject) return false;
+  const verdict=assessV2ReleaseEligibility({packageDocument:deliveryPackage,
+    leadRecord:lead,payment,legacyCutoffAt:PAID_DIAGNOSTIC_LAUNCH_CUTOFF});
+  return verdict.allowed && verdict.reason==='prepaid_product_launch_legacy';
+}
+
 function authorizedGeoGiV2Pilot(clientId,projectId,deliveryPackage) {
   if (String(process.env.GEOGI_V2_EXACT_PILOT_ENABLED||'').toLowerCase()!=='true') return false;
   const allowedClient=String(process.env.GEOGI_V2_PILOT_CONSUMER_CLIENT_ID||'').trim();
@@ -143,7 +163,8 @@ async function getCustomerReport({ clientId, projectId }) {
     const order = normalizeOrder({ lead, project, deliveryPackage, payment });
 
     if (!project || !deliveryPackage || (!isPaidForReport(payment)
-         && !authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage))) {
+         && !authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage)
+         && !historicV2ReportAuthorized({lead,project,deliveryPackage,payment}))) {
       return {
         ok: true,
         order,
@@ -161,7 +182,8 @@ async function getCustomerReport({ clientId, projectId }) {
         }),
         status: '报告已完成',
         reportReady: true,
-        pilotReviewAccess: authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage)
+        pilotReviewAccess: authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage),
+        legacyReviewAccess: historicV2ReportAuthorized({lead,project,deliveryPackage,payment})
       }
     };
   } catch (error) {
@@ -180,7 +202,10 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const pilotReviewAccess=projectScopeVerified && authorizedGeoGiV2Pilot(
     text(leadFields.客户编号),
     text(leadFields.项目编号)||text(projectFields.项目编号),deliveryPackage);
-  const reportReady = Boolean(projectScopeVerified && deliveryPackage && (paidForReport || pilotReviewAccess));
+  const legacyReviewAccess=projectScopeVerified && historicV2ReportAuthorized({
+    lead,project,deliveryPackage,payment
+  });
+  const reportReady = Boolean(projectScopeVerified && deliveryPackage && (paidForReport || pilotReviewAccess || legacyReviewAccess));
   const leadStatus = text(leadFields.当前状态);
   const projectStage = text(projectFields.当前阶段);
   const status = reportReady
@@ -207,10 +232,11 @@ function normalizeOrder({ lead, project, deliveryPackage, payment }) {
     status,
     reportReady,
     pilotReviewAccess,
+    legacyReviewAccess,
     // An independently verified, already released GeoGi pilot report must
     // not be presented as requiring a new payment. Preserve the historical
     // paymentStatus for audit; do not forge a paid order.
-    paymentRequired: !pilotReviewAccess && !paidForReport,
+    paymentRequired: !pilotReviewAccess && !legacyReviewAccess && !paidForReport,
     payment: paymentView,
     paymentStatus: payment ? payment.status : 'unpaid',
     amountYuan: payment ? payment.amountYuan : 199,

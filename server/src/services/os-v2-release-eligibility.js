@@ -3,7 +3,9 @@
 // Customer report release is a separate authority check from package schema
 // validation. A signed, well-formed package must not bypass the paid-product
 // admission rules. No database access or mutable side effects live here.
-function assessV2ReleaseEligibility({ packageDocument, leadRecord, payment, legacyCutoffAt, env = process.env }) {
+const PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z';
+
+function assessV2ReleaseEligibility({ packageDocument, leadRecord, payment, legacyCutoffAt = PAID_DIAGNOSTIC_LAUNCH_CUTOFF, env = process.env }) {
   if (packageDocument.release_authority !== 'geo_diagnostic_html_release_v2' ||
       packageDocument.delivery_purpose !== 'baseline_diagnostic_report') {
     return { allowed: true, reason: 'other_authority_not_applicable' };
@@ -47,4 +49,4 @@ function text(value) {
   return String(value || '').trim();
 }
 
-module.exports = { assessV2ReleaseEligibility };
+module.exports = { assessV2ReleaseEligibility, PAID_DIAGNOSTIC_LAUNCH_CUTOFF };

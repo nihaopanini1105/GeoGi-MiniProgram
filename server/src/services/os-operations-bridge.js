@@ -7,9 +7,8 @@ const {
 const { importDeliveryPackage } = require('./delivery-package-store');
 const { findPaymentByProject, publicPaymentView, markProjectReportReleased } = require('./payment-store');
 const { reconcileCommission } = require('./channel-service');
-const { assessV2ReleaseEligibility } = require('./os-v2-release-eligibility');
+const { assessV2ReleaseEligibility, PAID_DIAGNOSTIC_LAUNCH_CUTOFF } = require('./os-v2-release-eligibility');
 
-const PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z';
 const LEGACY_PAYMENT_EXEMPTION_REASON = 'submitted_before_paid_diagnostic_launch';
 
 const PROJECT_STAGES = Object.freeze({
