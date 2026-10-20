@@ -145,3 +145,13 @@ OS 一侧仍须另行开启对应的 `GEOGI_REPORT_V21_GENERAL_PUBLISH_ENABLED`�
 - 新增 `server/tests/customer_report_free_grant_regression.js` 并纳入常规 `npm test`，验证无来源 free 拒绝、具名真实优惠允许、缺项目拒绝、历史收费前允许、退款否定、新收费后未付否定、前端显示以及旧付款状态审计保留。
 - 隔离 Node22 QA：用户上传的**较早** MiniProgram 源码 ZIP + 相同业务变更，17 个 JS 语法检查和默认25组 `npm test` **通过**，本地干净QA SHA `d08e7907aad58aff37fe95c7070025121a23bef3` 的平台无关 `paid_diagnostic_release_gate.sh` **PASS**，日志 SHA256 `89c188b58f94b14f5176b1da69c783029e5e65bd94d922c6f15a48e4f4add4d6`。
 - **证据界限：** 本地 QA 提交不是当前 GitHub 开发分支的完整同树 HEAD；旧 ZIP 测试链仅25组而新分支有更多测试。尚须最新远端全量 Gate、正式 Express/飞书/微信隔离 E2E、真实合法专业 GEO 证据与双供应商验收。没有生产客户读写、迁移、付款操作或正式部署；发布开关默认关闭，PR仍Draft，Actions不作为权威门禁。
+
+
+## 2026-10-20 CRM 唯一性授权边界（新增开发检查）
+
+- 发现 `os-operations-bridge.listOsIntakes` 曾以 `Map<clientId,projectId>` 收集飞书项目；同一客户/项目组合若出现多条真实项目行，后一个项目覆盖前一个。V2.1 付款绑定和命名试点授权又通过 `Array.some` 检查“存在一条匹配”，无法识别同租户重复的 CRM 行。这是可以合成复现的**代码风险**，不代表生产存在真实重复或跨客户访问事故。
+- 现在运营 intake 同时统计飞书 leads、projects 按客户和项目复合键的实际行数：**两表各必须恰好一条**。有重复、缺行或客户/项目 ID 缺失，设置 `crmScopeUnique=false`、不给 `project`、`paymentEligibleForProcessing=false`，并标记 `paymentAdmissionMode='crm_scope_ambiguous'`；不隐藏需要人工整理的数据行。
+- V2.1 `binding` 与原有精确试点 `allowedScope` 统一拒绝：重复匹配的 intake 记录、明确标记 `crmScopeUnique=false`、客户/项目不一致。对仅有一条合法且未附标记的旧隔离测试适配器仍兼容。
+- 新增 `server/tests/v21_crm_unique_scope_regression.js`，验证正常唯一客户、同租户重复项目/重复 lead、不同客户同名项目互不干扰、重复适配器记录与明确的冲突标记；旧 `report_v21_bridge_regression.js` 补充**精确试点发布必须拒绝**重复/冲突 CRM 数据。
+- Linux Node22 隔离旧 ZIP 同等补丁的专项：`v21_crm_unique_scope_regression.js`、`os_operations_bridge_regression.js`、`report_v21_bridge_regression.js` **均 PASS**。尚未在当前 GitHub 分支完整同字节代码树运行精确 HEAD 全量 Gate、真实飞书、正式 Express/微信付款或客户授权 E2E。不得当作生产上线证据。
+- 本变更没有接入生产飞书、没有修改客户、支付、佣金账本，没有迁移、部署或发布；V2.1 仍默认关闭，PR 保持 Draft。
