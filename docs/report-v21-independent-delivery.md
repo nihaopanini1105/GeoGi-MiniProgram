@@ -100,3 +100,11 @@ OS 一侧仍须另行开启对应的 `GEOGI_REPORT_V21_GENERAL_PUBLISH_ENABLED`�
 - `customer_portal_payment_scope_regression.js` 及 `payment_customer_scope_crossservice_regression.js` 已纳入 `npm test`，模拟两个客户拥有相同项目编号，测试对错付款、旧 V2 报告读取、运营接单资格、支付创建/同步/取消均 fail-closed。此为合成负测，不意味着生产存在实际重复项目编号。
 - 本轮隔离 Linux Node22 源码副本执行 **29/29 组 npm test PASS**；并运行平台无关、绑定本地干净 QA SHA `1503eaf427f36bd89da5f5bbd77947acb3ec1ecb` 的付费诊断 Release Gate：**PASS**，日志 SHA-256 `9fc2aded6c2ad59bd989ad78fc9f6e628b7ab3d987e9cf3ddc7da3cae91d833f`。QA 源码副本与最新 GitHub 完整文件树仍有部分差异，不得冒称最新远端分支精确 HEAD Gate。
 - 原 V2 历史业务仅改变跨客户错误绑定的安全约束；对符合真实客户、项目、已付订单三者相同的正常用户不改变金额或支付接口。小程序 Draft PR #83 未合并，配置默认关闭，生产零修改。
+
+
+### 2026-10-20 支付状态回写安全加固
+
+- 补查发现旧微信支付/退款通知调用的 `projectPaymentProjection` 仍只用 `projectId` 选择飞书记录，若客户间发生同编号或异常重复数据，可能把真实付款/退款状态写入**其他客户的项目**。这不同于前述只读订单展示，属于更高风险的写操作。
+- 已将 `projectPaymentProjection` 的客户端、项目双重范围设为必填；同时检查飞书 leads/projects 各**恰好一条**符合当前 `clientId + projectId` 的记录，否则直接返回不更新，防止模糊记录或重复映射被写入。同步、取消、超时订单、运营退款、微信付款及退款 webhook 均从实际订单传入 `clientId`。
+- 新增同项目编号双客户写入负测、缺失客户时零写入、真实同范围两张飞书表写入指定 record_id 的测试；使用全合成数据与注入存储，不触达飞书线上。
+- 隔离 Linux Node22 完整本地 29组 `npm test` 通过，`/mnt/data/geogi-v21-payment-projection-29.log` 保存QA记录。前述本地独立 Gate 的绑定快照**早于本次投影写入修复**，不得冒称它已覆盖最新提交；仍需要新 HEAD 完整 Gate+非生产真实接口验收。
