@@ -95,6 +95,21 @@ function validatePackage(doc) {
     if (typeof item.uri !== 'string' || !item.uri.startsWith('https://')
         || item.uri.split('/').pop() !== item.file_name) fail('V21_ARTIFACT_URI_INVALID');
   }
+  const sourceHash=report.content_hash.slice('sha256:'.length);
+  const expectedId='delivery_package_v21_'+sha([
+    doc.client_id,doc.project_id,sourceHash,
+    doc.artifacts[0].sha256,doc.artifacts[1].sha256
+  ].join(':')).slice(0,24);
+  const expectedStem=sha(['V21',doc.client_id,doc.project_id,sourceHash,
+    doc.artifacts[0].sha256,doc.artifacts[1].sha256].join(':')).slice(0,16);
+  const expectedRecord='sha256:'+sha(json({
+    client:doc.client_id,project:doc.project_id,snapshot_sha256:sourceHash,
+    report_object_version:'2.1.0',html_sha256:doc.artifacts[0].sha256,
+    pdf_sha256:doc.artifacts[1].sha256
+  }));
+  if (doc.delivery_package_id !== expectedId || sharedStem !== expectedStem
+      || report.report_record_hash !== expectedRecord)
+    fail('V21_PACKAGE_CANONICAL_IDENTITY_MISMATCH');
   if (!/^sha256:[0-9a-f]{64}$/.test(doc.package_hash || '')) fail('V21_PACKAGE_HASH_INVALID');
   const unsigned = { ...doc }; delete unsigned.package_hash;
   if (doc.package_hash !== 'sha256:' + sha(json(unsigned))) fail('V21_PACKAGE_HASH_MISMATCH');
@@ -141,6 +156,10 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot}) {
   if (typeof findIntakes !== 'function' || typeof findPayment !== 'function') fail('V21_DEPENDENCIES_REQUIRED');
   const root = path.resolve(dataRoot);
   const artifactRoot = path.resolve(uploadRoot);
+  // The immutable customer pointer and package registry must never be public
+  // under the static /uploads handler, even with an accidental env override.
+  if (root === artifactRoot || root.startsWith(artifactRoot + path.sep))
+    fail('V21_PRIVATE_STORE_OUTSIDE_PUBLIC_UPLOADS_REQUIRED');
   async function binding(clientId, projectId) {
     const denied = { verified: false, paid_order_verified: false, customer_access_scoped: false,
       client_id: clientId, project_id: projectId };
