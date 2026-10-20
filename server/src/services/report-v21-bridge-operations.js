@@ -195,6 +195,24 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot}) {
       || physicalRoot === physicalUploads
       || physicalRoot.startsWith(physicalUploads + path.sep))
     fail('V21_PRIVATE_STORE_OUTSIDE_PUBLIC_UPLOADS_REQUIRED');
+  // Separate service-owned subfolders can themselves be symlinks even when
+  // the configured private root is safe. Refuse such overrides rather than
+  // accidentally writing tenant package JSON into the static upload tree.
+  for (const area of ['packages', 'pointers', 'revocations', 'locks']) {
+    const folder=path.join(root,area);
+    try {
+      const entry=fs.lstatSync(folder);
+      if (entry.isSymbolicLink() || !entry.isDirectory())
+        fail('V21_PRIVATE_STORE_DIRECTORY_INVALID');
+    } catch(error) {
+      if (!error || error.code!=='ENOENT')
+        fail('V21_PRIVATE_STORE_DIRECTORY_INVALID');
+    }
+    const physicalFolder=physicalLocation(folder);
+    if (physicalFolder===physicalUploads ||
+        physicalFolder.startsWith(physicalUploads+path.sep))
+      fail('V21_PRIVATE_STORE_OUTSIDE_PUBLIC_UPLOADS_REQUIRED');
+  }
   async function binding(clientId, projectId) {
     const denied = { verified: false, paid_order_verified: false, customer_access_scoped: false,
       client_id: clientId, project_id: projectId };
