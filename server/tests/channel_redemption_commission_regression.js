@@ -267,6 +267,14 @@ async function run() {
     sourceCodePublicUrl('business-card-lishasha.png'),
     'https://api.geogi.cn/api/source-codes/business-card-lishasha.png'
   );
+  const intakeSource = fs.readFileSync(path.join(__dirname, '../src/services/os-intake.js'), 'utf8');
+  const firstOrderStart = intakeSource.indexOf('const paymentResult = await createOrGetPaymentOrder({');
+  assert(firstOrderStart !== -1, 'normal intake order creation must exist');
+  const firstOrderEnd = intakeSource.indexOf('    });', firstOrderStart);
+  assert(firstOrderEnd > firstOrderStart, 'normal intake order creation must be complete');
+  const firstOrderFields = intakeSource.slice(firstOrderStart, firstOrderEnd);
+  assert(firstOrderFields.includes('sourceOwnerName: attribution.sourceOwnerName'), 'first intake must capture referral owner name');
+  assert(firstOrderFields.includes('sourceOwnerPhone: attribution.sourceOwnerPhone'), 'first intake must capture referral owner phone');
   const serverSource = fs.readFileSync(path.join(__dirname, '../src/server.js'), 'utf8');
   assert(serverSource.includes("app.get('/api/source-codes/:fileName'"));
 
