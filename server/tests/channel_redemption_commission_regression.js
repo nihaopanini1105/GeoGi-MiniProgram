@@ -314,6 +314,28 @@ async function run() {
     channelId: 'channel_b',
     channelBenefitActive: true
   };
+  const personalCardA = {
+    validated: true,
+    sourceId: 'source_business_card_lishasha',
+    sourceType: 'business_card',
+    channelId: ''
+  };
+  const personalCardB = {
+    validated: true,
+    sourceId: 'source_business_card_liaohuafeng',
+    sourceType: 'business_card',
+    channelId: ''
+  };
+  assert.strictEqual(shouldReplaceAttribution(officialAttribution, personalCardA), true,
+    'explicit business-card scans replace generic non-channel sources');
+  assert.strictEqual(shouldReplaceAttribution(personalCardA, personalCardB), true,
+    'later business-card scan must not be attributed to the previous inviter');
+  assert.strictEqual(shouldReplaceAttribution(personalCardA, personalCardA), false,
+    're-scanning the same card should retain its original attribution');
+  assert.strictEqual(shouldReplaceAttribution(personalCardA, officialAttribution), false,
+    'visiting the official website must not override a personal business-card referral');
+  assert.strictEqual(shouldReplaceAttribution(channelAttribution, personalCardB), false,
+    'an existing locked channel must keep its higher priority');
   assert.strictEqual(shouldReplaceAttribution(null, officialAttribution), true);
   assert.strictEqual(shouldReplaceAttribution(officialAttribution, channelAttribution), true);
   assert.strictEqual(shouldReplaceAttribution(channelAttribution, officialAttribution), false);
