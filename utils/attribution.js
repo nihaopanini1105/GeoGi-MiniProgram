@@ -53,7 +53,12 @@ function shouldReplaceAttribution(existing, candidate) {
   if (!existing || existing.validated !== true) return true;
   const existingLockedChannel = Boolean(existing.channelId);
   if (existingLockedChannel) return false;
-  return Boolean(candidate.channelId);
+  if (candidate.channelId) return true;
+  // A newly scanned personal business card is an explicit referral choice.
+  // Preserve stronger channel attribution, but never leave a different
+  // non-channel source cached after an explicit business-card scan.
+  return candidate.sourceType === 'business_card'
+    && candidate.sourceId !== existing.sourceId;
 }
 
 async function resolveToken(token, capturedAt = '', options = {}) {

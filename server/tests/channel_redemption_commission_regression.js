@@ -267,6 +267,14 @@ async function run() {
     sourceCodePublicUrl('business-card-lishasha.png'),
     'https://api.geogi.cn/api/source-codes/business-card-lishasha.png'
   );
+  const intakeSource = fs.readFileSync(path.join(__dirname, '../src/services/os-intake.js'), 'utf8');
+  const firstOrderStart = intakeSource.indexOf('const paymentResult = await createOrGetPaymentOrder({');
+  assert(firstOrderStart !== -1, 'normal intake order creation must exist');
+  const firstOrderEnd = intakeSource.indexOf('    });', firstOrderStart);
+  assert(firstOrderEnd > firstOrderStart, 'normal intake order creation must be complete');
+  const firstOrderFields = intakeSource.slice(firstOrderStart, firstOrderEnd);
+  assert(firstOrderFields.includes('sourceOwnerName: attribution.sourceOwnerName'), 'first intake must capture referral owner name');
+  assert(firstOrderFields.includes('sourceOwnerPhone: attribution.sourceOwnerPhone'), 'first intake must capture referral owner phone');
   const serverSource = fs.readFileSync(path.join(__dirname, '../src/server.js'), 'utf8');
   assert(serverSource.includes("app.get('/api/source-codes/:fileName'"));
 
@@ -306,6 +314,28 @@ async function run() {
     channelId: 'channel_b',
     channelBenefitActive: true
   };
+  const personalCardA = {
+    validated: true,
+    sourceId: 'source_business_card_lishasha',
+    sourceType: 'business_card',
+    channelId: ''
+  };
+  const personalCardB = {
+    validated: true,
+    sourceId: 'source_business_card_liaohuafeng',
+    sourceType: 'business_card',
+    channelId: ''
+  };
+  assert.strictEqual(shouldReplaceAttribution(officialAttribution, personalCardA), true,
+    'explicit business-card scans replace generic non-channel sources');
+  assert.strictEqual(shouldReplaceAttribution(personalCardA, personalCardB), true,
+    'later business-card scan must not be attributed to the previous inviter');
+  assert.strictEqual(shouldReplaceAttribution(personalCardA, personalCardA), false,
+    're-scanning the same card should retain its original attribution');
+  assert.strictEqual(shouldReplaceAttribution(personalCardA, officialAttribution), false,
+    'visiting the official website must not override a personal business-card referral');
+  assert.strictEqual(shouldReplaceAttribution(channelAttribution, personalCardB), false,
+    'an existing locked channel must keep its higher priority');
   assert.strictEqual(shouldReplaceAttribution(null, officialAttribution), true);
   assert.strictEqual(shouldReplaceAttribution(officialAttribution, channelAttribution), true);
   assert.strictEqual(shouldReplaceAttribution(channelAttribution, officialAttribution), false);

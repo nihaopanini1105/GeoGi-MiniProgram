@@ -114,6 +114,8 @@ async function submitIntake(input = {}) {
       sourceToken: attribution.sourceToken,
       sourceName: attribution.sourceName,
       sourceType: attribution.sourceType,
+      sourceOwnerName: attribution.sourceOwnerName,
+      sourceOwnerPhone: attribution.sourceOwnerPhone,
       sourceCapturedAt: form.sourceCapturedAt,
       channelId: attribution.channelId,
       channelName: attribution.channelName,
