@@ -83,7 +83,7 @@ async function run() {
       channels: []
     };
     assert.strictEqual(page.onShareAppMessage({ target: { dataset: {} } }).path,
-      '/pages/index/index?src=my-card', 'default Mine share must contain owner's source');
+      '/pages/index/index?src=my-card', "default Mine share must contain the owner source");
 
 
     delete require.cache[require.resolve('../../pages/index/index.js')];
