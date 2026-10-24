@@ -1,0 +1,46 @@
+name: One-time GeoGi official referral card PNG read-only export
+on:
+  push:
+    branches:
+      - ops/qr-card-export-20261024
+permissions:
+  contents: read
+jobs:
+  fetch-public-official-codes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch exact production PNGs without changing server or referral records
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cards
+          for who in liaohuafeng lishasha; do
+            url="https://api.geogi.cn/api/source-codes/business-card-${who}.png"
+            echo "GET_PUBLIC_CODE=${who}"
+            curl --http1.1 -fL --retry 3 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 90 \
+              -H "Accept: image/png" "${url}" -o "cards/business-card-${who}.png"
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct,hashlib,base64
+          for who in ('liaohuafeng','lishasha'):
+              p=Path('cards/business-card-'+who+'.png')
+              b=p.read_bytes()
+              if not b.startswith(b'\x89PNG\r\n\x1a\n'):
+                  raise SystemExit('NOT_PNG: '+who)
+              w,h=struct.unpack('>II',b[16:24])
+              if w != h or not 200 <= w <= 4000 or len(b) < 2000:
+                  raise SystemExit('BAD_DIMENSION_OR_BYTES: '+str((who,w,h,len(b))))
+              print('QR_VALID='+who+' '+str(w)+'x'+str(h)+' bytes='+str(len(b))+' sha256='+hashlib.sha256(b).hexdigest())
+              print('QR_B64_START:'+who)
+              for i in range(0,len(b),192):
+                  print(base64.b64encode(b[i:i+192]).decode('ascii'))
+              print('QR_B64_END:'+who)
+          PY
+      - name: Store original untouched PNGs as private workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: geogi-two-production-original-business-card-codes-20261024
+          path: cards/*.png
+          if-no-files-found: error
+          retention-days: 1
