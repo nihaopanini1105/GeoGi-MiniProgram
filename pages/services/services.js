@@ -1,5 +1,8 @@
+const { loadReferralShareContext, withSourceQuery } = require('../../utils/referral-share');
+
 Page({
   data: {
+    referralShareToken: '',
     services: [
       {
         label: '¥199',
@@ -26,17 +29,23 @@ Page({
     process: ['提交品牌资料', '确认订单并支付', '品牌研究与 AI 检测', 'GEO 诊断', '报告审核与交付']
   },
 
+  onShow() {
+    void loadReferralShareContext().then((share) => {
+      this.setData({ referralShareToken: share.token });
+    });
+  },
+
   onShareAppMessage() {
     return {
       title: 'GeoGi｜199 元品牌 GEO 诊断报告',
-      path: '/pages/services/services?from=share'
+      path: '/pages/services/services?' + withSourceQuery('from=share', this.data.referralShareToken)
     };
   },
 
   onShareTimeline() {
     return {
       title: 'GeoGi｜199 元品牌 GEO 诊断报告',
-      query: 'from=timeline'
+      query: withSourceQuery('from=timeline', this.data.referralShareToken)
     };
   }
 });
