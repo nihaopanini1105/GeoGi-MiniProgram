@@ -98,7 +98,7 @@ Page({
       let channelDashboard = null;
       try {
         const channelResult = await get('/api/customer/channel-dashboard', {});
-        if (channelResult && channelResult.ok && channelResult.isChannel) {
+        if (channelResult && channelResult.ok && channelResult.hasPromotionAccess) {
           channelDashboard = this.normalizeChannelDashboard(channelResult);
         }
       } catch (channelError) {
@@ -175,7 +175,6 @@ Page({
       channels: (result.channels || []).map((item) => {
         return {
           ...item,
-          redeemCode: String(item.redeemCode || ''),
           commissionText: Number(item.commissionRateBps || 0) > 0
             ? (Number(item.commissionRateBps || 0) / 100).toFixed(0) + '%'
             : '无返佣',
