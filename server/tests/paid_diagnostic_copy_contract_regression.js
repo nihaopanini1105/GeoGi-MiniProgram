@@ -37,9 +37,8 @@ function run() {
   assert(diagnosis.includes('这份诊断报告会重点回答'));
   assert(diagnosis.includes('整个流程怎么完成？'));
   assert(diagnosis.includes('不获取你的头像或昵称'));
-  assert(diagnosis.includes('如有兑换码，请在支付前填写'));
-  assert(diagnosis.includes('兑换码已生效'));
-  assert(diagnosisJs.includes("'/api/redeem-codes/quote'"));
+  assert(!diagnosis.includes('兑换码'));
+  assert(!diagnosisJs.includes("'/api/redeem-codes/quote'"));
   const diagnosisIntro = diagnosis.split('<block wx:else>')[0];
   assert(!diagnosisIntro.includes('兑换码'));
   assert(!diagnosisIntro.includes('渠道优惠'));
@@ -50,7 +49,8 @@ function run() {
   assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment/sync'"));
   assert(diagnosis.includes('30 分钟内有效'));
   assert(success.includes('标准价 199 元'));
-  assert(success.includes('兑换码'));
+  assert(!success.includes('兑换码'));
+  assert(success.includes('来源优惠'));
   assert(!success.includes('若提交前已验证兑换码'));
   assert(!success.includes('只有在提交前填写并验证有效兑换码时'));
   assert(success.includes('取消订单'));
@@ -92,7 +92,9 @@ function run() {
   assert(mine.includes('订单与付款状态'));
   assert(!mine.includes('订单优惠与付款状态'));
   assert(report.includes('订单确认后开始处理'));
-  assert(report.includes('兑换码优惠'));
+  assert(!report.includes('兑换码'));
+  assert(report.includes('来源优惠'));
+  assert(!mine.includes('兑换码'));
   assert(privacy.includes('本次品牌 GEO 诊断'));
   assert(contact.includes('标准价 199 元'));
   assert(!contact.includes('渠道优惠'));
