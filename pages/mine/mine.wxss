@@ -396,14 +396,6 @@
   font-weight: 650;
 }
 
-.channel-code {
-  display: block;
-  margin-top: 8rpx;
-  color: #2F6DFF;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
 .channel-status {
   flex: 0 0 auto;
   padding: 8rpx 14rpx;
