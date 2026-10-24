@@ -29,16 +29,29 @@ async function run() {
     'verified business-card owners must see their referral dashboard');
   assert(diagnosisJs.includes('sourceToken: attribution && attribution.sourceToken'),
     'intake must keep source-based attribution rather than an entered code');
-  assert(homeJs.includes("source.sourceType === 'business_card'"),
-    'home share should prefer the verified owners personal card');
+  const shareUtility = read('utils/referral-share.js');
+  assert(shareUtility.includes("source.sourceType === 'business_card'"),
+    'shares should prefer the verified owner's personal business card');
+  for (const file of [
+    'pages/services/services.js',
+    'pages/research/research.js',
+    'pages/research-detail/research-detail.js'
+  ]) {
+    const source = read(file);
+    assert(source.includes('loadReferralShareContext'),
+      file + ' must load verified owner share context');
+    assert(source.includes('withSourceQuery'),
+      file + ' must carry source token in a WeChat share');
+  }
 
   const originalPage = global.Page;
   const originalWx = global.wx;
   const request = require('../../utils/request');
   const originalGet = request.get;
-  const originalAuth = global.wx;
   try {
     global.wx = { getStorageSync: (key) => key === 'geogi_customer_token' ? 'test-session' : '' };
+    let dashboard = {};
+    request.get = async () => dashboard;
     let page = null;
     global.Page = (definition) => { page = definition; };
 
@@ -64,8 +77,15 @@ async function run() {
     });
     assert.strictEqual(cardShare.path, '/pages/index/index?src=personal-card-token');
 
-    let dashboard = {};
-    request.get = async () => dashboard;
+    page.data.channelDashboard = {
+      isSourceOwner: true, isChannel: false,
+      ownedSources: [{ sourceType: 'business_card', active: true, token: 'my-card', name: '本人名片' }],
+      channels: []
+    };
+    assert.strictEqual(page.onShareAppMessage({ target: { dataset: {} } }).path,
+      '/pages/index/index?src=my-card', 'default Mine share must contain owner's source');
+
+
     delete require.cache[require.resolve('../../pages/index/index.js')];
     require('../../pages/index/index.js');
     const home = page;
@@ -111,6 +131,20 @@ async function run() {
     await home.loadChannelShareContext.call(context);
     assert.strictEqual(context.data.referralShareToken, '');
     assert.strictEqual(home.onShareAppMessage.call(context).path, '/pages/index/index');
+
+    delete require.cache[require.resolve('../../pages/services/services.js')];
+    require('../../pages/services/services.js');
+    assert.strictEqual(page.onShareAppMessage.call({ data: { referralShareToken: 'personal-card-token' } }).path,
+      '/pages/services/services?from=share&src=personal-card-token');
+
+    delete require.cache[require.resolve('../../pages/research-detail/research-detail.js')];
+    require('../../pages/research-detail/research-detail.js');
+    const article = page.onShareAppMessage.call({
+      data: { shareTitle: 'Article', referralShareToken: 'personal-card-token' },
+      articleId: 'geo-topic'
+    });
+    assert(article.path.includes('id=geo-topic'));
+    assert(article.path.includes('src=personal-card-token'));
   } finally {
     request.get = originalGet;
     global.Page = originalPage;
