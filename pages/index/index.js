@@ -1,6 +1,6 @@
 const { platforms } = require('../../config/platforms');
 const { assets } = require('../../config/assets');
-const { get, getCustomerToken, isApiConfigured } = require('../../utils/request');
+const { loadReferralShareContext, withSourceQuery } = require('../../utils/referral-share');
 const { captureAttribution } = require('../../utils/attribution');
 
 Page({
@@ -55,25 +55,11 @@ Page({
   },
 
   async loadChannelShareContext() {
-    if (!isApiConfigured() || !getCustomerToken()) {
-      this.setData({ referralShareToken: '', referralShareName: '' });
-      return;
-    }
-    try {
-      const result = await get('/api/customer/channel-dashboard', {});
-      const personalCard = result && result.isSourceOwner && Array.isArray(result.ownedSources)
-        ? result.ownedSources.find((source) => source.sourceType === 'business_card' && source.active && source.token)
-        : null;
-      const channel = result && result.isChannel && result.channels && result.channels.find((item) => item.active && item.shareSourceToken);
-      // A person's official business-card source is their canonical referral entry.
-      // Avoid unintentionally sharing a discount/free channel when the user has a card.
-      this.setData({
-        referralShareToken: personalCard && personalCard.token || channel && channel.shareSourceToken || '',
-        referralShareName: personalCard && personalCard.name || channel && channel.name || ''
-      });
-    } catch (_error) {
-      this.setData({ referralShareToken: '', referralShareName: '' });
-    }
+    const share = await loadReferralShareContext();
+    this.setData({
+      referralShareToken: share.token,
+      referralShareName: share.name
+    });
   },
 
   safeTrack(eventName, params) {
@@ -95,9 +81,7 @@ Page({
       title: sourceToken && this.data.referralShareName
         ? this.data.referralShareName + ' 推荐｜GeoGi 品牌 GEO 诊断'
         : 'GeoGi｜199 元品牌 GEO 诊断报告',
-      path: sourceToken
-        ? '/pages/index/index?src=' + encodeURIComponent(sourceToken)
-        : '/pages/index/index'
+      path: '/pages/index/index' + (sourceToken ? '?' + withSourceQuery('', sourceToken) : '')
     };
   },
 
@@ -109,7 +93,7 @@ Page({
     const sourceToken = String(this.data.referralShareToken || '');
     return {
       title: 'GeoGi｜让品牌在 AI 时代被看见、被理解、被选择',
-      query: sourceToken ? 'src=' + encodeURIComponent(sourceToken) : ''
+      query: withSourceQuery('', sourceToken)
     };
   },
 
