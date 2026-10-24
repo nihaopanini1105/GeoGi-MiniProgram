@@ -31,7 +31,7 @@ async function run() {
     'intake must keep source-based attribution rather than an entered code');
   const shareUtility = read('utils/referral-share.js');
   assert(shareUtility.includes("source.sourceType === 'business_card'"),
-    'shares should prefer the verified owner's personal business card');
+    "shares should prefer the verified owner personal business card");
   for (const file of [
     'pages/services/services.js',
     'pages/research/research.js',
