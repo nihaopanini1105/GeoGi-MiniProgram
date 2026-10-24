@@ -6,8 +6,8 @@ const { captureAttribution } = require('../../utils/attribution');
 Page({
   data: {
     assets,
-    channelShareToken: '',
-    channelShareName: '',
+    referralShareToken: '',
+    referralShareName: '',
     platforms: platforms.filter((item) => item.enabled),
     services: [
       {
@@ -56,18 +56,23 @@ Page({
 
   async loadChannelShareContext() {
     if (!isApiConfigured() || !getCustomerToken()) {
-      this.setData({ channelShareToken: '', channelShareName: '' });
+      this.setData({ referralShareToken: '', referralShareName: '' });
       return;
     }
     try {
       const result = await get('/api/customer/channel-dashboard', {});
-      const channel = result && result.isChannel && result.channels && result.channels[0];
+      const personalCard = result && result.isSourceOwner && Array.isArray(result.ownedSources)
+        ? result.ownedSources.find((source) => source.sourceType === 'business_card' && source.active && source.token)
+        : null;
+      const channel = result && result.isChannel && result.channels && result.channels.find((item) => item.active && item.shareSourceToken);
+      // A person's official business-card source is their canonical referral entry.
+      // Avoid unintentionally sharing a discount/free channel when the user has a card.
       this.setData({
-        channelShareToken: channel && channel.shareSourceToken || '',
-        channelShareName: channel && channel.name || ''
+        referralShareToken: personalCard && personalCard.token || channel && channel.shareSourceToken || '',
+        referralShareName: personalCard && personalCard.name || channel && channel.name || ''
       });
     } catch (_error) {
-      this.setData({ channelShareToken: '', channelShareName: '' });
+      this.setData({ referralShareToken: '', referralShareName: '' });
     }
   },
 
@@ -81,14 +86,14 @@ Page({
   },
 
   onShareAppMessage() {
-    const sourceToken = String(this.data.channelShareToken || '');
+    const sourceToken = String(this.data.referralShareToken || '');
     this.safeTrack('share_app_message', {
       page: 'home',
-      channel_share: Boolean(sourceToken)
+      has_referral_source: Boolean(sourceToken)
     });
     return {
-      title: sourceToken && this.data.channelShareName
-        ? this.data.channelShareName + ' 推荐｜GeoGi 品牌 GEO 诊断'
+      title: sourceToken && this.data.referralShareName
+        ? this.data.referralShareName + ' 推荐｜GeoGi 品牌 GEO 诊断'
         : 'GeoGi｜199 元品牌 GEO 诊断报告',
       path: sourceToken
         ? '/pages/index/index?src=' + encodeURIComponent(sourceToken)
@@ -101,7 +106,7 @@ Page({
       page: 'home'
     });
 
-    const sourceToken = String(this.data.channelShareToken || '');
+    const sourceToken = String(this.data.referralShareToken || '');
     return {
       title: 'GeoGi｜让品牌在 AI 时代被看见、被理解、被选择',
       query: sourceToken ? 'src=' + encodeURIComponent(sourceToken) : ''
