@@ -1,9 +1,11 @@
 const { get, isApiConfigured } = require('../../utils/request');
 const { track } = require('../../utils/analytics');
+const { loadReferralShareContext, withSourceQuery } = require('../../utils/referral-share');
 
 Page({
   data: {
     loading: false,
+    referralShareToken: '',
     error: '',
     categories: ['全部'],
     activeCategory: '全部',
@@ -19,6 +21,9 @@ Page({
     track('research_view', {
       category: this.data.activeCategory || '全部'
     });
+    void loadReferralShareContext().then((share) => {
+      this.setData({ referralShareToken: share.token });
+    });
   },
 
   onShareAppMessage() {
@@ -31,7 +36,7 @@ Page({
 
     return {
       title: 'GeoGi GEO 研究中心｜品牌 AI 可见度与 GEO',
-      path: '/pages/research/research?from=share'
+      path: '/pages/research/research?' + withSourceQuery('from=share', this.data.referralShareToken)
     };
   },
 
@@ -45,7 +50,7 @@ Page({
 
     return {
       title: 'GeoGi GEO 研究中心｜品牌 AI 可见度与 GEO',
-      query: 'from=timeline'
+      query: withSourceQuery('from=timeline', this.data.referralShareToken)
     };
   },
 

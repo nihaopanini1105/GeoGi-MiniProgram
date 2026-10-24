@@ -1,5 +1,6 @@
 const { site } =
   require('../../config/site');
+const { loadReferralShareContext, withSourceQuery } = require('../../utils/referral-share');
 
 const DEFAULT_ARTICLE_ID =
   'what-is-geo-ai-search-era';
@@ -10,6 +11,7 @@ const DEFAULT_SHARE_TITLE =
 Page({
   data: {
     webUrl: '',
+    referralShareToken: '',
     shareTitle:
       DEFAULT_SHARE_TITLE
   },
@@ -34,6 +36,12 @@ Page({
         buildArticleUrl(id),
       shareTitle:
         title
+    });
+  },
+
+  onShow() {
+    void loadReferralShareContext().then((share) => {
+      this.setData({ referralShareToken: share.token });
     });
   },
 
@@ -77,7 +85,7 @@ Page({
         encodeURIComponent(id) +
         '&title=' +
         encodeURIComponent(title) +
-        '&from=share'
+        '&' + withSourceQuery('from=share', this.data.referralShareToken)
     };
   },
 
@@ -97,7 +105,7 @@ Page({
         encodeURIComponent(id) +
         '&title=' +
         encodeURIComponent(title) +
-        '&from=timeline'
+        '&' + withSourceQuery('from=timeline', this.data.referralShareToken)
     };
   }
 });
