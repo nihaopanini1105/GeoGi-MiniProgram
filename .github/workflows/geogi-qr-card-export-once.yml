@@ -1,4 +1,4 @@
-name: One-time GeoGi referral-code verification
+name: One-time GeoGi referral-code image export (preserve original)
 on:
   push:
     branches:
@@ -6,53 +6,35 @@ on:
 permissions:
   contents: read
 jobs:
-  diagnose-official-public-code-routing:
+  fetch-official-codes:
     runs-on: ubuntu-latest
     steps:
-      - name: Read-only inspect both documented and static code delivery paths
+      - name: Read-only fetch of both official mini-program-code JPEG binaries
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p cards
+          mkdir -p codes
           for who in liaohuafeng lishasha; do
-            valid=0
-            for route in api/source-codes source-codes; do
-              url="https://api.geogi.cn/${route}/business-card-${who}.png"
-              echo "REQUEST_PATH=${route}/business-card-${who}.png"
-              curl --http1.1 --silent --show-error -L --retry 2 --connect-timeout 15 --max-time 35 \
-                -D headers.txt -o response.bin -w 'RESPONSE_STATUS=%{http_code} RESPONSE_TYPE=%{content_type} REMOTE_IP=%{remote_ip} END_URL=%{url_effective}\n' "${url}" || true
-              echo "FILETYPE=$(file -b response.bin)"
-              echo "FILESIZE=$(wc -c <response.bin)"
-              echo 'HEADERS:'; head -n 12 headers.txt
-              echo 'RESPONSE_START:'; head -c 220 response.bin | strings | head -n 5
-              if python3 - <<'PY'
-          from pathlib import Path
-          import struct
-          b=Path('response.bin').read_bytes()
-          assert b.startswith(b'\x89PNG\r\n\x1a\n'), 'not PNG'
-          w,h=struct.unpack('>II',b[16:24])
-          assert w==h and w>=200 and len(b)>=2000
-          print('VALID_PNG='+str(w)+'x'+str(h))
-          PY
-              then
-                cp response.bin "cards/business-card-${who}.png"
-                valid=1;break
-              fi
-            done
-            if [ "$valid" -eq 0 ]; then echo "NO_REAL_PNG=${who}"; exit 1; fi
+            url="https://api.geogi.cn/api/source-codes/business-card-${who}.png"
+            curl --http1.1 -fSL --retry 3 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 60 \
+              "${url}" -o "codes/business-card-${who}.jpg"
           done
           python3 - <<'PY'
           from pathlib import Path
           import hashlib,base64
           for who in ('liaohuafeng','lishasha'):
-              b=Path('cards/business-card-'+who+'.png').read_bytes()
-              print('QR_VALID='+who+' bytes='+str(len(b))+' sha256='+hashlib.sha256(b).hexdigest())
-              print('QR_B64_START:'+who)
-              for i in range(0,len(b),192): print(base64.b64encode(b[i:i+192]).decode('ascii'))
-              print('QR_B64_END:'+who)
+              b=Path('codes/business-card-'+who+'.jpg').read_bytes()
+              if not b.startswith(b'\xff\xd8\xff') or not b.endswith(b'\xff\xd9') or not (2000<len(b)<500000):
+                  raise SystemExit('INVALID_WECHAT_CODE_IMAGE:'+who)
+              print('QR_JPEG_VALID='+who+' bytes='+str(len(b))+' sha256='+hashlib.sha256(b).hexdigest())
+              print('QR_BASE64_START:'+who)
+              for i in range(0,len(b),192): print(base64.b64encode(b[i:i+192]).decode())
+              print('QR_BASE64_END:'+who)
           PY
-      - uses: actions/upload-artifact@v4
+      - name: Export original QR images as a private Actions artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: geogi-referral-source-codes-original-20261024
-          path: cards/*.png
+          name: geogi-two-official-source-codes-raw-jpeg-20261024
+          path: codes/*.jpg
           retention-days: 1
+          if-no-files-found: error
