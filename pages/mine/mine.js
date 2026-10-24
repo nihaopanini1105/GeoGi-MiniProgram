@@ -4,6 +4,7 @@ const {
   getCustomerToken,
   isApiConfigured
 } = require('../../utils/request');
+const { selectShareSource } = require('../../utils/referral-share');
 
 const PUBLIC_STATUSES = ['待付款', '付款确认中', '已付款', '已优惠至免费', '退款处理中', '部分退款', '已退款', '已提交', '资料待补充', '诊断处理中', '报告审核中', '报告已完成'];
 
@@ -286,8 +287,9 @@ Page({
 
   onShareAppMessage(event) {
     const dataset = event && event.target && event.target.dataset || {};
-    const sourceToken = String(dataset.sourceToken || '');
-    const channelName = String(dataset.channelName || '');
+    const fallback = selectShareSource(this.data.channelDashboard || {});
+    const sourceToken = String(dataset.sourceToken || fallback.token || '');
+    const channelName = String(dataset.channelName || fallback.name || '');
     if (!sourceToken) {
       return {
         title: 'GeoGi｜199 元品牌 GEO 诊断报告',
