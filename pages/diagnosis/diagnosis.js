@@ -115,6 +115,8 @@ Page({
     const draft = wx.getStorageSync(draftKey);
     if (draft) {
       const form = this.normalizeForm({ ...initialForm, ...draft });
+      // Persist the migrated draft so obsolete voucher fields cannot return.
+      wx.setStorageSync(draftKey, form);
       const segmentOptions = this.getSegmentOptions(form.industry);
       this.setData({
         started: false,
