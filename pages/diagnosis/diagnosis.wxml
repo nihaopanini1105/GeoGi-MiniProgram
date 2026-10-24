@@ -247,37 +247,6 @@
 
       <view class="field">
         <view class="field-label-row">
-          <text class="field-label">兑换码</text>
-          <text class="optional-tag">选填</text>
-        </view>
-        <view class="redemption-row">
-          <input
-            class="redemption-input"
-            value="{{form.redemptionCode}}"
-            bindinput="updateRedemptionCode"
-            placeholder="如有兑换码，请在支付前填写"
-            placeholder-class="placeholder"
-          />
-          <button
-            class="redemption-check"
-            bindtap="verifyRedemptionCode"
-            loading="{{redemptionLoading}}"
-            disabled="{{redemptionLoading}}"
-          >验证</button>
-        </view>
-        <text wx:if="{{redemptionError}}" class="field-error">{{redemptionError}}</text>
-        <text wx:if="{{fieldErrors.redemptionCode}}" class="field-error">{{fieldErrors.redemptionCode}}</text>
-        <view wx:if="{{redemptionQuote && redemptionQuote.applied}}" class="redemption-result">
-          <text class="redemption-success">兑换码已生效</text>
-          <view><text>标准价</text><text class="redemption-value">¥{{redemptionQuote.listPriceYuan}}</text></view>
-          <view><text>兑换码优惠</text><text class="redemption-value">-¥{{redemptionQuote.discountYuan}}</text></view>
-          <view class="payable"><text>应付</text><text class="redemption-value redemption-payable-value">¥{{redemptionQuote.payableYuan}}</text></view>
-          <text wx:if="{{redemptionQuote.payableFen === 0}}" class="redemption-success">本次应付 0 元，无需微信支付</text>
-        </view>
-      </view>
-
-      <view class="field">
-        <view class="field-label-row">
           <text class="field-label">补充说明</text>
           <text class="optional-tag">选填</text>
         </view>
@@ -303,7 +272,7 @@
         bindgetphonenumber="onGetPhoneNumber"
         loading="{{phoneAuthLoading}}"
       >授权手机号并继续</button>
-      <button wx:if="{{step == 3 && phoneAuthorized}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">{{redemptionQuote && redemptionQuote.payableFen === 0 ? '提交并开始诊断' : '提交并支付'}}</button>
+      <button wx:if="{{step == 3 && phoneAuthorized}}" class="primary-button grow-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">提交并支付</button>
     </view>
   </block>
 
