@@ -29,6 +29,18 @@ async function run() {
     'verified business-card owners must see their referral dashboard');
   assert(diagnosisJs.includes('sourceToken: attribution && attribution.sourceToken'),
     'intake must keep source-based attribution rather than an entered code');
+  const { sanitizeForm } = require('../src/services/os-intake');
+  const cleanLead = sanitizeForm({
+    brandName: 'Test',
+    sourceToken: 'verified-referral-token',
+    redemptionCode: 'LEGACY',
+    redeemCode: 'LEGACY'
+  });
+  assert.strictEqual(cleanLead.sourceToken, 'verified-referral-token');
+  assert(!Object.prototype.hasOwnProperty.call(cleanLead, 'redemptionCode'),
+    'server must not persist a customer-entered voucher');
+  assert(!Object.prototype.hasOwnProperty.call(cleanLead, 'redeemCode'),
+    'server must not persist a customer-entered code');
   const shareUtility = read('utils/referral-share.js');
   assert(shareUtility.includes("source.sourceType === 'business_card'"),
     "shares should prefer the verified owner personal business card");
