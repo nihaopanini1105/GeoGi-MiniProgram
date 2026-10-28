@@ -99,6 +99,7 @@ Page({
       status: data.status || '处理中',
       reportReady: data.reportReady === true,
       pilotReviewAccess: data.pilotReviewAccess === true,
+      legacyReviewAccess: data.legacyReviewAccess === true,
       reportLink: data.reportLink || '',
       artifactMimeType: data.artifactMimeType || '',
       artifactType: data.artifactType || '',
@@ -206,8 +207,16 @@ Page({
   async payNow() {
     // Never request payment for an already published or pilot-authorized report.
     // Backend enforces the same exact-customer rule for stale release clients.
-    if (this.data.paymentLoading || this.paymentPaid() || this.data.r03Report || this.data.v21Report ||
-        (this.data.report && (this.data.report.reportReady || this.data.report.pilotReviewAccess))) return;
+    // Match the customer-visible card AND the server's customer-specific
+    // no-payment entitlement, including legacy and R03 released access.
+    const status = String((this.data.order && this.data.order.paymentStatus) || '');
+    if (this.data.paymentLoading || this.paymentPaid() ||
+        ['refund_processing', 'refunded'].includes(status) ||
+        (this.data.order && this.data.order.paymentRequired === false) ||
+        this.data.r03Report || this.data.v21Report ||
+        (this.data.report && (this.data.report.reportReady ||
+                              this.data.report.pilotReviewAccess ||
+                              this.data.report.legacyReviewAccess))) return;
     if (!isApiConfigured()) {
       this.setData({ paymentError: '支付服务暂未连接，请稍后再试。' });
       return;

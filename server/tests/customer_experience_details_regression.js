@@ -62,8 +62,35 @@ function run() {
   assert(report.includes('无需再次付款'));
   assert(report.includes('阅读正式 H5 诊断报告'));
   assert(report.includes('下载 PDF 诊断报告'));
-  assert(report.includes('!report.reportReady && !v21Report && !report.pilotReviewAccess && order.paymentStatus'));
-  assert(detailJs.includes('this.data.report.reportReady || this.data.report.pilotReviewAccess'));
+  // Assert actual payment-card behavior instead of an obsolete literal
+  // substring. The R03 receiver, historical V2 grants, CRM-backed server
+  // paymentRequired=false and refunds all suppress a second payment prompt.
+  const card = report.match(/<view wx:if="\\{\\{([^"]+)\\}\\}" class="section card payment-card">/);
+  assert(card, 'payment card must have a guarded wx:if expression');
+  const shouldShowPayment = new Function('report', 'v21Report', 'r03Report', 'order',
+    'return Boolean(' + card[1] + ');');
+  const baseOrder = { paymentStatus: 'unpaid', paymentRequired: true };
+  const baseReport = { reportReady: false, pilotReviewAccess: false, legacyReviewAccess: false };
+  assert.strictEqual(shouldShowPayment(baseReport, null, null, baseOrder), true);
+  for (const status of ['paid', 'free', 'partially_refunded', 'refunded', 'refund_processing']) {
+    assert.strictEqual(shouldShowPayment(baseReport, null, null,
+      { ...baseOrder, paymentStatus: status }), false, 'must not charge a ' + status + ' order');
+  }
+  assert.strictEqual(shouldShowPayment(baseReport, null, null,
+    { ...baseOrder, paymentRequired: false }), false, 'CRM no-payment grant must win');
+  assert.strictEqual(shouldShowPayment(baseReport, null, null,
+    { ...baseOrder, paymentRequired: undefined }), true, 'historical unpaid fallback remains');
+  assert.strictEqual(shouldShowPayment({ ...baseReport, reportReady: true }, null, null, baseOrder), false);
+  assert.strictEqual(shouldShowPayment({ ...baseReport, pilotReviewAccess: true }, null, null, baseOrder), false);
+  assert.strictEqual(shouldShowPayment({ ...baseReport, legacyReviewAccess: true }, null, null, baseOrder), false);
+  assert.strictEqual(shouldShowPayment(baseReport, { reportReady: true }, null, baseOrder), false);
+  assert.strictEqual(shouldShowPayment(baseReport, null, { reportReady: true }, baseOrder), false);
+  assert(detailJs.includes('this.data.report.reportReady ||'));
+  assert(detailJs.includes('this.data.report.pilotReviewAccess ||'));
+  assert(detailJs.includes('this.data.report.legacyReviewAccess')));
+  assert(detailJs.includes('this.data.order.paymentRequired === false'));
+  assert(detailJs.includes("['refund_processing', 'refunded'].includes(status)"));
+  assert(detailJs.includes('legacyReviewAccess: data.legacyReviewAccess === true'));
   assert(customerPortal.includes('paymentRequired: !pilotReviewAccess && !legacyReviewAccess && !paidForReport'));
   assert(server.includes("code: 'REPORT_ALREADY_AUTHORIZED'"));
   assert(server.includes('const existingReport = await getCustomerReport('));
