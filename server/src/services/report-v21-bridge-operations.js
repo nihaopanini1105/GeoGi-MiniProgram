@@ -183,7 +183,14 @@ function physicalLocation(value) {
     }
   }
 }
-function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, publicRoots=[]}) {
+function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, publicRoots=[], policy=null}) {
+  // Internal contract hooks share the established store and financial owner.
+  // They are never selected by untrusted payload fields. Legacy defaults stay exact.
+  const active = policy ? policy.enabled : enabled;
+  const general = policy ? policy.enabled : generalEnabled;
+  const validate = policy ? policy.validatePackage : validatePackage;
+  const authorize = policy ? policy.authorizePackage : async () => true;
+  const readScope = policy ? policy.readScope : () => true;
   if (typeof findIntakes !== 'function' || typeof findPayment !== 'function') fail('V21_DEPENDENCIES_REQUIRED');
   const root = path.resolve(dataRoot);
   const artifactRoot = path.resolve(uploadRoot);
@@ -227,7 +234,7 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, public
   async function binding(clientId, projectId) {
     const denied = { verified: false, paid_order_verified: false, customer_access_scoped: false,
       client_id: clientId, project_id: projectId };
-    if (!validScope(clientId, projectId) || !generalEnabled()) return denied;
+    if (!validScope(clientId, projectId) || !general()) return denied;
     const leads = await findIntakes();
     if (!uniqueCrmRow(leads,clientId,projectId)) return denied;
     const payment = await findPayment(projectId);
@@ -242,7 +249,7 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, public
     if (paid.verified) return true;
     // The historical explicitly named GeoGi pilot is allowed only when the
     // existing separate pilot grant is enabled, with an actual scoped CRM row.
-    if (!enabled() || process.env.GEOGI_V2_EXACT_PILOT_ENABLED !== 'true'
+    if (policy || !active() || process.env.GEOGI_V2_EXACT_PILOT_ENABLED !== 'true'
         || !validScope(clientId, projectId)
         || clientId !== process.env.GEOGI_V2_PILOT_CONSUMER_CLIENT_ID
         || projectId !== process.env.GEOGI_V2_PILOT_CONSUMER_PROJECT_ID) return false;
@@ -253,7 +260,7 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, public
     if (!ID.test(String(id || ''))) return null;
     try {
       const data = await fs.promises.readFile(path.join(root, 'packages', id + '.json'), 'utf8');
-      return validatePackage(JSON.parse(data));
+      return validate(JSON.parse(data));
     } catch (e) { if (e.code === 'ENOENT') return null; throw e; }
   }
   async function _pinned(clientId, projectId) {
@@ -280,9 +287,9 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, public
     return pack;
   }
   async function publish(doc) {
-    if (!enabled()) fail('V21_PUBLICATION_DISABLED');
-    const pack = validatePackage(doc);
-    if (!await allowedScope(pack.client_id, pack.project_id))
+    if (!active()) fail('V21_PUBLICATION_DISABLED');
+    const pack = validate(doc);
+    if (!await allowedScope(pack.client_id, pack.project_id) || !await authorize(pack))
       fail('V21_PAID_BINDING_REQUIRED');
     if (!pack.artifacts.every(a => verifiedArtifact(a, artifactRoot))) fail('V21_ARTIFACT_BYTES_NOT_VERIFIED');
     await fs.promises.mkdir(path.join(root, 'locks'), { recursive: true, mode: 0o700 });
@@ -313,30 +320,33 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, public
         payment_mutated:false, commission_mutated:false };
     } finally { await fs.promises.rmdir(p.lock); }
   }
-  async function accessible({client_id,project_id,delivery_package_id,artifact_sha256}) {
+  async function accessible(input) {
+    const {client_id,project_id,delivery_package_id,artifact_sha256}=input;
     const denied={authorized:false, accessible:false,client_id,project_id,delivery_package_id,artifact_sha256};
-    if (!enabled()) return denied;
+    if (!active()) return denied;
     const [eligible, pack] = await Promise.all([allowedScope(client_id,project_id),_current(client_id,project_id)]);
-    if (!eligible || !pack || pack.delivery_package_id !== delivery_package_id
+    if (!eligible || !pack || !await authorize(pack) || !readScope(pack,input) || pack.delivery_package_id !== delivery_package_id
         || pack.artifacts[0].sha256 !== artifact_sha256) return denied;
     return { ...denied, authorized:true,
       accessible:pack.artifacts.every(a => verifiedArtifact(a,artifactRoot)) };
   }
   async function currentReport(clientId, projectId) {
-    if (!enabled()) return null;
+    if (!active()) return null;
     const pack = await _current(clientId,projectId);
     if (!pack) return null;
     const result=await accessible({client_id:clientId,project_id:projectId,
-      delivery_package_id:pack.delivery_package_id,artifact_sha256:pack.artifacts[0].sha256});
+      delivery_package_id:pack.delivery_package_id,artifact_sha256:pack.artifacts[0].sha256,
+      ...(policy ? policy.packageScope(pack) : {})});
     if (!result.accessible) return null;
-    return { clientId,projectId,version:'2.1',deliveryPackageId:pack.delivery_package_id,
+    return { clientId,projectId,version:policy ? policy.displayVersion : '2.1',deliveryPackageId:pack.delivery_package_id,
       releasedAt:pack.released_at,h5:pack.artifacts[0],pdf:pack.artifacts[1] };
   }
-  async function revoke({client_id,project_id,delivery_package_id,artifact_sha256,reason}) {
-    if (!enabled()) fail('V21_REVOCATION_DISABLED');
+  async function revoke(input) {
+    const {client_id,project_id,delivery_package_id,artifact_sha256,reason}=input;
+    if (!policy && !active()) fail('V21_REVOCATION_DISABLED');
     const pack = await _loadPack(delivery_package_id);
     if (!pack || pack.client_id !== client_id || pack.project_id !== project_id
-        || pack.artifacts[0].sha256 !== artifact_sha256) fail('V21_REVOCATION_SCOPE_INVALID');
+        || pack.artifacts[0].sha256 !== artifact_sha256 || !readScope(pack,input)) fail('V21_REVOCATION_SCOPE_INVALID');
     if (typeof reason !== 'string' || !/^[A-Za-z0-9_.-]{8,100}$/.test(reason)) fail('V21_REVOCATION_REASON_REQUIRED');
     const filename=path.join(root,'revocations',delivery_package_id+'.json');
     const expected={client_id,project_id,delivery_package_id,artifact_sha256};
@@ -360,7 +370,7 @@ function createV21Bridge({findIntakes, findPayment, uploadRoot, dataRoot, public
     }
     return {status:'revoked',delivery_package_id,idempotent:false};
   }
-  return { capabilities,binding,publish,accessible,currentReport,revoke };
+  return { capabilities:policy ? policy.capabilities : capabilities,binding,publish,accessible,currentReport,revoke };
 }
 function live() {
   const { listOsIntakes } = require('./os-operations-bridge');
@@ -371,7 +381,7 @@ function live() {
     uploadRoot:getUploadRoot(),publicRoots:[sourceCodeRoot()],
     dataRoot:process.env.GEOGI_REPORT_V21_PRIVATE_ROOT || path.join(__dirname,'../../data/report-v21')});
 }
-module.exports = { V21DeliveryError, capabilities, createV21Bridge, validatePackage, verifiedArtifact,
+module.exports = { V21DeliveryError, capabilities, createV21Bridge, validatePackage, verifiedArtifact, physicalLocation,
   reportV21Capabilities:capabilities,
   verifyV21CustomerBinding:(c,p)=>live().binding(c,p),
   publishV21DeliveryPackage:(p)=>live().publish(p),

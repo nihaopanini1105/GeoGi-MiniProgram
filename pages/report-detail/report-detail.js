@@ -9,6 +9,8 @@ Page({
     projectId: '',
     order: null,
     report: null,
+    r03Report: null,
+    r03PdfLoading: false,
     v21Report: null,
     v21PdfLoading: false,
     supplementCompanyName: '',
@@ -53,9 +55,17 @@ Page({
             deliveryPackageId: v21.report.deliveryPackageId || '' };
         }
       } catch (_) { /* Old V2 orders remain fully usable without V2.1. */ }
+      let r03Report = null;
+      try {
+        const r03 = await get('/api/customer/report-r03/' + encodeURIComponent(projectId), {clientId});
+        if (r03 && r03.ok && r03.report && r03.report.reportReady === true) {
+          r03Report = {version:'R03',reportReady:true,deliveryPackageId:r03.report.deliveryPackageId || ''};
+        }
+      } catch (_) { /* No R03 grant preserves historical report behavior. */ }
       this.setData({
         order,
         report: this.normalizeReport(result.report),
+        r03Report,
         v21Report,
         supplementCompanyName: this.data.supplementCompanyName || (order && order.companyName) || '',
         error: ''
@@ -196,7 +206,7 @@ Page({
   async payNow() {
     // Never request payment for an already published or pilot-authorized report.
     // Backend enforces the same exact-customer rule for stale release clients.
-    if (this.data.paymentLoading || this.paymentPaid() ||
+    if (this.data.paymentLoading || this.paymentPaid() || this.data.r03Report || this.data.v21Report ||
         (this.data.report && (this.data.report.reportReady || this.data.report.pilotReviewAccess))) return;
     if (!isApiConfigured()) {
       this.setData({ paymentError: '支付服务暂未连接，请稍后再试。' });
@@ -297,6 +307,53 @@ Page({
       wx.hideLoading();
       wx.showToast({title:'正式版 PDF 暂不可用，请稍后再试',icon:'none'});
     } finally {this.setData({v21PdfLoading:false});}
+  },
+
+  async openR03H5() {
+    if (!this.data.r03Report || !this.data.r03Report.reportReady) return;
+    try {
+      wx.showLoading({title:'验证正式版报告权限'});
+      const result = await post('/api/customer/report-r03/' +
+        encodeURIComponent(this.data.projectId) + '/h5-ticket', {clientId:this.data.clientId});
+      wx.hideLoading();
+      if (!result || !result.ok ||
+          !/^\/api\/customer\/report-r03\/h5-reader\/[0-9a-f]{64}$/.test(result.readerPath || '')) {
+        throw new Error('没有有效的正式版阅读授权');
+      }
+      const src = API_BASE_URL.replace(/\/+$/,'') + result.readerPath;
+      wx.navigateTo({url:'/pages/h5-report/h5-report?src='+encodeURIComponent(src)});
+    } catch (_) {
+      wx.hideLoading();
+      wx.showToast({title:'正式版报告暂不可读取，请稍后再试',icon:'none'});
+    }
+  },
+
+  async downloadR03Pdf() {
+    if (this.data.r03PdfLoading || !this.data.r03Report || !this.data.r03Report.reportReady) return;
+    this.setData({r03PdfLoading:true});
+    try {
+      wx.showLoading({title:'验证下载权限'});
+      const result = await post('/api/customer/report-r03/' +
+        encodeURIComponent(this.data.projectId) + '/pdf-ticket', {clientId:this.data.clientId});
+      wx.hideLoading();
+      if (!result || !result.ok ||
+          !/^\/api\/customer\/report-r03\/pdf-reader\/[0-9a-f]{64}$/.test(result.readerPath || '')) {
+        throw new Error('没有有效的正式版下载授权');
+      }
+      const url = API_BASE_URL.replace(/\/+$/,'') + result.readerPath;
+      wx.showLoading({title:'下载正式版 PDF'});
+      const local = await new Promise((resolve,reject)=>wx.downloadFile({
+        url,success:out=>out && out.statusCode===200 && out.tempFilePath
+          ? resolve(out.tempFilePath) : reject(new Error('下载失败')),fail:reject
+      }));
+      wx.hideLoading();
+      await new Promise((resolve,reject)=>wx.openDocument({
+        filePath:local,fileType:'pdf',showMenu:true,success:resolve,fail:reject
+      }));
+    } catch (_) {
+      wx.hideLoading();
+      wx.showToast({title:'正式版 PDF 暂不可用，请稍后再试',icon:'none'});
+    } finally {this.setData({r03PdfLoading:false});}
   },
 
   async openPdf() {

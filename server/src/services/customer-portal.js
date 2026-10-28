@@ -62,6 +62,19 @@ async function listCustomerProjects({ clientId, clientIds }) {
         lead,project:projectByScope.get(scopeKey(ownedClientId,projectId)),
         deliveryPackage,payment
       });
+      if (process.env.GEOGI_R03_REPORT_PUBLISH_ENABLED === 'true') {
+        try {
+          const {getR03CustomerReport}=require('./report-r03-bridge-operations');
+          const verified=await getR03CustomerReport(ownedClientId,projectId);
+          if (verified && verified.clientId===order.clientId && verified.projectId===order.projectId
+              && verified.version==='R03' && /^delivery_package_v21_[0-9a-f]{24}$/.test(verified.deliveryPackageId||'')) {
+            return {...order,status:'报告已完成',reportReady:true,r03ReportReady:true,
+              r03DeliveryPackageId:verified.deliveryPackageId,version:'R03',
+              completedAt:verified.releasedAt||order.completedAt||'',updatedAt:verified.releasedAt||order.updatedAt,
+              canSupplement:false,nextAction:'查看 R03 GEO 诊断报告'};
+          }
+        } catch (_) { /* Keep historical versions usable if R03 is unavailable. */ }
+      }
       if (process.env.GEOGI_REPORT_V21_PUBLISH_ENABLED !== 'true') return order;
       // Only independently verified V2.1 artifacts change customer display.
       // Existing V2 pointers, order payments and commissions remain untouched.
@@ -267,7 +280,7 @@ function buildCustomerResultNotifications(order = {}) {
 
   if (order.reportReady) {
     notifications.push({
-      id: ['report_ready', projectId, order.v21DeliveryPackageId || order.deliveryPackageId || order.version || order.completedAt].filter(Boolean).join(':'),
+      id: ['report_ready', projectId, order.r03DeliveryPackageId || order.v21DeliveryPackageId || order.deliveryPackageId || order.version || order.completedAt].filter(Boolean).join(':'),
       type: 'report_ready',
       title: '诊断报告已完成',
       message: brandName + ' 的品牌 GEO 诊断报告已完成，可直接查看。',

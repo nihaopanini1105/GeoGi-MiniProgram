@@ -59,11 +59,11 @@ const {
   publishV21DeliveryPackage, verifyV21CustomerAccess,
   revokeV21Report, getV21CustomerReport
 } = require('./services/report-v21-bridge-operations');
+const {reportR03Capabilities, verifyR03CustomerBinding, publishR03DeliveryPackage,
+  verifyR03CustomerAccess, revokeR03Report, getR03CustomerReport
+} = require('./services/report-r03-bridge-operations');
 const {
-  R03DeliveryError, capabilities:reportR03Capabilities,
-  deniedBinding:verifyR03CustomerBinding,
-  deniedAccess:verifyR03CustomerAccess,
-  rejectR03Package, revokeR03, inspectR03PackageCandidate
+  R03DeliveryError, rejectR03Package, inspectR03PackageCandidate
 } = require('./services/report-r03-bridge-boundary');
 const {
   OperationsBridgeError,
@@ -248,6 +248,69 @@ for (const [kind, consumeTicket, readBytes] of [
       const bytes=readBytes(getUploadRoot(),ticket.fileName,ticket.sha256);
       if (kind==='pdf') res.setHeader('Content-Disposition',
         'attachment; filename="GeoGi-Report-V21.pdf"');
+      return res.status(200).type(kind==='h5'?'html':'application/pdf').send(bytes);
+    } catch (_) {return res.status(404).type('text/plain').send('阅读票据无效');}
+  });
+}
+
+// R03 reader uses the same session, one-use tickets and immutable bytes owner.
+// R03 customer reader is not the existing V2 report pointer. Ownership is
+// checked by the signed phone session, and the current paid Feishu binding
+// plus the immutable H5/PDF hashes are rechecked on every ticket/read.
+app.get('/api/customer/report-r03/:projectId', requireCustomerSession, async(req,res)=>{
+  try {
+    const clientId=await resolveOwnedClientId({
+      phoneNumber:req.customerSession.phoneNumber,
+      requestedClientId:req.query && req.query.clientId
+    });
+    const report=clientId && await getR03CustomerReport(clientId,req.params.projectId);
+    if (!report) return res.status(404).json({ok:false,userMessage:'没有可查看的正式版报告'});
+    res.setHeader('Cache-Control','private, no-store');
+    return res.json({ok:true,report:{
+      version:report.version,deliveryPackageId:report.deliveryPackageId,
+      reportReady:true,availableFormats:['h5','pdf']
+    }});
+  } catch (_) {return res.status(503).json({ok:false,userMessage:'报告服务暂不可用'});}
+});
+for (const [kind, issueTicket] of [['h5',issueH5Ticket],['pdf',issuePdfTicket]]) {
+  app.post('/api/customer/report-r03/:projectId/'+kind+'-ticket',
+    requireCustomerSession,async(req,res)=>{
+    try {
+      const clientId=await resolveOwnedClientId({
+        phoneNumber:req.customerSession.phoneNumber,
+        requestedClientId:req.body && req.body.clientId
+      });
+      const report=clientId && await getR03CustomerReport(clientId,req.params.projectId);
+      if (!report) return res.status(404).json({ok:false,userMessage:'无权查看该版本报告'});
+      const artifact=report[kind];
+      const token=issueTicket({clientId,projectId:req.params.projectId,
+        sha256:artifact.sha256,fileName:artifact.file_name,audience:'report-r03'});
+      res.setHeader('Cache-Control','private, no-store');
+      return res.json({ok:true,expiresInSeconds:60,
+        readerPath:'/api/customer/report-r03/'+kind+'-reader/'+token});
+    } catch (_) {return res.status(503).json({ok:false,userMessage:'报告阅读暂不可用'});}
+  });
+}
+for (const [kind, consumeTicket, readBytes] of [
+  ['h5',consumeH5Ticket,readVerifiedH5Artifact],
+  ['pdf',consumePdfTicket,readVerifiedPdfArtifact]
+]) {
+  app.get('/api/customer/report-r03/'+kind+'-reader/:ticket',async(req,res)=>{
+    res.setHeader('Cache-Control','private, no-store');
+    res.setHeader('Referrer-Policy','no-referrer');
+    res.setHeader('X-Content-Type-Options','nosniff');
+    if (kind==='h5') res.setHeader('Content-Security-Policy',
+      "default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
+    try {
+      const ticket=consumeTicket(req.params.ticket,'report-r03');
+      const report=await getR03CustomerReport(ticket.clientId,ticket.projectId);
+      const artifact=report && report[kind];
+      if (!artifact || artifact.sha256!==ticket.sha256 ||
+          artifact.file_name!==ticket.fileName)
+        return res.status(404).type('text/plain').send('报告已失效');
+      const bytes=readBytes(getUploadRoot(),ticket.fileName,ticket.sha256);
+      if (kind==='pdf') res.setHeader('Content-Disposition',
+        'attachment; filename="GeoGi-Report-R03.pdf"');
       return res.status(200).type(kind==='h5'?'html':'application/pdf').send(bytes);
     } catch (_) {return res.status(404).type('text/plain').send('阅读票据无效');}
   });
@@ -655,8 +718,8 @@ app.post(
 );
 
 // R03 has a DIFFERENT release authority. These authenticated endpoints
-// explicitly report NOT_READY until an independent receiver + evidence rights,
-// customer/paid access, private storage and revocation are integrated. In no
+// remain default-OFF; enabled deployments independently verify signed release
+// grants, current CRM/payment, immutable bytes and customer revocation. In no
 // condition may R03 fallback into V2/V21 billing and customer pointers.
 app.get('/internal/os/report-r03/capabilities', requireOsBridge, (_req,res) => {
   res.setHeader('Cache-Control','no-store');
@@ -670,16 +733,17 @@ app.post('/internal/os/report-r03/inspect-candidate', requireOsBridge, (req,res,
     return res.json({ok:true,result:inspectR03PackageCandidate(req.body||{})});
   } catch(error) {return next(error);}
 });
-app.post('/internal/os/report-r03/verify-customer-binding', requireOsBridge, (req,res) => {
-  res.setHeader('Cache-Control','no-store');
-  return res.json({ok:true,result:verifyR03CustomerBinding(req.body||{})});
+app.post('/internal/os/report-r03/verify-customer-binding', requireOsBridge, async(req,res,next) => {
+  try {return res.json({ok:true,result:await verifyR03CustomerBinding(req.body||{})});}
+  catch(error){return next(error);}
 });
-app.post('/internal/os/report-r03/verify-customer-access', requireOsBridge, (req,res) => {
-  res.setHeader('Cache-Control','no-store');
-  return res.json({ok:true,result:verifyR03CustomerAccess(req.body||{})});
+app.post('/internal/os/report-r03/verify-customer-access', requireOsBridge, async(req,res,next) => {
+  try {return res.json({ok:true,result:await verifyR03CustomerAccess(req.body||{})});}
+  catch(error){return next(error);}
 });
-app.post('/internal/os/report-r03/revoke', requireOsBridge, (_req,res,next) => {
-  try {revokeR03();} catch(error) {return next(error);}
+app.post('/internal/os/report-r03/revoke', requireOsBridge, async(req,res,next) => {
+  try {return res.json({ok:true,result:await revokeR03Report(req.body||{})});}
+  catch(error){return next(error);}
 });
 
 // Report V2.1 is an independent opt-in consumer with a distinct authority.
@@ -736,11 +800,13 @@ app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, nex
   try {
     const payload=req.body||{};
     // Fail closed BEFORE any legacy import/stage update or payment side effect.
-    rejectR03Package(payload);
+    if (process.env.GEOGI_R03_REPORT_PUBLISH_ENABLED !== 'true') rejectR03Package(payload);
     // Never send a V2.1 package through the V2 payment/commission saga.
     const v21 = payload.delivery_purpose === 'report_v21_diagnostic'
       || payload.release_authority === 'geo_diagnostic_html_release_v21';
-    const result = v21
+    const r03 = payload.delivery_purpose === 'report_r03_diagnostic'
+      || payload.release_authority === 'geo_diagnostic_html_release_r03';
+    const result = r03 ? await publishR03DeliveryPackage(payload) : v21
       ? await publishV21DeliveryPackage(payload)
       : await publishOsDeliveryPackage(payload);
     res.json({ ok: true, result });
@@ -823,6 +889,9 @@ app.use((error, _req, res, _next) => {
   return res.status(500).json({ ok: false, userMessage: '服务暂时不可用' });
 });
 
-app.listen(port, host, () => {
-  console.log(`GeoGi mini program server listening on http://${host}:${port}`);
-});
+if (require.main === module) {
+  app.listen(port, host, () => {
+    console.log(`GeoGi mini program server listening on http://${host}:${port}`);
+  });
+}
+module.exports = app;

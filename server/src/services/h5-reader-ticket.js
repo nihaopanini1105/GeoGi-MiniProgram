@@ -8,7 +8,7 @@ const path = require('path');
 const TTL_MS = 60 * 1000;
 const tickets = new Map();
 
-function issueH5Ticket({ clientId, projectId, sha256, fileName }) {
+function issueH5Ticket({ clientId, projectId, sha256, fileName, audience }) {
   if (!clientId || !projectId || !/^[0-9a-f]{64}$/.test(String(sha256 || ''))) {
     throw new Error('H5_TICKET_SCOPE_INVALID');
   }
@@ -17,18 +17,18 @@ function issueH5Ticket({ clientId, projectId, sha256, fileName }) {
   }
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = Date.now() + TTL_MS;
-  tickets.set(token, { clientId, projectId, sha256, fileName, expiresAt });
+  tickets.set(token, { clientId, projectId, sha256, fileName, expiresAt, ...(audience ? {audience} : {}) });
   // Opportunistic cleanup; never retain expired tickets indefinitely.
   for (const [key, value] of tickets) if (value.expiresAt <= Date.now()) tickets.delete(key);
   return token;
 }
 
-function consumeH5Ticket(token) {
+function consumeH5Ticket(token, audience) {
   const key = String(token || '');
   if (!/^[0-9a-f]{64}$/.test(key)) throw new Error('H5_TICKET_INVALID');
   const entry = tickets.get(key);
   tickets.delete(key);
-  if (!entry || entry.expiresAt <= Date.now()) throw new Error('H5_TICKET_INVALID');
+  if (!entry || entry.expiresAt <= Date.now() || entry.audience !== audience) throw new Error('H5_TICKET_INVALID');
   return entry;
 }
 

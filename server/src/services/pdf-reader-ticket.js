@@ -7,23 +7,23 @@ const TTL_MS=60*1000;
 const MAX_PDF_BYTES=30*1024*1024;
 const issued=new Map();
 
-function issuePdfTicket({clientId,projectId,sha256,fileName}) {
+function issuePdfTicket({clientId,projectId,sha256,fileName,audience}) {
   if (!clientId || !projectId || !/^[0-9a-f]{64}$/.test(String(sha256||''))
       || !/^[A-Za-z0-9._-]{1,180}\.pdf$/.test(String(fileName||''))) {
     throw new Error('PDF_TICKET_SCOPE_INVALID');
   }
   const token=crypto.randomBytes(32).toString('hex');
-  issued.set(token,{clientId,projectId,sha256,fileName,expiresAt:Date.now()+TTL_MS});
+  issued.set(token,{clientId,projectId,sha256,fileName,expiresAt:Date.now()+TTL_MS,...(audience?{audience}:{})});
   for (const [key,value] of issued) {
     if (value.expiresAt<=Date.now()) issued.delete(key);
   }
   return token;
 }
-function consumePdfTicket(token) {
+function consumePdfTicket(token, audience) {
   if (!/^[0-9a-f]{64}$/.test(String(token||''))) throw new Error('PDF_TICKET_INVALID');
   const result=issued.get(token);
   issued.delete(token);
-  if (!result || result.expiresAt<=Date.now()) throw new Error('PDF_TICKET_EXPIRED');
+  if (!result || result.expiresAt<=Date.now() || result.audience!==audience) throw new Error('PDF_TICKET_EXPIRED');
   return result;
 }
 function readVerifiedPdfArtifact(root,fileName,sha256) {

@@ -2,9 +2,9 @@
 const crypto = require('node:crypto');
 const { validatePackage: validateV21StructuralPackage } =
   require('./report-v21-bridge-operations');
-// R03 receiver compatibility boundary. The actual standalone R03 durable
-// customer reader and independent evidence attestation have NOT been accepted.
-// Never route an R03 package into the legacy V2 saga or V21 pointer.
+// R03 structural preflight and historical denial helpers. Live capability,
+// authorization and delivery now belong to report-r03-bridge-operations.
+// These legacy denial exports never authorize a package or a customer reader.
 const AUTHORITY = 'geo_diagnostic_html_release_r03';
 const PURPOSE = 'report_r03_diagnostic';
 const STATUS = 'R03_RECEIVER_NOT_READY';
@@ -91,6 +91,10 @@ function inspectR03PackageCandidate(value) {
       (value.report_reference || {}).content_hash) {
     throw new R03DeliveryError('R03_CANDIDATE_SNAPSHOT_MISMATCH');
   }
+  if(value.r03_report_definition){
+    try {require('./report-r03-bridge-operations').validatePackage(value);}
+    catch(_error){throw new R03DeliveryError('R03_CANDIDATE_PAIRED_ARTIFACT_CONTRACT_INVALID');}
+  } else {
   // Re-compute the V21 projection hash solely for reuse of the EXISTING pure
   // canonical checker. This does not turn the R03 payload into a V21 release.
   const structuralProjection = {
@@ -106,6 +110,7 @@ function inspectR03PackageCandidate(value) {
     validateV21StructuralPackage(structuralProjection);
   } catch (_e) {
     throw new R03DeliveryError('R03_CANDIDATE_PAIRED_ARTIFACT_CONTRACT_INVALID');
+  }
   }
   // A package is not an independent A01/rights/payment/customer attestation.
   // NEVER return enabled:true, verified:true, a readable URL or a publish ack.

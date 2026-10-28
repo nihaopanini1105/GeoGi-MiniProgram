@@ -40,6 +40,10 @@ JS_FILES=(
   server/src/services/os-operations-bridge.js
   server/src/services/os-v2-release-eligibility.js
   server/src/services/report-v21-bridge-operations.js
+  server/src/services/report-r03-bridge-operations.js
+  server/src/services/report-r03-bridge-boundary.js
+  server/src/services/h5-reader-ticket.js
+  server/src/services/pdf-reader-ticket.js
   server/src/services/private-report-upload-guard.js
   server/src/services/customer-portal.js
   pages/index/index.js

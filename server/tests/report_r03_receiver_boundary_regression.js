@@ -113,5 +113,5 @@ try {
  '/internal/os/report-r03/verify-customer-access',
  '/internal/os/report-r03/revoke'
  ]) assert(server.includes(segment),segment);
- console.log('PASS: R03 receiver pending is an isolated default-OFF 403 boundary; legacy V2/V21 preserved');
+ console.log('PASS: R03 structural preflight remains non-authoritative; legacy default-OFF denial and V2/V21 isolation preserved');
 } finally {process.env=original;}
