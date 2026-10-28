@@ -87,7 +87,7 @@ function run() {
   assert.strictEqual(shouldShowPayment(baseReport, null, { reportReady: true }, baseOrder), false);
   assert(detailJs.includes('this.data.report.reportReady ||'));
   assert(detailJs.includes('this.data.report.pilotReviewAccess ||'));
-  assert(detailJs.includes('this.data.report.legacyReviewAccess')));
+  assert(detailJs.includes('this.data.report.legacyReviewAccess'));
   assert(detailJs.includes('this.data.order.paymentRequired === false'));
   assert(detailJs.includes("['refund_processing', 'refunded'].includes(status)"));
   assert(detailJs.includes('legacyReviewAccess: data.legacyReviewAccess === true'));
