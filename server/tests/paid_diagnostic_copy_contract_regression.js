@@ -111,7 +111,10 @@ function run() {
   assert(operationsBridge.includes('assessV2ReleaseEligibility, PAID_DIAGNOSTIC_LAUNCH_CUTOFF'));
   assert(operationsBridge.includes("freeChannelOffer ? 'channel_offer'"));
   assert(operationsBridge.includes("legacyEligible ? 'legacy_pre_payment' : 'payment_required'"));
-  assert(operationsBridge.includes('paymentEligibleForProcessing: paid || freeChannelOffer || legacyEligible'));
+  // CRM duplicate rows must never inherit payment/service entitlement.
+  assert(operationsBridge.includes('leadCounts.get(scope)===1 && projectCounts.get(scope)===1'));
+  assert(operationsBridge.includes('paymentEligibleForProcessing: crmScopeUnique && (paid || freeChannelOffer || legacyEligible)'));
+  assert(!operationsBridge.includes('paymentEligibleForProcessing: paid || freeChannelOffer || legacyEligible'));
 
   for (const forbidden of [
     '免费诊断', '免费报告', '初步诊断会', '提交后立即开始诊断',
