@@ -63,7 +63,7 @@ const {
   R03DeliveryError, capabilities:reportR03Capabilities,
   deniedBinding:verifyR03CustomerBinding,
   deniedAccess:verifyR03CustomerAccess,
-  rejectR03Package, revokeR03
+  rejectR03Package, revokeR03, inspectR03PackageCandidate
 } = require('./services/report-r03-bridge-boundary');
 const {
   OperationsBridgeError,
@@ -661,6 +661,14 @@ app.post(
 app.get('/internal/os/report-r03/capabilities', requireOsBridge, (_req,res) => {
   res.setHeader('Cache-Control','no-store');
   return res.json({ok:true,result:reportR03Capabilities()});
+});
+// Read-only structural compatibility probe. Even a valid package here cannot
+// grant a customer ticket, trigger private upload, billing, or publication.
+app.post('/internal/os/report-r03/inspect-candidate', requireOsBridge, (req,res,next) => {
+  try {
+    res.setHeader('Cache-Control','no-store');
+    return res.json({ok:true,result:inspectR03PackageCandidate(req.body||{})});
+  } catch(error) {return next(error);}
 });
 app.post('/internal/os/report-r03/verify-customer-binding', requireOsBridge, (req,res) => {
   res.setHeader('Cache-Control','no-store');

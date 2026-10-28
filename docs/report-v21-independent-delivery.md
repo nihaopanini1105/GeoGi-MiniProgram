@@ -164,3 +164,10 @@ GeoGi-OS PR #532 独立 `report_r03_diagnostic/geo_diagnostic_html_release_r03` 
 
 前驱MiniProgram PR #83 `68d47cdad9973ac18b9753fa3fa77bc777de5758` 尚无当前同树完整npm与AppID受控发布门禁。新SHA专项/完整 Node/真实HTTP **NOT_RUN**，不能把旧ZIP测试冒认为新SHA。OS HEAD `355e191dd5714f1001af4596d01944e11b7bfd75` 用户Mac 1440px行业导航1 FAIL未修复，R03 FR01–FR12 0/12 BUSINESS_ACCEPTED；两个仓库NO-GO。此提交不迁移、不合并、不部署、不接触生产或A01采集。
 
+## 2026-10-28 R03 独立候选包结构校验｜只读工程联调，未发布
+
+GeoGi-OS 的 R03 D4 使用独立 `report_r03_diagnostic` / `geo_diagnostic_html_release_r03`，但其 H5/PDF 工件与签名包的**底层字节版本**暂沿用已经冻结的 V21 规范。新增受现有 `requireOsBridge` Bearer 鉴权保护的 **POST `/internal/os/report-r03/inspect-candidate`**，仅用于结构兼容性预检：原R03 canonical package SHA256、Source/Score/Retest 三项非空源pin、同源 report snapshot hash、原V21精确content-addressed packageId/filename/双H5/PDF字段及完整性声明、禁止客户端重算评分。哈希不正确、跨版本、不合法名称、缺失pin及自相矛盾的声明均按R03专用错误码拒绝。
+
+**绝不可当作业务授权：** 预检只输出 `R03_STRUCTURAL_ONLY_NOT_AUTHORIZED`，所有独立A01证据、付费绑定、来源商业权益、真实原件字节复验、客户发布均为false。本工具在内存中纯检查，不调用旧V21实际发布器、不创建支付/佣金/客户指针、不授权 H5/PDF 阅读，也不能打开R03能力；原 `POST /internal/os/delivery-packages` 对R03仍默认403阻断。无新增表、外部网络或生产环境变化。
+
+同源回归基于已有**OS Python 生成的 V21 合成包**构造独立R03线路（对R03 lineage 使用合成合法元数据，重新计算包hash；不伪称真实A01和客户）；校验正常结构、恶意改包hash/文件名/内容摘要/主体版本/三pin/用途，且默认所有R03能力关闭。源校验与Node回归不等于正式当前 HEAD 的全量 npm/AppID/真实HTTP门禁，也不替代OS↔MiniProgram真实H5/PDF字节、真实付费与授权证据的独立验收。对应PR #83保持Draft，R03生产NO-GO。
