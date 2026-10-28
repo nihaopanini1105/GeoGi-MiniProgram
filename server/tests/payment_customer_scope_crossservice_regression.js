@@ -75,5 +75,37 @@ const ops=require('../src/services/os-operations-bridge');
     refundedAmount:19900,refundableAmount:0});
   assert.equal(updated.status,'refunded');
   // Exact customer-portal checks are covered by a separate high-level test.
+  // Duplicate Feishu records must not be arbitrarily selected by the
+  // customer-facing payment, sync, cancellation or read paths.
+  const orderCountBefore=(await store.listPaymentOrders()).length;
+  const mutationCountBefore=modified.length;
+  for(const scenario of ['leads','projects','both']){
+    const extraLead={...leads[0],record_id:'duplicate_lead'};
+    const extraProject={...projects[0],record_id:'duplicate_project'};
+    if(scenario==='leads'||scenario==='both')leads.push(extraLead);
+    if(scenario==='projects'||scenario==='both')projects.push(extraProject);
+    try{
+      const args={clientId:'client_A',projectId:project};
+      await assert.rejects(service.ensureOrder({...args,phoneNumber:'13800000000'}),
+        /PAYMENT_CRM_SCOPE_AMBIGUOUS/,scenario+':order');
+      await assert.rejects(service.getCustomerPayment(args),
+        /PAYMENT_CRM_SCOPE_AMBIGUOUS/,scenario+':read');
+      await assert.rejects(service.syncCustomerPayment(args),
+        /PAYMENT_CRM_SCOPE_AMBIGUOUS/,scenario+':sync');
+      await assert.rejects(service.cancelCustomerPayment(args),
+        /PAYMENT_CRM_SCOPE_AMBIGUOUS/,scenario+':cancel');
+      assert.equal(await service.projectPaymentProjection({...args,paymentStatus:'paid'}),
+        false,scenario+':projection');
+      assert.equal((await store.listPaymentOrders()).length,orderCountBefore,
+        scenario+':must not create order');
+      assert.equal(modified.length,mutationCountBefore,scenario+':must not write CRM');
+    }finally{
+      if(scenario==='leads'||scenario==='both')leads.pop();
+      if(scenario==='projects'||scenario==='both')projects.pop();
+    }
+  }
+  const uniqueRead=await service.getCustomerPayment({clientId:'client_A',projectId:project});
+  assert.equal(uniqueRead.ok,true);
+  assert.equal(uniqueRead.payment,null);
   console.log('PAYMENT_AND_OS_EXACT_CLIENT_PROJECT_SCOPE=PASS');
 }finally{fs.rmSync(root,{recursive:true,force:true});}})().catch(e=>{console.error(e);process.exitCode=1});

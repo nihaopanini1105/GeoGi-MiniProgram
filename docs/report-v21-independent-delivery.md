@@ -201,3 +201,13 @@ R03 FR01–12 0/12 BUSINESS_ACCEPTED, production NO_GO. No Feishu/WeChat product
 
 此新Mini SHA的专项Python-Node、Node全量/付费门禁 **NOT_RUN**（GitHub仅静态写入）。其父SHA `c4e0e668dc013691da4489d1e623901168ada03f` 在Mac确曾完成Mini完整付费工程门禁PASS，但不得挪给新SHA。OS正式 SHA `5ad9c91a4637730bf6f4a21d3bc506332d0999bf` 独立 5560/5560 PASS，只属OS原SHA，本Mini变更不触及OS源码。实际尚未具备24行业合法原件/72h、独立A01完整Epoch、16真实指标、两正式客户、隔离预发布及用户审批，FR01–FR12 0/12 BUSINESS_ACCEPTED、双PR Draft、R03生产NO-GO。
 
+## 2026-10-28 GeoGi R03 G2｜Mini 客户支付CRM唯一归属检查（候选，待新SHA实测）
+
+OS当前正式`5ad9c91a4637730bf6f4a21d3bc506332d0999bf`既有5560/5560独立工程PASS；Mini父SHA`5ee1e07afc5f5474c91cbf77794a13d4b5b33363`独立付费诊断完整门禁PASS，且该双SHA在Mac真实localhost上已进行OS Python→Mini Express **50项合成HTTP合同PASS**，但这些证据不属于本行为提交后的Mini新SHA。
+
+**实际原业务风险:** Mini`os-operations-bridge`及`payment-service.projectPaymentProjection`已对飞书`客户编号+项目编号`要求唯一Lead与Project，但`payment-service.findProjectContext`仍使用`.find()`取第一条，导致有重复CRM行时客户下单、付款查询、支付同步或取消可以继续操作任一匹配行。修复仅在现有服务用相同`belongs`语义分别统计Lead/Project匹配数量；重复记录抛出`PAYMENT_CRM_SCOPE_AMBIGUOUS`，现有服务器`PAYMENT_*`拒绝映射生效；任一记录缺失沿用旧未找到行为，唯一匹配沿用旧路径。严格在查/创建订单及微信支付之前阻断歧义，不改旧客权限、财务金额/退款、OS签名范围或任何生产开关。
+
+现有`server/tests/payment_customer_scope_crossservice_regression.js`直接测试实际付款服务，分别注入重复Lead/Project/两表均重复；每种情形检查下单、客户付款读取、同步、取消均明确拒绝，无法新增订单或更新飞书投影；有效客户唯一匹配旧流程保持不变。该测试使用离线Feishu stub与私有支付文件，不接触真实微信/飞书客户。
+
+当前新Mini SHA的定向/付费完整门禁/双仓库HTTP **NOT_RUN**。下轮先直接Node定向检查，再仅在冻结干净新SHA执行一次Mini完整`GEOGI_EXPECTED_HEAD_SHA=<NEW> GEOGI_RUN_PAYMENT_PREFLIGHT=0 bash tools/ci/paid_diagnostic_release_gate.sh`；OS SHA未变化无需重复5560项。真实24行业合法M10+72h、独立A01五平台Epoch、16指标、两真实客户、隔离预发布恢复与精确SHA生产批准仍待授权，FR01–12 **0/12 BUSINESS_ACCEPTED**、双PR Draft、R03 **NO_GO**，R02生产SHA`697e506576f509d9843ef67604d530aed3183e31`未改。
+

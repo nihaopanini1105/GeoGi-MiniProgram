@@ -47,16 +47,19 @@ async function findProjectContext({ clientId, projectId }) {
       pageSize: 100
     })
   ]);
-  const lead = leads.find((record) => {
-    const fields = record.fields || {};
-    return text(fields.客户编号) === clientId && text(fields.项目编号) === projectId;
-  });
-  const project = projects.find((record) => {
-    const fields = record.fields || {};
-    return text(fields.客户编号) === clientId && text(fields.项目编号) === projectId;
-  });
-  if (!lead || !project) return null;
-  return { tenantToken, lead, project };
+  // Operations admission and projection already require unique CRM records.
+  // Customer payment must not silently choose the first duplicate Feishu row.
+  const belongs = (record) => text(record.fields && record.fields.客户编号) === clientId
+    && text(record.fields && record.fields.项目编号) === projectId;
+  const matchingLeads = leads.filter(belongs);
+  const matchingProjects = projects.filter(belongs);
+  if (matchingLeads.length > 1 || matchingProjects.length > 1) {
+    const error = new Error('PAYMENT_CRM_SCOPE_AMBIGUOUS');
+    error.code = 'PAYMENT_CRM_SCOPE_AMBIGUOUS';
+    throw error;
+  }
+  if (matchingLeads.length !== 1 || matchingProjects.length !== 1) return null;
+  return { tenantToken, lead: matchingLeads[0], project: matchingProjects[0] };
 }
 
 function paymentProjectionState(paymentStatus) {
