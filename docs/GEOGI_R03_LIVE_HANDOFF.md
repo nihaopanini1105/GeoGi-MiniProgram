@@ -30,3 +30,6 @@ Actual Mini issue also discovered while inspecting the authoritative source: the
 
 New exact Mini SHA full gate **NOT_RUN_AT_COMMIT**, and any existing passing focused test does not imply current complete release PASS. Requires ONE clean SHA `GEOGI_EXPECTED_HEAD_SHA=<sha> GEOGI_RUN_PAYMENT_PREFLIGHT=0 bash tools/ci/paid_diagnostic_release_gate.sh` in authorized local Node environment, with no production callbacks. Real staging, A01 sealed epochs, 24-industry original rights, two real customers and formal release remain EXTERNAL_BLOCKED; OS FR01–12 0/12 BUSINESS_ACCEPTED, both Draft PRs, R03 NO-GO.
 
+### 2026-10-28 Final Mini UI predicate test regex corrective commit
+Post-commit source review of `bc26b5e4c27681116c2c9e762950ce22e312a94c` found the newly added WXML payment-card predicate regression had an accidentally double-escaped regex for literal `{{...}}`, so it could falsely fail before testing any actual customer behavior. Changed **only** that test expression to a single literal-brace escape; did not weaken a guard, payment logic, CRM uniqueness or release conditions. Exact new SHA full Mac Mini gate NOT_RUN; starting Mac full-gate failure remains at `41054968...`, old focused pay/CRM tests PASS. Next execute clean new-SHA Mini full gate once; avoid rerunning old SHA. Production unchanged, PR #83 Draft, R03 NO_GO.
+

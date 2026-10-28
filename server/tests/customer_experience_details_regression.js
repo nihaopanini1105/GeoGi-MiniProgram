@@ -65,7 +65,7 @@ function run() {
   // Assert actual payment-card behavior instead of an obsolete literal
   // substring. The R03 receiver, historical V2 grants, CRM-backed server
   // paymentRequired=false and refunds all suppress a second payment prompt.
-  const card = report.match(/<view wx:if="\\{\\{([^"]+)\\}\\}" class="section card payment-card">/);
+  const card = report.match(/<view wx:if="\{\{([^"]+)\}\}" class="section card payment-card">/);
   assert(card, 'payment card must have a guarded wx:if expression');
   const shouldShowPayment = new Function('report', 'v21Report', 'r03Report', 'order',
     'return Boolean(' + card[1] + ');');
