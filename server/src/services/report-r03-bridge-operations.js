@@ -154,14 +154,39 @@ function createR03Bridge(options){
   const common=createV21Bridge({...options,policy:{enabled,validatePackage,capabilities,
     displayVersion:'R03',packageScope,readScope:(pack,input)=>sameScope(packageScope(pack),input),
     authorizePackage:async pack=>!!await authorization(packageScope(pack))}});
+  // OS submits six immutable cycle identifiers *before* it constructs the
+  // final R03 package. This is only a lookup into full, signed authorization,
+  // never a permission to publish with six fields.
+  const PREBIND_KEYS=SCOPE_KEYS.slice(0,6);
+  const REPORT_KEYS=SCOPE_KEYS.slice(6);
+  async function prebindGrant(input){
+    if(!input || typeof input!=='object' || Array.isArray(input)
+       || !/^[A-Za-z0-9_-]{1,128}$/.test(input.client_id||'')
+       || !/^[A-Za-z0-9_-]{1,128}$/.test(input.project_id||'')
+       || !HEX.test(input.snapshot_sha256||'')
+       || PREBIND_KEYS.slice(3).some(k=>
+          typeof input[k]!=='string' || !input[k] || input[k].length>160))return null;
+    // Full or partially supplied report fields may never fall back to a
+    // permissive prefix lookup: require exact nine-field signed scope.
+    if(REPORT_KEYS.some(k=>Object.prototype.hasOwnProperty.call(input,k)))
+      return authorization(input);
+    const grants=await grantSource();
+    const matching=grants.filter(g=>PREBIND_KEYS.every(k=>g[k]===input[k]));
+    if(matching.length!==1
+       || grants.filter(g=>g.grant_id===matching[0].grant_id).length!==1
+       || !validGrant(matching[0],Date.now()))return null;
+    return matching[0];
+  }
   async function binding(input){
+    input=input && typeof input==='object' && !Array.isArray(input)?input:{};
     const denied={...Object.fromEntries(SCOPE_KEYS.map(k=>[k,input[k]])),verified:false,
       paid_order_verified:false,customer_access_scoped:false,customer_release_authorized:false,
       independent_a01_epoch_verified:false,sixteen_metrics_evidence_verified:false,source_rights_verified:false};
     if(!enabled())return denied;
-    const [paid,grant]=await Promise.all([common.binding(input.client_id,input.project_id),authorization(input)]);
+    const [paid,grant]=await Promise.all([common.binding(input.client_id,input.project_id),prebindGrant(input)]);
     if(!paid.verified || !grant)return denied;
-    return {...denied,verified:true,paid_order_verified:true,customer_access_scoped:true,
+    return {...denied,...Object.fromEntries(REPORT_KEYS.map(k=>[k,grant[k]])),
+      verified:true,paid_order_verified:true,customer_access_scoped:true,
       customer_release_authorized:true,independent_a01_epoch_verified:true,
       sixteen_metrics_evidence_verified:true,source_rights_verified:true,
       grant_id:grant.grant_id,expires_at:grant.expires_at,

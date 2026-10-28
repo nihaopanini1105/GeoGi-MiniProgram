@@ -83,6 +83,25 @@ function signedGrant(update){
  check('before_publish_not_accessible',(await request('/api/customer/report-r03/'+project+'?clientId='+client,{token:ready.client_token})).code===404);
  const binding=await request('/internal/os/report-r03/verify-customer-binding',{body:scope});
  check('signed_exact_binding '+JSON.stringify(binding.data),binding.data.result && binding.data.result.verified===true && binding.data.result.grant_id===grant.grant_id);
+ const osPrebind=Object.fromEntries(['client_id','project_id','snapshot_sha256',
+   'source_observation_batch_id','source_score_snapshot_id','source_retest_comparison_id']
+    .map(k=>[k,scope[k]]));
+ const early=await request('/internal/os/report-r03/verify-customer-binding',{body:osPrebind});
+ check('os_six_pin_prebind_requires_unique_signed_complete_grant',
+   early.data.result?.verified===true
+   && early.data.result?.grant_id===grant.grant_id
+   && early.data.result?.report_id===scope.report_id
+   && early.data.result?.artifact_hashes?.pdf===pd
+   && early.data.result?.artifact_hashes?.h5===hd);
+ check('os_wrong_epoch_never_qualifies',
+   (await request('/internal/os/report-r03/verify-customer-binding',
+    {body:{...osPrebind,source_score_snapshot_id:'old_score'}})).data.result?.verified===false);
+ check('os_missing_epoch_never_qualifies',
+   (await request('/internal/os/report-r03/verify-customer-binding',
+    {body:{...osPrebind,source_retest_comparison_id:''}})).data.result?.verified===false);
+ check('full_hash_mismatch_never_falls_back_to_os_prefix',
+   (await request('/internal/os/report-r03/verify-customer-binding',
+    {body:{...osPrebind,artifact_hashes:{h5:hd,pdf:'a'.repeat(64)}}})).data.result?.verified===false);
  check('binding_wrong_pdf_denied',(await request('/internal/os/report-r03/verify-customer-binding',{body:{...scope,artifact_hashes:{h5:hd,pdf:'a'.repeat(64)}}})).data.result.verified===false);
  for(const [index,body] of [html,pdf].entries()){
   const artifact=pack.artifacts[index];const upload=await request('/internal/os/artifacts',{raw:body,headers:{'Content-Type':'application/octet-stream','X-GeoGi-Artifact-Filename':artifact.file_name,'X-GeoGi-Artifact-SHA256':artifact.sha256,'X-GeoGi-Artifact-Size':String(body.length),'X-GeoGi-Artifact-Mime-Type':artifact.mime_type}});
@@ -122,6 +141,8 @@ function signedGrant(update){
  const duplicate=JSON.parse(fs.readFileSync(path.join(root,'grants.json')));
  duplicate.grants.push(duplicate.grants[0]);fs.writeFileSync(path.join(root,'grants.json'),JSON.stringify(duplicate));
  check('duplicate_signed_grants_are_not_authority',(await request('/internal/os/report-r03/verify-customer-binding',{body:scope})).data.result.verified===false);
+ check('duplicate_signed_grants_deny_os_partial_binding',
+   (await request('/internal/os/report-r03/verify-customer-binding',{body:osPrebind})).data.result?.verified===false);
  signedGrant({});
 
  fs.chmodSync(path.join(root,'grants.json'),0o644);
