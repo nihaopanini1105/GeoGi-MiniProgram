@@ -2,7 +2,7 @@
 // Real Express HTTP and disk receipts. All CRM/payment/grants here are synthetic.
 const assert=require('node:assert/strict');const fs=require('node:fs');
 const path=require('node:path');const os=require('node:os');const crypto=require('node:crypto');
-const {spawn}=require('node:child_process');const {once}=require('node:events');
+const {spawn,spawnSync}=require('node:child_process');const {once}=require('node:events');
 const {packageScope,validatePackage,reportR03Capabilities,loadReleaseGrants}=require('../src/services/report-r03-bridge-operations');
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
@@ -73,6 +73,47 @@ function signedGrant(update){
  child.stdout.on('data',b=>{text+=b;const line=text.split('\n').find(x=>x.startsWith('{'));if(line){clearTimeout(timer);resolve(JSON.parse(line));}});
  child.once('exit',code=>{clearTimeout(timer);reject(Error('fixture exited '+code+' '+err));});});
  const base='http://127.0.0.1:'+ready.port;
+ // Optional cross-repo REAL Python client -> REAL loopback Express receiver.
+ // Disabled for the standalone Mini release gate. The OS and Mini repositories
+ // must be clean and exact-SHA pinned; no external environments are inherited.
+ const crossRepoRequested=Boolean(process.env.GEOGI_R03_CROSSREPO_OS_ROOT ||
+   process.env.GEOGI_R03_CROSSREPO_OS_SHA || process.env.GEOGI_R03_CROSSREPO_PYTHON);
+ const osPackage=path.join(root,'r03-os-synthetic-package.json');
+ function probeOsClient(mode){
+  if(!crossRepoRequested)return null;
+  const osRoot=process.env.GEOGI_R03_CROSSREPO_OS_ROOT;
+  const osSha=process.env.GEOGI_R03_CROSSREPO_OS_SHA;
+  const python=process.env.GEOGI_R03_CROSSREPO_PYTHON;
+  assert(path.isAbsolute(osRoot||'') && path.isAbsolute(python||'') &&
+    /^[a-f0-9]{40}$/.test(osSha||''),'exact standalone OS checkout and Python required');
+  const git=spawnSync('git',['-C',osRoot,'rev-parse','HEAD'],{encoding:'utf8',timeout:5000});
+  assert.equal(git.status,0,'OS repo metadata unavailable');
+  assert.equal(git.stdout.trim(),osSha,'OS HEAD changed while probing');
+  const clean=spawnSync('git',['-C',osRoot,'status','--porcelain'],{encoding:'utf8',timeout:5000});
+  assert.equal(clean.status,0,'OS worktree status unavailable');
+  assert.equal(clean.stdout.trim(),'','OS worktree must be clean');
+  const result=spawnSync(python,[path.join(__dirname,'report_r03_os_python_bridge_probe.py'),mode,osPackage],{
+    encoding:'utf8',timeout:20000,env:{
+      PATH:process.env.PATH||'/usr/bin:/bin',
+      HOME:root,
+      GEOGI_R03_TEST_OS_ROOT:osRoot,GEOGI_R03_TEST_OS_SHA:osSha,
+      GEOGI_R03_TEST_BRIDGE_URL:base,
+      GEOGI_R03_TEST_BRIDGE_TOKEN:ready.bridge_token,
+    }
+  });
+  assert.equal(result.status,0,'real Python-to-Express '+mode+' failed: '+String(result.stderr).slice(0,900));
+  let payload;
+  try{payload=JSON.parse(result.stdout.trim());}catch{
+    throw Error('Python crossrepo probe did not produce one JSON receipt');
+  }
+  assert.equal(payload.phase,mode);
+  assert.equal(payload.status,'passed');
+  assert.equal(payload.os_sha,osSha);
+  assert.equal(payload.synthetic_only,true);
+  checked.push('os_python_real_http_'+mode);
+  return payload;
+ }
+ if(crossRepoRequested)fs.writeFileSync(osPackage,JSON.stringify(pack),{mode:0o600});
  async function request(route,{body,token=ready.bridge_token,raw,headers={}}={}){
   const response=await fetch(base+route,{method:body!==undefined||raw?'POST':'GET',headers:{...(token?{Authorization:'Bearer '+token}:{}),...(body!==undefined?{'Content-Type':'application/json'}:{}),...headers},body:raw|| (body!==undefined?JSON.stringify(body):undefined)});
   const bytes=Buffer.from(await response.arrayBuffer());let data;try{data=JSON.parse(bytes);}catch{}return {code:response.status,data,bytes,headers:response.headers};
@@ -93,6 +134,7 @@ function signedGrant(update){
    && early.data.result?.report_id===scope.report_id
    && early.data.result?.artifact_hashes?.pdf===pd
    && early.data.result?.artifact_hashes?.h5===hd);
+ probeOsClient('prebind');
  check('os_wrong_epoch_never_qualifies',
    (await request('/internal/os/report-r03/verify-customer-binding',
     {body:{...osPrebind,source_score_snapshot_id:'old_score'}})).data.result?.verified===false);
@@ -108,6 +150,7 @@ function signedGrant(update){
   check('real_'+artifact.artifact_type+'_ingress',upload.code===200 && upload.data.result.sha256===artifact.sha256);
  }
  check('publish_two_hashes',(await request('/internal/os/delivery-packages',{body:pack})).data.result.status==='published');
+ probeOsClient('access');
  check('publish_exact_replay_idempotent',(await request('/internal/os/delivery-packages',{body:pack})).data.result.idempotent===true);
  const read={...scope,delivery_package_id:pack.delivery_package_id,artifact_sha256:hd};
  check('access_exact_scope_and_hashes',(await request('/internal/os/report-r03/verify-customer-access',{body:read})).data.result.accessible===true);
@@ -130,6 +173,11 @@ function signedGrant(update){
  signedGrant({expires_at:new Date(Date.now()-1).toISOString()});
  check('expired_signed_grant_access_denied',(await request('/internal/os/report-r03/verify-customer-access',{body:read})).data.result.accessible===false);
  check('expired_signed_grant_binding_denied',(await request('/internal/os/report-r03/verify-customer-binding',{body:scope})).data.result.verified===false);
+ if(crossRepoRequested){
+   // Uses the real OS Python client; this revocation persists to the same
+   // isolated Mini receiver and all subsequent Node idempotency assertions.
+   probeOsClient('revoke');
+ }
  check('revoke_when_grant_expired',(await request('/internal/os/report-r03/revoke',{body:{...read,reason:'synthetic_test_complete'}})).data.result.status==='revoked');
  check('revoke_exact_replay_idempotent',(await request('/internal/os/report-r03/revoke',{body:{...read,reason:'synthetic_test_complete'}})).data.result.idempotent===true);
  signedGrant({});

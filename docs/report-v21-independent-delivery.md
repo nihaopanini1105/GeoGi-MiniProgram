@@ -193,3 +193,11 @@ R03 FR01–12 0/12 BUSINESS_ACCEPTED, production NO_GO. No Feishu/WeChat product
 
 现有真实Express隔离HTTP合成回归增补六字段OS原型、签名双哈希回读、错/缺epoch、半填完整报告hash禁止降级以及重复签名授权时拒绝。新Mini HEAD Node/npm/AppID/OS↔Mini精确运行 **NOT_RUN**，不能借用前一SHA Codex工作树42 HTTP和39双仓库模拟检查。独立A01有效封存Epoch、真实16指标及合法来源、两个真实客户/预发布权限未授权。另一已确定P0是**OS正式R03发包函数尚未产生Mini`validatePackage`强制要求的完整`r03_report_definition`和8个SourceObject版本哈希**；不得通过关闭校验或伪造版本哈希解决，应由OS原数据Owner在真实证据完整时生成并验证，之后运行双仓库隔离HTTP/客户撤回合同测试。PR #83保持Draft，OS PR #532保持Draft，FR01–12 0/12 BUSINESS_ACCEPTED，R03生产NO-GO，R02稳定不变。
 
+## 2026-10-28 Mini R03｜OS Python→Mini Express真实localhost合同联调（默认禁用）
+
+复用已存在的 `server/tests/report_r03_http_regression.js` 真实Express监听与私有合成支付/CRM、签名九字段grant、H5/PDF原字节，新增可选的 **真正OS Python urllib客户端** 探针，使用实际 `apps.operations_admin.miniprogram_bridge.MiniProgramBridgeClient`。只有操作者显式配置 `GEOGI_R03_CROSSREPO_OS_ROOT`、`GEOGI_R03_CROSSREPO_OS_SHA` 和 `GEOGI_R03_CROSSREPO_PYTHON` 时执行；验证OS工作树clean且SHA一致，限制Python为已指定绝对路径、URL严格127.0.0.1临时随机端口、一次性合成Token与0600包文件。不继承生产数据库、支付或企业微信密钥；无外部网络、真实客户、报告发表或实际金融操作。无参数时Mini既有完整Node发布门禁不变。
+
+顺序由已有Node真实服务器掌控：1) OS Python六字段绑定读取已签名唯一九字段grant并拒绝错Epoch；2) Node已上传真实H5/PDF字节并发布后，OS Python发送完整九字段scope读回可访问，错误PDF哈希和跨客户scope被Mini真实HTTP拒绝；3) 已过期授权边界下OS Python执行真实受控撤回并验证无法再次访问，Node原有幂等性、撤回后拒绝及原件不变检查继续运行。新增 `server/tests/report_r03_os_python_bridge_probe.py`，结果只写无密钥的 `synthetic_only` 分阶段回执。复用现有Mini接收Owner，绝不削弱验证器或新增生产开关、Schema、支付入口、A01或平行系统。
+
+此新Mini SHA的专项Python-Node、Node全量/付费门禁 **NOT_RUN**（GitHub仅静态写入）。其父SHA `c4e0e668dc013691da4489d1e623901168ada03f` 在Mac确曾完成Mini完整付费工程门禁PASS，但不得挪给新SHA。OS正式 SHA `5ad9c91a4637730bf6f4a21d3bc506332d0999bf` 独立 5560/5560 PASS，只属OS原SHA，本Mini变更不触及OS源码。实际尚未具备24行业合法原件/72h、独立A01完整Epoch、16真实指标、两正式客户、隔离预发布及用户审批，FR01–FR12 0/12 BUSINESS_ACCEPTED、双PR Draft、R03生产NO-GO。
+
