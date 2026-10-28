@@ -155,3 +155,12 @@ OS 一侧仍须另行开启对应的 `GEOGI_REPORT_V21_GENERAL_PUBLISH_ENABLED`�
 - 新增 `server/tests/v21_crm_unique_scope_regression.js`，验证正常唯一客户、同租户重复项目/重复 lead、不同客户同名项目互不干扰、重复适配器记录与明确的冲突标记；旧 `report_v21_bridge_regression.js` 补充**精确试点发布必须拒绝**重复/冲突 CRM 数据。
 - Linux Node22 隔离旧 ZIP 同等补丁的专项：`v21_crm_unique_scope_regression.js`、`os_operations_bridge_regression.js`、`report_v21_bridge_regression.js` **均 PASS**。尚未在当前 GitHub 分支完整同字节代码树运行精确 HEAD 全量 Gate、真实飞书、正式 Express/微信付款或客户授权 E2E。不得当作生产上线证据。
 - 本变更没有接入生产飞书、没有修改客户、支付、佣金账本，没有迁移、部署或发布；V2.1 仍默认关闭，PR 保持 Draft。
+
+## 2026-10-28 R03跨仓协议隔离安全切片（PR #83 新SHA待验收）
+
+GeoGi-OS PR #532 独立 `report_r03_diagnostic/geo_diagnostic_html_release_r03` 已能发起受控客户交付，但此仓库目前只具备独立 V21 和旧V2接收器。旧 `POST /internal/os/delivery-packages` 对陌生 R03 purpose 默认落到 `publishOsDeliveryPackage`，存在将R03误送入旧V2业务阶段/支付结算的潜在风险（代码风险，不主张生产已发生）。**本切片先在现有MiniProgram服务端 fail closed**：请求若任何一个purpose/authority表明R03，必须在旧路由/副作用前抛 `R03_RECEIVER_NOT_READY` 403；新增经 `requireOsBridge` Bearer 鉴权的 `/internal/os/report-r03/{capabilities,verify-customer-binding,verify-customer-access,revoke}` 接口，明确默认 `enabled:false`、客户/付费/A01/16指标/授权均未核验、撤销时拒绝；没有实现就不虚报capability或返回已撤销，所有OS开关打开仍不能误进入旧V21/V2指针。保留现有V21功能逻辑、私有包、票据/微信与付款、佣金、渠道及默认设置原样。
+
+新增独立 `server/tests/report_r03_receiver_boundary_regression.js`，并进入原 `server/npm test`，检查R03完整/伪装purpose或authority都强制拒绝、旧V2/V21不误识别、各开关true/false均仍不授予能力、四个独立受保护接口存在。**这是服务端安全前置、不是完整R03接收器实现**：仍须后续复用现有私有存储/付费CRM/微信读者 owner，独立设计持久化R03客户包验证、双工件、原始字节hash、三来源pin/A01/权益的可信外部验证、不可逆撤回/补偿以及两仓原始HTTP E2E，才能打开 R03 的任何发布开关。禁止用R03自带字段自我证明独立核验；真实受控生产发布必须额外用户批准。
+
+前驱MiniProgram PR #83 `68d47cdad9973ac18b9753fa3fa77bc777de5758` 尚无当前同树完整npm与AppID受控发布门禁。新SHA专项/完整 Node/真实HTTP **NOT_RUN**，不能把旧ZIP测试冒认为新SHA。OS HEAD `355e191dd5714f1001af4596d01944e11b7bfd75` 用户Mac 1440px行业导航1 FAIL未修复，R03 FR01–FR12 0/12 BUSINESS_ACCEPTED；两个仓库NO-GO。此提交不迁移、不合并、不部署、不接触生产或A01采集。
+

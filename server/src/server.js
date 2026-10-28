@@ -60,6 +60,12 @@ const {
   revokeV21Report, getV21CustomerReport
 } = require('./services/report-v21-bridge-operations');
 const {
+  R03DeliveryError, capabilities:reportR03Capabilities,
+  deniedBinding:verifyR03CustomerBinding,
+  deniedAccess:verifyR03CustomerAccess,
+  rejectR03Package, revokeR03
+} = require('./services/report-r03-bridge-boundary');
+const {
   OperationsBridgeError,
   configured: osBridgeConfigured,
   requireOsBridge,
@@ -648,6 +654,26 @@ app.post(
   }
 );
 
+// R03 has a DIFFERENT release authority. These authenticated endpoints
+// explicitly report NOT_READY until an independent receiver + evidence rights,
+// customer/paid access, private storage and revocation are integrated. In no
+// condition may R03 fallback into V2/V21 billing and customer pointers.
+app.get('/internal/os/report-r03/capabilities', requireOsBridge, (_req,res) => {
+  res.setHeader('Cache-Control','no-store');
+  return res.json({ok:true,result:reportR03Capabilities()});
+});
+app.post('/internal/os/report-r03/verify-customer-binding', requireOsBridge, (req,res) => {
+  res.setHeader('Cache-Control','no-store');
+  return res.json({ok:true,result:verifyR03CustomerBinding(req.body||{})});
+});
+app.post('/internal/os/report-r03/verify-customer-access', requireOsBridge, (req,res) => {
+  res.setHeader('Cache-Control','no-store');
+  return res.json({ok:true,result:verifyR03CustomerAccess(req.body||{})});
+});
+app.post('/internal/os/report-r03/revoke', requireOsBridge, (_req,res,next) => {
+  try {revokeR03();} catch(error) {return next(error);}
+});
+
 // Report V2.1 is an independent opt-in consumer with a distinct authority.
 // Every route is protected by the OS bridge bearer and remains disabled until
 // both service capability and a real tenant-scoped customer binding are verified.
@@ -701,6 +727,8 @@ app.post('/internal/os/report-v2/revoke',requireOsBridge,async(req,res,next)=>{
 app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, next) => {
   try {
     const payload=req.body||{};
+    // Fail closed BEFORE any legacy import/stage update or payment side effect.
+    rejectR03Package(payload);
     // Never send a V2.1 package through the V2 payment/commission saga.
     const v21 = payload.delivery_purpose === 'report_v21_diagnostic'
       || payload.release_authority === 'geo_diagnostic_html_release_v21';
@@ -714,6 +742,9 @@ app.post('/internal/os/delivery-packages', requireOsBridge, async (req, res, nex
 });
 
 app.use((error, _req, res, _next) => {
+  if (error instanceof R03DeliveryError) {
+    return res.status(403).json({ok:false,error:error.code});
+  }
   if (error instanceof V21DeliveryError) {
     const denied = error.code === 'V21_PUBLICATION_DISABLED' ||
       error.code === 'V21_REVOCATION_DISABLED' ||
