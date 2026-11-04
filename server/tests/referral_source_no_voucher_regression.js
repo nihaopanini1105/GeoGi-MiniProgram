@@ -60,6 +60,19 @@ async function run() {
   const originalWx = global.wx;
   const request = require('../../utils/request');
   const originalGet = request.get;
+  const { HOME_SHARE_TITLE, HOME_SHARE_IMAGE } = require('../../config/share');
+  function assertHomePreview(share) {
+    assert.strictEqual(share.title, HOME_SHARE_TITLE, 'internal source names must not become public share titles');
+    assert.strictEqual(share.imageUrl, HOME_SHARE_IMAGE, 'sharing Mine must use the public home cover');
+  }
+  const cover = fs.readFileSync(path.join(root, HOME_SHARE_IMAGE));
+  assert.strictEqual(cover.subarray(1, 4).toString(), 'PNG');
+  assert.strictEqual(cover.readUInt32BE(16), 1000);
+  assert.strictEqual(cover.readUInt32BE(20), 800);
+  const packIgnores = JSON.parse(read('project.config.json')).packOptions.ignore;
+  assert(!packIgnores.some((item) => HOME_SHARE_IMAGE.slice(1) === item.value ||
+    (item.type === 'folder' && HOME_SHARE_IMAGE.slice(1).startsWith(item.value + '/'))),
+  'the share cover must be included in the uploaded mini-program');
   try {
     global.wx = { getStorageSync: (key) => key === 'geogi_customer_token' ? 'test-session' : '' };
     let dashboard = {};
@@ -88,6 +101,13 @@ async function run() {
       target: { dataset: { sourceToken: 'personal-card-token', channelName: '专属名片' } }
     });
     assert.strictEqual(cardShare.path, '/pages/index/index?src=personal-card-token');
+    assertHomePreview(cardShare);
+    assertHomePreview(page.onShareAppMessage.call({ data: {} }));
+    const channelShare = page.onShareAppMessage({
+      target: { dataset: { sourceToken: 'channel +/&中文', channelName: 'GeoGi · 李沙沙名片' } }
+    });
+    assertHomePreview(channelShare);
+    assert.strictEqual(channelShare.path, '/pages/index/index?src=' + encodeURIComponent('channel +/&中文'));
 
     page.data.channelDashboard = {
       isSourceOwner: true, isChannel: false,
@@ -96,6 +116,7 @@ async function run() {
     };
     assert.strictEqual(page.onShareAppMessage({ target: { dataset: {} } }).path,
       '/pages/index/index?src=my-card', "default Mine share must contain the owner source");
+    assertHomePreview(page.onShareAppMessage());
 
 
     delete require.cache[require.resolve('../../pages/index/index.js')];
@@ -117,6 +138,8 @@ async function run() {
     assert.strictEqual(context.data.referralShareToken, 'personal-card-token');
     assert.strictEqual(home.onShareAppMessage.call(context).path,
       '/pages/index/index?src=personal-card-token');
+    assertHomePreview(home.onShareAppMessage.call(context));
+    assert.strictEqual(home.onShareTimeline.call(context).imageUrl, HOME_SHARE_IMAGE);
 
     dashboard = {
       ok: true,
@@ -143,6 +166,7 @@ async function run() {
     await home.loadChannelShareContext.call(context);
     assert.strictEqual(context.data.referralShareToken, '');
     assert.strictEqual(home.onShareAppMessage.call(context).path, '/pages/index/index');
+    assertHomePreview(home.onShareAppMessage.call(context));
 
     delete require.cache[require.resolve('../../pages/services/services.js')];
     require('../../pages/services/services.js');

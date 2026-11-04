@@ -1,3 +1,4 @@
+const { homeShare, HOME_SHARE_IMAGE } = require('../../config/share');
 const { platforms } = require('../../config/platforms');
 const { assets } = require('../../config/assets');
 const { loadReferralShareContext, withSourceQuery } = require('../../utils/referral-share');
@@ -7,7 +8,6 @@ Page({
   data: {
     assets,
     referralShareToken: '',
-    referralShareName: '',
     platforms: platforms.filter((item) => item.enabled),
     services: [
       {
@@ -57,8 +57,7 @@ Page({
   async loadChannelShareContext() {
     const share = await loadReferralShareContext();
     this.setData({
-      referralShareToken: share.token,
-      referralShareName: share.name
+      referralShareToken: share.token
     });
   },
 
@@ -77,12 +76,7 @@ Page({
       page: 'home',
       has_referral_source: Boolean(sourceToken)
     });
-    return {
-      title: sourceToken && this.data.referralShareName
-        ? this.data.referralShareName + ' 推荐｜GeoGi 品牌 GEO 诊断'
-        : 'GeoGi｜199 元品牌 GEO 诊断报告',
-      path: '/pages/index/index' + (sourceToken ? '?' + withSourceQuery('', sourceToken) : '')
-    };
+    return homeShare(sourceToken);
   },
 
   onShareTimeline() {
@@ -93,6 +87,7 @@ Page({
     const sourceToken = String(this.data.referralShareToken || '');
     return {
       title: 'GeoGi｜让品牌在 AI 时代被看见、被理解、被选择',
+      imageUrl: HOME_SHARE_IMAGE,
       query: withSourceQuery('', sourceToken)
     };
   },
