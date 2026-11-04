@@ -176,6 +176,13 @@ app.get('/api/customer/projects', requireCustomerSession, async (req, res) => {
   const owned = await listOwnedClientIds(req.customerSession.phoneNumber);
   const requested = String(req.query && req.query.clientId || '').trim();
   const clientIds = requested ? (owned.includes(requested) ? [requested] : []) : owned;
+  // An authenticated customer's empty history is a successful authoritative
+  // result. Existing MiniProgram clients replace their local report cache only
+  // on success; a 404 here would keep deleted reports visible indefinitely.
+  // Explicit client filters and direct report reads retain their 404 boundary.
+  if (!requested && !clientIds.length) return res.json({
+    ok: true, clientId: '', orders: [], notifications: []
+  });
   if (!clientIds.length) return res.status(404).json({
     ok: false, userMessage: '没有找到该手机号名下的诊断记录'
   });
