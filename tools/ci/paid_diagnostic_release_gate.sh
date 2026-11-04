@@ -53,7 +53,7 @@ done
 
 grep -Fq 'PRODUCT_PRICE_FEN = 19900' server/src/services/payment-store.js
 grep -Fq "amount: {" server/src/services/wechat-pay.js
-grep -Fq "total: PRODUCT_PRICE_FEN" server/src/services/wechat-pay.js
+grep -Fq "total: Number(order.amountTotal)" server/src/services/wechat-pay.js
 grep -Fq "wx.requestPayment" pages/submit-success/submit-success.js
 grep -Fq "品牌 GEO 诊断标准价 199 元" pages/submit-success/submit-success.wxml
 grep -Fq "不包含在本次诊断报告中" pages/services/services.js
