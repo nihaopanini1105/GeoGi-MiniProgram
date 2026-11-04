@@ -1,3 +1,4 @@
+const { HOME_SHARE_TITLE, HOME_SHARE_IMAGE } = require('../../config/share');
 const { loadReferralShareContext, withSourceQuery } = require('../../utils/referral-share');
 
 Page({
@@ -37,14 +38,16 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: 'GeoGi｜199 元品牌 GEO 诊断报告',
+      title: HOME_SHARE_TITLE,
+      imageUrl: HOME_SHARE_IMAGE,
       path: '/pages/services/services?' + withSourceQuery('from=share', this.data.referralShareToken)
     };
   },
 
   onShareTimeline() {
     return {
-      title: 'GeoGi｜199 元品牌 GEO 诊断报告',
+      title: HOME_SHARE_TITLE,
+      imageUrl: HOME_SHARE_IMAGE,
       query: withSourceQuery('from=timeline', this.data.referralShareToken)
     };
   }

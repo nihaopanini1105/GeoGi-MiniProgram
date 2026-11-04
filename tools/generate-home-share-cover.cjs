@@ -20,14 +20,13 @@ const dataUrl = (asset) => 'data:image/png;base64,' + fs.readFileSync(path.join(
       .copy { position: relative; margin-top: 22px; }
       .kicker { color: #176bff; font-size: 13px; font-weight: 700; letter-spacing: .12em; }
       h1 { color: #081b3a; font-size: 32px; line-height: 1.28; margin: 19px 0 0; }
-      p { color: #64738a; font-size: 18px; line-height: 1.7; margin: 19px 0 0; }
       .cta { display: flex; align-items: center; justify-content: center; width: 280px; height: 56px;
         margin-top: 22px; border-radius: 16px; color: #fff; background: #176bff; font-size: 19px; font-weight: 600; }
     </style><div class="hero"><img class="orbit" src="${dataUrl(assets.hero.background)}">
       <img class="logo" src="${dataUrl(assets.brand.logo)}"><div class="copy">
       <div class="kicker">GEO INTELLIGENCE FOR BRANDS</div>
-      <h1>让品牌在 AI 时代<br>被看见、被理解、被选择</h1>
-      <p>199元获取一次品牌 GEO诊断</p><div class="cta">获取诊断报告</div></div></div></html>`);
+      <h1>让品牌在AI时代<br>被看见、被理解、被选择</h1>
+      <div class="cta">获取诊断报告</div></div></div></html>`);
     await page.evaluate(async () => {
       await document.fonts.ready;
       await Promise.all([...document.images].map((image) => image.decode()));

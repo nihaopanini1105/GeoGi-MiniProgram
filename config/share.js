@@ -1,5 +1,5 @@
 // Public share presentation is independent of internal referral source names.
-const HOME_SHARE_TITLE = 'GeoGi｜199 元品牌 GEO 诊断报告';
+const HOME_SHARE_TITLE = '让品牌在AI时代被看见、被理解、被选择';
 const HOME_SHARE_IMAGE = '/assets/share/home-cover.png';
 
 function homeShare(sourceToken = '') {

@@ -1,4 +1,4 @@
-const { homeShare, HOME_SHARE_IMAGE } = require('../../config/share');
+const { homeShare, HOME_SHARE_TITLE, HOME_SHARE_IMAGE } = require('../../config/share');
 const { platforms } = require('../../config/platforms');
 const { assets } = require('../../config/assets');
 const { loadReferralShareContext, withSourceQuery } = require('../../utils/referral-share');
@@ -86,7 +86,7 @@ Page({
 
     const sourceToken = String(this.data.referralShareToken || '');
     return {
-      title: 'GeoGi｜让品牌在 AI 时代被看见、被理解、被选择',
+      title: HOME_SHARE_TITLE,
       imageUrl: HOME_SHARE_IMAGE,
       query: withSourceQuery('', sourceToken)
     };

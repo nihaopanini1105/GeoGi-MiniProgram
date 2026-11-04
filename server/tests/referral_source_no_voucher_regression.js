@@ -61,6 +61,7 @@ async function run() {
   const request = require('../../utils/request');
   const originalGet = request.get;
   const { HOME_SHARE_TITLE, HOME_SHARE_IMAGE } = require('../../config/share');
+  assert.strictEqual(HOME_SHARE_TITLE, '让品牌在AI时代被看见、被理解、被选择');
   function assertHomePreview(share) {
     assert.strictEqual(share.title, HOME_SHARE_TITLE, 'internal source names must not become public share titles');
     assert.strictEqual(share.imageUrl, HOME_SHARE_IMAGE, 'sharing Mine must use the public home cover');
@@ -140,6 +141,7 @@ async function run() {
       '/pages/index/index?src=personal-card-token');
     assertHomePreview(home.onShareAppMessage.call(context));
     assert.strictEqual(home.onShareTimeline.call(context).imageUrl, HOME_SHARE_IMAGE);
+    assert.strictEqual(home.onShareTimeline.call(context).title, HOME_SHARE_TITLE);
 
     dashboard = {
       ok: true,
@@ -170,6 +172,8 @@ async function run() {
 
     delete require.cache[require.resolve('../../pages/services/services.js')];
     require('../../pages/services/services.js');
+    assertHomePreview(page.onShareAppMessage.call({ data: { referralShareToken: 'personal-card-token' } }));
+    assert.strictEqual(page.onShareTimeline.call({ data: {} }).title, HOME_SHARE_TITLE);
     assert.strictEqual(page.onShareAppMessage.call({ data: { referralShareToken: 'personal-card-token' } }).path,
       '/pages/services/services?from=share&src=personal-card-token');
 
