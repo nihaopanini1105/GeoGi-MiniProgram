@@ -43,7 +43,6 @@
         class="secondary-button full-button channel-share-button"
         open-type="share"
         data-source-token="{{item.token}}"
-        data-channel-name="{{item.name}}"
       >分享我的专属入口</button>
     </view>
   </view>
@@ -76,7 +75,6 @@
         class="secondary-button full-button channel-share-button"
         open-type="share"
         data-source-token="{{item.shareSourceToken}}"
-        data-channel-name="{{item.name}}"
       >分享专属入口</button>
       <view class="channel-commission-row">
         <view><text>待返佣</text><text class="channel-value channel-value-primary">¥{{item.pendingCommissionYuan}}</text></view>
