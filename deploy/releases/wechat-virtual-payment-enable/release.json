@@ -1,0 +1,10 @@
+{
+  "adapter": "deploy/releases/wechat-virtual-payment-enable/adapter.py",
+  "module": "wechat-virtual-payment-enable",
+  "profile": "feature",
+  "resource": "wechat-miniprogram",
+  "runtime": "custom",
+  "schema_version": 1,
+  "scope": "software_deployment",
+  "timeout_seconds": 900
+}
