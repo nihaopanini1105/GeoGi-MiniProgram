@@ -1,3 +1,4 @@
+const { checkoutFields, requestVirtualPayment } = require('../../utils/virtual-payment');
 const { get, post, isApiConfigured } = require('../../utils/request');
 
 Page({
@@ -119,7 +120,7 @@ Page({
         '/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment',
         {
           clientId: submission.clientId,
-          loginCode
+          ...checkoutFields(loginCode)
         }
       );
       if (!result || !result.ok) {
@@ -232,17 +233,7 @@ Page({
   },
 
   requestPayment(params) {
-    return new Promise((resolve, reject) => {
-      wx.requestPayment({
-        timeStamp: params.timeStamp,
-        nonceStr: params.nonceStr,
-        package: params.package,
-        signType: params.signType || 'RSA',
-        paySign: params.paySign,
-        success: resolve,
-        fail: reject
-      });
-    });
+    return requestVirtualPayment(params);
   },
 
   persistPaidStatus(payment) {

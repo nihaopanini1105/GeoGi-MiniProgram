@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const express = require('express');
 const { configure } = require('../src/scripts/configure-wechat-message-push');
-const { ENDPOINT, createRouter } = require('../src/services/wechat-message-push');
+const { ENDPOINT, createRouter, signature, decrypt, encryptResponse } = require('../src/services/wechat-message-push');
 
 // Independent fixture encoder implements the documented 32-byte PKCS#7 frame.
 function encrypted(config, message, options = {}) {
@@ -37,6 +37,15 @@ async function run() {
   assert.equal(configure(file).existing, true);
   assert.equal(fs.readFileSync(file, 'utf8'), original, 'idempotent setup never rotates secrets');
   const config = JSON.parse(original);
+  // Golden vectors from WeChat's official message-push documentation.
+  const official = { token: 'AAAAA', encodingAESKey: 'A'.repeat(43), appId: 'wxba5fad812f8e6fb9' };
+  const vector = '+qdx1OKCy+5JPCBFWw70tm0fJGb2Jmeia4FCB7kao+/Q5c/ohsOzQHi8khUOb05JCpj0JB4RvQMkUyus8TPxLKJGQqcvZqzDpVzazhZv6JsXUnnR8XGT740XgXZUXQ7vJVnAG+tE8NUd4yFyjPy7GgiaviNrlCTj+l5kdfMuFUPpRSrfMZuMcp3Fn2Pede2IuQrKEYwKSqFIZoNqJ4M8EajAsjLY2km32IIjdf8YL/P50F7mStwntrA2cPDrM1kb6mOcfBgRtWygb3VIYnSeOBrebufAlr7F9mFUPAJGj04=';
+  assert.equal(signature(official.token, '1714112445', '415670741', vector), '046e02f8204d34f8ba5fa3b1db94908f3df2e9b3');
+  assert.equal(JSON.parse(decrypt(official, vector)).debug_str, 'hello world');
+  const reply = encryptResponse(official, { demo_resp: 'good luck' }, '415670741', { random: Buffer.from('707722b803182950'), timestamp: 1713424427 });
+  assert.equal(reply.Encrypt, 'ELGduP2YcVatjqIS+eZbp80MNLoAUWvzzyJxgGzxZO/5sAvd070Bs6qrLARC9nVHm48Y4hyRbtzve1L32tmxSQ==');
+  assert.equal(JSON.parse(decrypt(official, reply.Encrypt)).demo_resp, 'good luck');
+
   let enabled = true;
   const app = express();
   app.use(ENDPOINT, createRouter({ getConfig: () => enabled ? config : null }));

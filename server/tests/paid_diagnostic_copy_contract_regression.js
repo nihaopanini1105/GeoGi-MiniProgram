@@ -44,10 +44,11 @@ function run() {
   assert(!diagnosisIntro.includes('渠道优惠'));
   assert(!diagnosis.includes('合作渠道优惠会自动应用'));
   assert(!diagnosis.includes('渠道优惠自动应用'));
-  assert(diagnosisJs.includes('wx.requestPayment'));
+  assert(diagnosisJs.includes('requestVirtualPayment'));
+  assert(!diagnosisJs.includes('wx.requestPayment'));
   assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment'"));
   assert(diagnosisJs.includes("'/api/customer/projects/' + encodeURIComponent(submission.projectId) + '/payment/sync'"));
-  assert(diagnosis.includes('30 分钟内有效'));
+  assert(diagnosis.includes('付款状态以订单页面显示为准'));
   assert(success.includes('标准价 199 元'));
   assert(!success.includes('兑换码'));
   assert(success.includes('来源优惠'));

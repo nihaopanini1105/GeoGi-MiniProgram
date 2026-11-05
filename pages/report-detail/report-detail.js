@@ -1,3 +1,4 @@
+const { checkoutFields, requestVirtualPayment } = require('../../utils/virtual-payment');
 const { get, post, uploadFile, isApiConfigured } = require('../../utils/request');
 const { API_BASE_URL } = require('../../config/api');
 
@@ -201,23 +202,13 @@ Page({
       });
       const result = await post(
         '/api/customer/projects/' + encodeURIComponent(this.data.projectId) + '/payment',
-        { clientId: this.data.clientId, loginCode }
+        { clientId: this.data.clientId, ...checkoutFields(loginCode) }
       );
       if (!result || !result.ok) throw new Error(result && result.userMessage ? result.userMessage : '支付订单创建失败');
       if (!result.alreadyPaid) {
         const params = result.payParams;
         if (!params) throw new Error('微信支付参数缺失');
-        await new Promise((resolve, reject) => {
-          wx.requestPayment({
-            timeStamp: params.timeStamp,
-            nonceStr: params.nonceStr,
-            package: params.package,
-            signType: params.signType || 'RSA',
-            paySign: params.paySign,
-            success: resolve,
-            fail: reject
-          });
-        });
+        await requestVirtualPayment(params);
         await post(
           '/api/customer/projects/' + encodeURIComponent(this.data.projectId) + '/payment/sync',
           { clientId: this.data.clientId }

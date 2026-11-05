@@ -108,7 +108,7 @@ function paymentProjectionDecision(currentStage, paymentStatus) {
   };
 }
 
-async function projectPaymentProjection({ projectId, paymentStatus }) {
+async function projectPaymentProjection({ clientId, projectId, paymentStatus }) {
   const tenantToken = await getTenantAccessToken();
   const [leads, projects] = await Promise.all([
     listBitableRecords({
@@ -124,8 +124,10 @@ async function projectPaymentProjection({ projectId, paymentStatus }) {
       pageSize: 100
     })
   ]);
-  const lead = leads.find((record) => text(record.fields && record.fields.项目编号) === projectId);
-  const project = projects.find((record) => text(record.fields && record.fields.项目编号) === projectId);
+  const scope = (record) => text(record.fields && record.fields.项目编号) === projectId && (!clientId || text(record.fields && record.fields.客户编号) === clientId);
+  const scopedLeads = leads.filter(scope), scopedProjects = projects.filter(scope);
+  if (scopedLeads.length !== 1 || scopedProjects.length !== 1 || text(scopedLeads[0].fields.客户编号) !== text(scopedProjects[0].fields.客户编号)) throw new Error('PAYMENT_PROJECT_SCOPE_NOT_UNIQUE');
+  const lead = scopedLeads[0], project = scopedProjects[0];
   if (!lead || !project) return false;
 
   const currentStage = text(project.fields && project.fields.当前阶段) || 'PAYMENT_PENDING';
@@ -201,6 +203,7 @@ async function ensureOrder({ clientId, projectId, phoneNumber }) {
     throw error;
   }
   const existing = await findPaymentByProject(projectId);
+  if (existing && existing.clientId !== clientId) { const error = new Error('PAYMENT_PROJECT_NOT_FOUND'); error.code = 'PAYMENT_PROJECT_NOT_FOUND'; throw error; }
   if (existing && isPaymentOrderExpired(existing)) {
     const expired = await refreshExpiredPaymentOrder(existing);
     await projectPaymentProjection({ projectId, paymentStatus: expired.status });
@@ -340,6 +343,7 @@ async function refundPaymentForOs({ outTradeNo, amountFen, reason, operatorId })
     error.code = 'PAYMENT_ORDER_NOT_FOUND';
     throw error;
   }
+  if (order.provider === 'wechat_virtual_pay') { const e = new Error('REFUND_VIRTUAL_PLATFORM_REQUIRED'); e.code = 'REFUND_VIRTUAL_PLATFORM_REQUIRED'; throw e; }
   const requestedAmount = amountFen === undefined || amountFen === null || amountFen === ''
     ? Number(order.refundableAmount || 0)
     : Number(amountFen);

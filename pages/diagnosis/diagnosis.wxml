@@ -56,7 +56,8 @@
           <view class="flow-row"><text class="flow-index">3</text><text>确认订单并完成支付，支付成功后开始诊断</text></view>
           <view class="flow-row"><text class="flow-index">4</text><text>诊断完成后，可在「我的」查看进度、退款状态和正式报告</text></view>
         </view>
-        <text class="note-copy">没有官网、竞品或附件也可以提交，不影响开始诊断。如本次仍需支付，支付订单创建后 30 分钟内有效。</text>
+        <text class="body">退款政策：购买后商家不接受主动退款申请，平台退款以平台最终处理结果为准。</text>
+        <text class="note-copy">没有官网、竞品或附件也可以提交，不影响开始诊断。付款状态以订单页面显示为准。</text>
       </view>
     </view>
   </block>
