@@ -1,0 +1,10 @@
+{
+  "adapter": "deploy/releases/dev3-admin/adapter.py",
+  "module": "dev3-admin",
+  "profile": "dev3",
+  "resource": "geogi-admin",
+  "runtime": "admin",
+  "schema_version": 1,
+  "scope": "software_deployment",
+  "timeout_seconds": 900
+}

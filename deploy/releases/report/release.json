@@ -1,0 +1,10 @@
+{
+  "adapter": "deploy/releases/report/adapter.py",
+  "module": "report",
+  "profile": "report",
+  "resource": "geogi-admin",
+  "runtime": "admin",
+  "schema_version": 1,
+  "scope": "software_deployment",
+  "timeout_seconds": 900
+}
