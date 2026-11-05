@@ -1,0 +1,10 @@
+{
+  "adapter": "deploy/releases/wechat-message-push/adapter.py",
+  "module": "wechat-message-push",
+  "profile": "feature",
+  "resource": "wechat-miniprogram",
+  "runtime": "custom",
+  "schema_version": 1,
+  "scope": "software_deployment",
+  "timeout_seconds": 900
+}
