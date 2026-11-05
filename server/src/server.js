@@ -67,6 +67,8 @@ const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '127.0.0.1';
 
 app.use(helmet());
+// Isolated parser and errors for authenticated WeChat encrypted callbacks.
+app.use(require('./services/wechat-message-push').ENDPOINT, require('./services/wechat-message-push').createRouter());
 app.use(express.json({
   limit: '512kb',
   verify: (req, _res, buffer) => {
