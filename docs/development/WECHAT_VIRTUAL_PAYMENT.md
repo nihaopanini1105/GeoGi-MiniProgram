@@ -18,3 +18,5 @@ OfferID 1450709233；商品 geogi_diag_199；标准价199元。AppKey仅存服�
 - https://developers.weixin.qq.com/miniprogram/dev/server/API/VirtualPayment/api_notify_provide_goods
 - https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/business-capabilities/virtual-payment.html
 - https://developers.weixin.qq.com/miniprogram/dev/framework/server-ability/message-push.html
+
+发布验收对切换后的公网/本机读回进行有界重试，每次仍须匹配真实响应；不把尝试成功当作正式验收通过。原生错误只记录阶段、异常类型与错误行，不打印请求凭据。每个run保留独立不可变候选/回滚记录，并继续共用原资源锁；允许失败并恢复后重新准备同一源码，不覆盖前次记录。

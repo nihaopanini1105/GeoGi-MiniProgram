@@ -20,9 +20,17 @@ class Adapter(ReleaseAdapter):
                 subprocess.run(['scp',str(root/'server'/relative),'geogi-prod:'+remote+'/'+relative],check=True,capture_output=True)
             subprocess.run(['scp',str(root/'utils/virtual-payment.js'),'geogi-prod:'+remote+'/virtual-payment-client.js'],check=True,capture_output=True)
             subprocess.run(['scp','-p',str(private),'geogi-prod:'+remote+'/appkeys.private.json'],check=True,capture_output=True)
-        command='python3 - '+shlex.quote(context.phase)+' '+shlex.quote(context.source_sha)
+        command='python3 - '+shlex.quote(context.phase)+' '+shlex.quote(context.source_sha)+' '+shlex.quote(context.run_directory.name)
         result=subprocess.run(['ssh','-o','BatchMode=yes','-o','ConnectTimeout=10','geogi-prod',command],
-                              input=(Path(__file__).with_name('native.py')).read_text(),capture_output=True,text=True,check=True,timeout=800)
+                              input=(Path(__file__).with_name('native.py')).read_text(),capture_output=True,text=True,check=False,timeout=800)
+        if result.returncode:
+            import sys
+            for line in result.stderr.splitlines():
+                try:
+                    value=json.loads(line)
+                    if value.get('native_failure') is True: print(json.dumps(value),file=sys.stderr)
+                except (ValueError, AttributeError): pass
+            raise RuntimeError('native_phase_failed')
         receipt=json.loads(result.stdout)
         if context.phase=='stage':
             import hashlib
