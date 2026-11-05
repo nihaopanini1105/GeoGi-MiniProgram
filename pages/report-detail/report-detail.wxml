@@ -26,6 +26,7 @@
         <text wx:if="{{order.payment && order.payment.discountYuan > 0}}">来源优惠：-¥{{order.payment.discountYuan}}</text>
         <text>付款状态：{{report.pilotReviewAccess ? 'GeoGi 专属体验授权' : order.paymentStatus === 'free' ? '优惠免付' : order.paymentStatus === 'paid' ? '已付款' : order.paymentStatus === 'partially_refunded' ? '部分退款' : order.paymentStatus === 'refunded' ? '已退款' : order.paymentStatus === 'refund_processing' ? '退款处理中' : order.paymentStatus === 'paying' ? '付款确认中' : '待付款'}}</text>
         <text>报告状态：{{report.status}}</text>
+        <text wx:if="{{order.payment && order.payment.refundInstructions}}">{{order.payment.refundInstructions}}</text>
         <text wx:if="{{report.releasedAt}}">发布时间：{{report.releasedAt}}</text>
         <text wx:if="{{report.reportVersion}}">报告版本：v{{report.reportVersion}}</text>
       </view>
@@ -43,6 +44,7 @@
     <view wx:if="{{!report.reportReady && !report.pilotReviewAccess && order.paymentStatus !== 'paid' && order.paymentStatus !== 'free' && order.paymentStatus !== 'partially_refunded' && order.paymentStatus !== 'refunded' && order.paymentStatus !== 'refund_processing'}}" class="section card payment-card">
       <text class="block-title">完成付款后开始诊断</text>
       <text class="body">品牌资料已提交。请按当前订单金额完成付款，付款成功后 GeoGi 开始正式诊断。</text>
+      <text class="body">退款政策：购买后商家不接受主动退款申请，平台退款以平台最终处理结果为准。</text>
       <button class="primary-button full-button" loading="{{paymentLoading}}" disabled="{{paymentLoading}}" bindtap="payNow">立即支付</button>
       <text wx:if="{{paymentError}}" class="supplement-message">{{paymentError}}</text>
     </view>

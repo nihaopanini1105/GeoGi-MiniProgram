@@ -60,7 +60,7 @@ function canonicalOrder(order) {
 }
 
 function isPaymentOrderExpired(order, nowMs = Date.now()) {
-  if (!order || !['unpaid', 'paying', 'payment_failed'].includes(String(order.status || ''))) return false;
+  if (!order || order.provider === 'wechat_virtual_pay' || !['unpaid', 'paying', 'payment_failed'].includes(String(order.status || ''))) return false;
   const expiresAtMs = Date.parse(order.expiresAt || '');
   return Number.isFinite(expiresAtMs) && nowMs >= expiresAtMs;
 }
@@ -265,12 +265,13 @@ function publicPaymentView(order) {
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     paidAt: order.paidAt || '',
-    expiresAt: order.expiresAt || '',
+    expiresAt: order.provider === 'wechat_virtual_pay' ? '' : (order.expiresAt || ''),
     closedAt: order.closedAt || '',
     closedReason: order.closedReason || '',
     reportReleasedAt: order.reportReleasedAt || '',
-    orderValidityMinutes: PAYMENT_ORDER_TTL_MINUTES,
-    canCancel: ['unpaid', 'paying', 'payment_failed'].includes(order.status) && !isPaymentOrderExpired(order),
+    orderValidityMinutes: order.provider === 'wechat_virtual_pay' ? null : PAYMENT_ORDER_TTL_MINUTES,
+    canCancel: order.provider !== 'wechat_virtual_pay' && ['unpaid', 'paying', 'payment_failed'].includes(order.status) && !isPaymentOrderExpired(order),
+    refundInstructions: order.provider === 'wechat_virtual_pay' ? (order.virtualPaymentPlatform === 'ios' ? '如需退款，请前往 App Store 购买记录提交申请' : '如需退款，请联系客户服务') : '',
     refundableAmount: ['paid', 'refund_processing', 'partially_refunded'].includes(order.status)
       ? Number(order.refundableAmount || 0)
       : 0,

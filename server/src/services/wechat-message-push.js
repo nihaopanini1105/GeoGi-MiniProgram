@@ -59,6 +59,18 @@ function decrypt(config, encrypted) {
   if (length > plain.length - 20 || plain.subarray(20 + length).toString('utf8') !== config.appId) reject('INVALID_APPID');
   return plain.subarray(20, 20 + length).toString('utf8');
 }
+function encryptResponse(config, message, nonce, options = {}) {
+  const msg = Buffer.from(JSON.stringify(message));
+  const length = Buffer.alloc(4); length.writeUInt32BE(msg.length);
+  const random = options.random || crypto.randomBytes(16);
+  const frame = Buffer.concat([random, length, msg, Buffer.from(config.appId)]);
+  const padding = 32 - frame.length % 32;
+  const key = Buffer.from(config.encodingAESKey + '=', 'base64');
+  const cipher = crypto.createCipheriv('aes-256-cbc', key, key.subarray(0, 16)); cipher.setAutoPadding(false);
+  const Encrypt = Buffer.concat([cipher.update(Buffer.concat([frame, Buffer.alloc(padding, padding)])), cipher.final()]).toString('base64');
+  const TimeStamp = options.timestamp || Math.floor(Date.now() / 1000);
+  return { Encrypt, MsgSignature: signature(config.token, String(TimeStamp), nonce, Encrypt), TimeStamp, Nonce: nonce };
+}
 function saveEnvelope(config, query, encrypted) {
   fs.mkdirSync(config.inbox, { recursive: true, mode: 0o700 });
   const stat = fs.lstatSync(config.inbox);
@@ -94,7 +106,7 @@ function createRouter(options = {}) {
       return res.status(error.code === 'PUSH_NOT_CONFIGURED' ? 503 : 403).json({ ok: false, code: 'PUSH_VERIFICATION_FAILED' });
     }
   });
-  router.post('/', express.json({ limit: '128kb' }), (req, res) => {
+  router.post('/', express.json({ limit: '128kb' }), async (req, res) => {
     let config;
     try { config = validateConfig(getConfig()); }
     catch (_) { return res.status(503).json({ ok: false, code: 'PUSH_NOT_CONFIGURED' }); }
@@ -113,7 +125,14 @@ function createRouter(options = {}) {
     // Acknowledging a money event before an order processor exists would lose it.
     // Keep payment events retryable; no customer access or ledger mutation here.
     const event = String(message.Event || message.event || '');
-    if (/^xpay_/i.test(event)) return res.status(503).json({ ErrCode: 1, ErrMsg: 'payment_processor_not_ready' });
+    if (/^xpay_/i.test(event)) {
+      try {
+        const handler = options.handlePaymentEvent || ((msg) => require('./wechat-virtual-payment').defaultService().handleEvent(msg));
+        const result = await handler(message);
+        if (result && result.IosRefundQueryResponse) return res.json(encryptResponse(config, result, req.query.nonce));
+        return res.type('text/plain').send('success');
+      } catch (_) { return res.status(503).json({ ErrCode: 1, ErrMsg: 'payment_processing_pending' }); }
+    }
     return res.type('text/plain').send('success');
   });
   router.use((error, _req, res, _next) => {
@@ -121,4 +140,4 @@ function createRouter(options = {}) {
   });
   return router;
 }
-module.exports = { ENDPOINT, DEFAULT_CONFIG, createRouter, validateConfig, signature, decrypt };
+module.exports = { ENDPOINT, DEFAULT_CONFIG, createRouter, validateConfig, signature, decrypt, encryptResponse };

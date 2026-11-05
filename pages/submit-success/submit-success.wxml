@@ -1,4 +1,5 @@
 <view class="page success-page">
+  <text class="body">退款政策：购买后商家不接受主动退款申请，平台退款以平台最终处理结果为准。</text>
   <view class="success-hero card">
     <view class="success-mark">{{paid ? '✓' : '¥'}}</view>
     <text class="success-kicker">{{paid ? (payment && payment.status === 'free' ? 'CHANNEL BENEFIT' : 'PAYMENT CONFIRMED') : 'PAYMENT REQUIRED'}}</text>
