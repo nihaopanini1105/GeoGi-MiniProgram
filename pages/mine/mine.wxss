@@ -551,3 +551,8 @@
   color: #66789A;
   font-size: 19rpx;
 }
+
+.mine-tabs { display: flex; gap: 12rpx; margin: 28rpx 0; padding: 8rpx; border-radius: 24rpx; background: #eaf0fa; }
+.mine-tab { flex: 1; margin: 0; padding: 20rpx 0; border: 0; border-radius: 18rpx; background: transparent; color: #64738a; font-size: 30rpx; line-height: 1.4; }
+.mine-tab::after { border: 0; }
+.mine-tab.active { background: #fff; color: #176bff; font-weight: 600; box-shadow: 0 4rpx 12rpx rgba(35,80,150,.06); }

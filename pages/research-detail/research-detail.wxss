@@ -1,6 +1,8 @@
-/*
- * GeoGi research article detail is rendered
- * directly from the official website.
- *
- * Website = content + visual source of truth.
- */
+.article-card { padding: 36rpx 28rpx; overflow: hidden; }
+.article-title { display: block; margin: 20rpx 0; color: #081b3a; font-size: 42rpx; line-height: 1.5; font-weight: 700; }
+.article-meta, .article-source { display: block; color: #64738a; font-size: 24rpx; line-height: 1.7; }
+.article-desc { display: block; margin: 28rpx 0; padding: 24rpx; border-radius: 16rpx; background: #f3f7fc; color: #52627a; font-size: 28rpx; line-height: 1.8; }
+.article-body { display: block; color: #182b49; font-size: 30rpx; line-height: 1.9; overflow-wrap: break-word; overflow-x: auto; }
+.article-source { margin: 36rpx 0 20rpx; }
+.article-state { padding: 48rpx 32rpx; text-align: center; color: #64738a; }
+.article-state button { margin-top: 28rpx; }

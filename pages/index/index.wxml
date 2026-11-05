@@ -11,7 +11,6 @@
       <text class="hero-kicker">GEO INTELLIGENCE FOR BRANDS</text>
       <text class="hero-title">让品牌在 AI 时代
 被看见、被理解、被选择</text>
-      <text class="hero-lead">199元获取一次品牌 GEO诊断</text>
 
       <view class="hero-actions">
         <button class="primary-button hero-primary" bindtap="goDiagnosis">

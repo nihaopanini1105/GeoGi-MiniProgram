@@ -1,5 +1,16 @@
-<web-view
-  src="{{webUrl}}"
-  bindload="handleWebViewLoad"
-  binderror="handleWebViewError"
-></web-view>
+<view class="page research-detail-page">
+  <view wx:if="{{loading}}" class="article-state card"><text>正在加载研究内容…</text></view>
+  <view wx:elif="{{error}}" class="article-state card">
+    <text>{{error}}</text>
+    <button class="primary-button full-button" bindtap="loadArticle">重新加载</button>
+  </view>
+  <view wx:elif="{{article}}" class="article-card card">
+    <text class="eyebrow">{{article.category}}</text>
+    <text class="article-title">{{article.title}}</text>
+    <text class="article-meta">{{article.author}} · {{article.date}}</text>
+    <text class="article-desc">{{article.desc}}</text>
+    <rich-text class="article-body" nodes="{{article.body}}" user-select="{{true}}"></rich-text>
+    <text class="article-source">内容来自 GeoGi 官方研究中心</text>
+    <button class="secondary-button full-button" bindtap="copyArticleUrl">复制原文链接</button>
+  </view>
+</view>
