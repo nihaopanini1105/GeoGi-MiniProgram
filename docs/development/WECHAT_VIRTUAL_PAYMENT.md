@@ -20,3 +20,5 @@ OfferID 1450709233；商品 geogi_diag_199；标准价199元。AppKey仅存服�
 - https://developers.weixin.qq.com/miniprogram/dev/framework/server-ability/message-push.html
 
 发布验收对切换后的公网/本机读回进行有界重试，每次仍须匹配真实响应；不把尝试成功当作正式验收通过。原生错误只记录阶段、异常类型与错误行，不打印请求凭据。每个run保留独立不可变候选/回滚记录，并继续共用原资源锁；允许失败并恢复后重新准备同一源码，不覆盖前次记录。
+
+2026-11-05 用户确认商品已发布、苹果 IAP 已启用。通过独立的 wechat-virtual-payment-enable 模块开放三个 readiness 开关，继续共用 wechat-miniprogram 锁及真实服务器锁。模块核对已部署支付代码摘要、当前 AppID/OfferID/商品及私有文件权限；只原子更新 enabled/goodsPublished/iosEnabled，不替换软件或重启服务。保留逐字节私有备份，并隔离演练恢复；运行时配置加载、内外网健康和未授权拒绝均须通过，否则自动恢复。后续软件或配置已变化时拒绝覆盖。平台前置完成以用户明确确认记录为依据，自动化检查不等同于真实付款验收。
