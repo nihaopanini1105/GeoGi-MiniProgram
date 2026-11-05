@@ -68,15 +68,6 @@
   white-space: pre-line;
 }
 
-.hero-lead {
-  display: block;
-  max-width: 500rpx;
-  margin-top: 28rpx;
-  color: #64738A;
-  font-size: 27rpx;
-  line-height: 1.7;
-}
-
 .hero-actions {
   display: flex;
   margin-top: 44rpx;

@@ -1,5 +1,4 @@
-const { site } =
-  require('../../config/site');
+const { get } = require('../../utils/request');
 const { loadReferralShareContext, withSourceQuery } = require('../../utils/referral-share');
 
 const DEFAULT_ARTICLE_ID =
@@ -10,7 +9,9 @@ const DEFAULT_SHARE_TITLE =
 
 Page({
   data: {
-    webUrl: '',
+    loading: false,
+    error: '',
+    article: null,
     referralShareToken: '',
     shareTitle:
       DEFAULT_SHARE_TITLE
@@ -31,12 +32,8 @@ Page({
 
     this.articleId = id;
 
-    this.setData({
-      webUrl:
-        buildArticleUrl(id),
-      shareTitle:
-        title
-    });
+    this.setData({ shareTitle: title });
+    return this.loadArticle();
   },
 
   onShow() {
@@ -45,27 +42,25 @@ Page({
     });
   },
 
-  handleWebViewLoad() {
-    console.log(
-      'GeoGi research web-view loaded:',
-      this.data.webUrl
-    );
+  async loadArticle() {
+    this.setData({ loading: true, error: '', article: null });
+    try {
+      const result = await get('/api/articles/' + encodeURIComponent(this.articleId));
+      if (!result || !result.ok || !result.article || !result.article.body) {
+        throw new Error('article unavailable');
+      }
+      this.setData({ article: result.article, shareTitle: result.article.title });
+    } catch (error) {
+      this.setData({ error: '文章暂时无法加载，请稍后重试。' });
+    } finally {
+      this.setData({ loading: false });
+    }
   },
 
-  handleWebViewError(event) {
-    console.error(
-      'GeoGi research web-view failed:',
-      event &&
-      event.detail
-        ? event.detail
-        : event
-    );
-
-    wx.showToast({
-      title:
-        '研究文章暂时无法打开',
-      icon: 'none'
-    });
+  copyArticleUrl() {
+    if (this.data.article && this.data.article.canonicalUrl) {
+      wx.setClipboardData({ data: this.data.article.canonicalUrl });
+    }
   },
 
   onShareAppMessage() {
@@ -109,24 +104,6 @@ Page({
     };
   }
 });
-
-function buildArticleUrl(id) {
-  const origin =
-    String(
-      site.officialUrl ||
-      site.researchCenterUrl ||
-      'https://www.geogi.cn'
-    )
-      .trim()
-      .replace(/\/+$/, '');
-
-  return (
-    origin +
-    '/insights/' +
-    encodeURIComponent(id) +
-    '/?embed=miniprogram'
-  );
-}
 
 function normalizeArticleId(value) {
   const id =

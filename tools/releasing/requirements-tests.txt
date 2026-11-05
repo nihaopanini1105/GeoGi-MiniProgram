@@ -1,0 +1,2 @@
+# Dedicated portable release-tool tests. Runtime tooling uses the standard library.
+pytest==8.3.5

@@ -1,3 +1,4 @@
+const sanitizeHtml = require('sanitize-html');
 const DEFAULT_WEBSITE_ORIGIN = 'https://www.geogi.cn';
 const DEFAULT_GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/nihaopanini1105/GeoGi-Official-Website-New/main';
 const REGISTRY_PATH = '/data/research-index.json';
@@ -92,8 +93,8 @@ async function getResearchArticle(id) {
   try {
     const cleanId = text(id);
 
-    if (!cleanId) {
-      return fail('缺少文章编号');
+    if (!isSafeSlug(cleanId)) {
+      return fail('文章编号无效');
     }
 
     const registry = await loadRegistry();
@@ -108,7 +109,7 @@ async function getResearchArticle(id) {
 
     return {
       ok: true,
-      article
+      article: { ...article, body: await loadArticleBody(article) }
     };
   } catch (error) {
     console.error(
@@ -118,6 +119,49 @@ async function getResearchArticle(id) {
 
     return fail('文章加载失败');
   }
+}
+
+// Fetch only a published registry path from our fixed content origins.
+// Native rich-text avoids the web-view business-domain dependency.
+async function loadArticleBody(article) {
+  const candidates = unique([
+    `${websiteOrigin()}${article.canonicalPath}`,
+    `${githubRawBase()}${article.canonicalPath}index.html`
+  ]);
+  for (const url of candidates) {
+    try {
+      const response = await fetchWithTimeout(url);
+      if (!response.ok) throw new Error(`HTTP_${response.status}`);
+      const html = await response.text();
+      const match = html.match(/<article\b[^>]*>([\s\S]*?)<\/article\s*>/i);
+      if (!match) throw new Error('article body missing');
+      const body = sanitizeHtml(match[1], {
+        allowedTags: ['h2', 'h3', 'h4', 'p', 'div', 'span', 'br', 'strong', 'b', 'em', 'i', 'ul', 'ol', 'li', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'a', 'sup', 'sub'],
+        allowedAttributes: { '*': ['style'] },
+        // Links remain readable; users can copy the canonical URL for the website.
+        transformTags: { '*': (tagName) => {
+          const styles = {
+            h2: 'font-size:21px;font-weight:bold;margin:28px 0 12px;line-height:1.5',
+            h3: 'font-size:18px;font-weight:bold;margin:22px 0 10px;line-height:1.5',
+            p: 'margin:12px 0;line-height:1.9',
+            table: 'width:100%;border-collapse:collapse;font-size:13px',
+            th: 'border:1px solid #dce5f2;padding:8px;text-align:left',
+            td: 'border:1px solid #dce5f2;padding:8px',
+            blockquote: 'margin:16px 0;padding:12px;background:#f3f7fc',
+            li: 'margin:8px 0;line-height:1.8'
+          };
+          return { tagName, attribs: styles[tagName] ? { style: styles[tagName] } : {} };
+        } }
+      }).trim();
+      if (sanitizeHtml(body, { allowedTags: [], allowedAttributes: {} }).trim().length < 40) {
+        throw new Error('article body empty');
+      }
+      return body;
+    } catch (error) {
+      // The official repository is the fallback if website routing is unavailable.
+    }
+  }
+  throw new Error('research article content unavailable');
 }
 
 async function loadRegistry() {

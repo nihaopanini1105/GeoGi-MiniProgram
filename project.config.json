@@ -297,6 +297,18 @@
       {
         "type": "file",
         "value": "assets/hero/home_hero_orbit_bg_1024.png"
+      },
+      {
+        "type": "folder",
+        "value": "tools"
+      },
+      {
+        "type": "folder",
+        "value": "tests"
+      },
+      {
+        "type": "folder",
+        "value": "deploy"
       }
     ],
     "include": []

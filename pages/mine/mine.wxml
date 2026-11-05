@@ -8,8 +8,8 @@
 </view>
 
   <view wx:if="{{!phoneAuthorized}}" class="client-card card">
-    <text class="client-label">查看我的订单与推荐数据</text>
-    <text class="channel-desc">授权手机号后可查看诊断进度；已绑定专属名片或分享来源的推荐人，也能查看推广记录和分享入口。</text>
+    <text class="client-label">查看我的诊断订单</text>
+    <text class="channel-desc">授权手机号后，可查看订单、诊断进度和正式报告。</text>
     <button class="primary-button full-button" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{authLoading}}">授权手机号查看</button>
     <text wx:if="{{authError}}" class="error-tip">{{authError}}</text>
   </view>
@@ -21,6 +21,67 @@
 
   <text wx:if="{{error}}" class="error-tip">{{error}}</text>
 
+  <view class="mine-tabs" role="tablist">
+    <button class="mine-tab {{activeSection === 'orders' ? 'active' : ''}}" role="tab" aria-selected="{{activeSection === 'orders'}}" data-section="orders" bindtap="switchSection">诊断订单</button>
+    <button wx:if="{{channelDashboard && channelDashboard.hasPromotionAccess}}" class="mine-tab {{activeSection === 'promotion' ? 'active' : ''}}" role="tab" aria-selected="{{activeSection === 'promotion'}}" data-section="promotion" bindtap="switchSection">推广数据</button>
+  </view>
+
+  <text wx:if="{{loading}}" class="channel-desc">正在同步最新数据…</text>
+
+  <block wx:if="{{activeSection === 'orders'}}">
+  <view wx:if="{{notifications.length}}" class="section notification-section">
+    <view class="notification-head">
+      <text class="notification-title">结果提醒</text>
+      <text class="notification-desc">退款结果、诊断报告完成等重要状态会在这里更新。</text>
+    </view>
+    <view
+      class="notification-card card"
+      wx:for="{{notifications}}"
+      wx:key="id"
+      data-project-id="{{item.projectId}}"
+      data-client-id="{{item.clientId}}"
+      bindtap="openNotification"
+    >
+      <view class="notification-dot {{item.type}}"></view>
+      <view class="notification-copy">
+        <text class="notification-card-title">{{item.title}}</text>
+        <text class="notification-message">{{item.message}}</text>
+        <text wx:if="{{item.occurredAtText}}" class="notification-time">{{item.occurredAtText}}</text>
+      </view>
+      <text class="notification-action">{{item.actionText || '查看'}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{orders.length}}" class="section order-list">
+    <view class="order-card card" wx:for="{{orders}}" wx:key="projectId" data-project-id="{{item.projectId}}" data-client-id="{{item.clientId}}" bindtap="openReport">
+      <view class="order-top">
+        <view class="order-title-wrap">
+          <text class="order-brand">{{item.brandName || '品牌诊断'}}</text>
+          <text class="order-meta">{{item.industry}} {{item.segment}}</text>
+        </view>
+        <text class="status-pill {{item.reportReady ? 'ready' : ''}}">{{item.status}}</text>
+      </view>
+      <view class="order-info">
+        <text>诊断编号：{{item.projectId}}</text>
+        <text wx:if="{{item.submittedAt}}">提交时间：{{item.submittedAt}}</text>
+        <text>订单金额：¥{{item.amountYuan !== undefined ? item.amountYuan : 199}}</text>
+        <text>付款状态：{{item.paymentStatus === 'free' ? '优惠免付' : item.paymentStatus === 'paid' ? '已付款' : item.paymentStatus === 'partially_refunded' ? '部分退款' : item.paymentStatus === 'refunded' ? '已退款' : item.paymentStatus === 'refund_processing' ? '退款处理中' : item.paymentStatus === 'paying' ? '付款确认中' : '待付款'}}</text>
+      </view>
+      <view class="order-action">
+        <text>{{item.reportReady ? '查看完整诊断报告' : (item.paymentStatus === 'free' || item.paymentStatus === 'paid' || item.paymentStatus === 'partially_refunded' ? '查看诊断进度' : '去付款 / 查看订单')}}</text>
+        <text class="arrow">›</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{phoneAuthorized && !loading && !orders.length}}" class="empty-card card">
+    <image class="empty-icon" src="/assets/icons/png/96/report.png" mode="aspectFit"></image>
+    <text class="empty-title">还没有诊断记录</text>
+    <text class="body">提交品牌资料后，订单与付款状态、诊断进度和正式报告都会出现在这里。</text>
+    <button class="primary-button full-button" bindtap="goDiagnosis">获取诊断报告</button>
+  </view>
+  </block>
+  <block wx:if="{{activeSection === 'promotion' && channelDashboard && channelDashboard.hasPromotionAccess}}">
   <view wx:if="{{channelDashboard && channelDashboard.isSourceOwner}}" class="section channel-section">
     <view class="channel-head card">
       <text class="eyebrow">MY REFERRALS</text>
@@ -112,55 +173,5 @@
     </view>
   </view>
 
-  <view wx:if="{{notifications.length}}" class="section notification-section">
-    <view class="notification-head">
-      <text class="notification-title">结果提醒</text>
-      <text class="notification-desc">退款结果、诊断报告完成等重要状态会在这里更新。</text>
-    </view>
-    <view
-      class="notification-card card"
-      wx:for="{{notifications}}"
-      wx:key="id"
-      data-project-id="{{item.projectId}}"
-      data-client-id="{{item.clientId}}"
-      bindtap="openNotification"
-    >
-      <view class="notification-dot {{item.type}}"></view>
-      <view class="notification-copy">
-        <text class="notification-card-title">{{item.title}}</text>
-        <text class="notification-message">{{item.message}}</text>
-        <text wx:if="{{item.occurredAtText}}" class="notification-time">{{item.occurredAtText}}</text>
-      </view>
-      <text class="notification-action">{{item.actionText || '查看'}}</text>
-    </view>
-  </view>
-
-  <view wx:if="{{orders.length}}" class="section order-list">
-    <view class="order-card card" wx:for="{{orders}}" wx:key="projectId" data-project-id="{{item.projectId}}" data-client-id="{{item.clientId}}" bindtap="openReport">
-      <view class="order-top">
-        <view class="order-title-wrap">
-          <text class="order-brand">{{item.brandName || '品牌诊断'}}</text>
-          <text class="order-meta">{{item.industry}} {{item.segment}}</text>
-        </view>
-        <text class="status-pill {{item.reportReady ? 'ready' : ''}}">{{item.status}}</text>
-      </view>
-      <view class="order-info">
-        <text>诊断编号：{{item.projectId}}</text>
-        <text wx:if="{{item.submittedAt}}">提交时间：{{item.submittedAt}}</text>
-        <text>订单金额：¥{{item.amountYuan !== undefined ? item.amountYuan : 199}}</text>
-        <text>付款状态：{{item.paymentStatus === 'free' ? '优惠免付' : item.paymentStatus === 'paid' ? '已付款' : item.paymentStatus === 'partially_refunded' ? '部分退款' : item.paymentStatus === 'refunded' ? '已退款' : item.paymentStatus === 'refund_processing' ? '退款处理中' : item.paymentStatus === 'paying' ? '付款确认中' : '待付款'}}</text>
-      </view>
-      <view class="order-action">
-        <text>{{item.reportReady ? '查看完整诊断报告' : (item.paymentStatus === 'free' || item.paymentStatus === 'paid' || item.paymentStatus === 'partially_refunded' ? '查看诊断进度' : '去付款 / 查看订单')}}</text>
-        <text class="arrow">›</text>
-      </view>
-    </view>
-  </view>
-
-  <view wx:if="{{phoneAuthorized && !orders.length && !(channelDashboard && channelDashboard.hasPromotionAccess)}}" class="empty-card card">
-    <image class="empty-icon" src="/assets/icons/png/96/report.png" mode="aspectFit"></image>
-    <text class="empty-title">还没有诊断记录</text>
-    <text class="body">提交品牌资料后，订单与付款状态、诊断进度和正式报告都会出现在这里。</text>
-    <button class="primary-button full-button" bindtap="goDiagnosis">获取诊断报告</button>
-  </view>
+  </block>
 </view>

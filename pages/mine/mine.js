@@ -11,6 +11,7 @@ const PUBLIC_STATUSES = ['待付款', '付款确认中', '已付款', '已优惠
 
 Page({
   data: {
+    activeSection: 'orders',
     loading: false,
     error: '',
     authLoading: false,
@@ -23,8 +24,15 @@ Page({
   },
 
   onShow() {
-    this.setData({ phoneAuthorized: Boolean(getCustomerToken()) });
+    this.setData({ phoneAuthorized: Boolean(getCustomerToken()), channelDashboard: null, activeSection: 'orders' });
     this.loadOrders();
+  },
+
+  switchSection(event) {
+    const section = event.currentTarget.dataset.section;
+    if (section !== 'orders' && section !== 'promotion') return;
+    if (section === 'promotion' && !(this.data.channelDashboard && this.data.channelDashboard.hasPromotionAccess)) return;
+    this.setData({ activeSection: section });
   },
 
   async onGetPhoneNumber(event) {
@@ -73,10 +81,15 @@ Page({
       clientId,
       orders: normalizedLocal,
       notifications: this.buildLocalNotifications(normalizedLocal),
-      error: ''
+      error: '',
+      channelDashboard: null
     });
 
-    if (!isApiConfigured() || !getCustomerToken()) return;
+    const sessionToken = getCustomerToken();
+    if (!isApiConfigured() || !sessionToken) {
+      this.setData({ activeSection: 'orders' });
+      return;
+    }
 
     this.setData({ loading: true });
     try {
@@ -107,11 +120,16 @@ Page({
         console.warn('channel dashboard unavailable', channelError);
       }
 
+      if (getCustomerToken() !== sessionToken) {
+        this.setData({ channelDashboard: null, activeSection: 'orders' });
+        return;
+      }
       this.setData({
         clientId: recoveredClientId,
         orders,
         notifications,
         channelDashboard,
+        activeSection: channelDashboard ? this.data.activeSection : 'orders',
         phoneAuthorized: true,
         error: ''
       });

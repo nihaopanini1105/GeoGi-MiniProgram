@@ -44,7 +44,7 @@ function run() {
 
   assert(appConfig.includes('"text": "我的"'));
   assert(!appConfig.includes('"text": "报告"'));
-  assert(home.includes('199元获取一次品牌 GEO诊断'));
+  assert(!home.includes('199元获取一次品牌 GEO诊断'));
   assert(mineConfig.includes('"navigationBarTitleText": "我的"'));
   assert(!mine.includes('<strong>'));
   assert(!mine.includes('</strong>'));

@@ -1,0 +1,10 @@
+{
+  "adapter": "deploy/releases/dev3-worker/adapter.py",
+  "module": "dev3-worker",
+  "profile": "dev3",
+  "resource": "capture-worker",
+  "runtime": "worker",
+  "schema_version": 1,
+  "scope": "software_deployment",
+  "timeout_seconds": 900
+}
