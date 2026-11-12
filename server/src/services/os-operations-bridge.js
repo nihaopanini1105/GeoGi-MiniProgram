@@ -4,8 +4,13 @@ const {
   listBitableRecords,
   updateBitableRecord
 } = require('./feishu');
-const { importDeliveryPackage } = require('./delivery-package-store');
-const { findPaymentByProject, publicPaymentView, markProjectReportReleased } = require('./payment-store');
+const {
+  importDeliveryPackage, validateDeliveryPackage, isDeliveryRevoked, isR01SealedPair,
+  r01SealedPairEnabled, isR01DeliveryComplete, completeR01Delivery
+} = require('./delivery-package-store');
+const {
+  findPaymentByProject, publicPaymentView, markProjectReportReleased, isScopedPaidReportOrder
+} = require('./payment-store');
 const { reconcileCommission } = require('./channel-service');
 
 const PAID_DIAGNOSTIC_LAUNCH_CUTOFF = '2026-09-22T07:33:31Z';
@@ -166,6 +171,11 @@ async function updateOsProjectStage({ projectId, stage }) {
   const project = projectRecords.find((record) => text(record.fields && record.fields.项目编号) === projectId);
   if (!lead || !project) throw new OperationsBridgeError('OS_BRIDGE_PROJECT_NOT_FOUND');
 
+  return writeOsProjectStage({ tenantToken, lead, project }, projectId, stage, stageConfig);
+}
+
+async function writeOsProjectStage({ tenantToken, lead, project }, projectId, stage, stageConfig, beforeWrite) {
+  beforeWrite?.();
   await updateBitableRecord({
     tenantToken,
     appToken: process.env.FEISHU_BASE_APP_TOKEN,
@@ -177,6 +187,7 @@ async function updateOsProjectStage({ projectId, stage }) {
       审核状态: stageConfig.auditStatus
     }
   });
+  beforeWrite?.();
   await updateBitableRecord({
     tenantToken,
     appToken: process.env.FEISHU_BASE_APP_TOKEN,
@@ -190,7 +201,81 @@ async function updateOsProjectStage({ projectId, stage }) {
   return { projectId, stage: String(stage).toUpperCase(), ...stageConfig };
 }
 
+async function resolvePaidReportBinding(clientId, projectId) {
+  if (!r01SealedPairEnabled() || !configured()
+      || typeof clientId !== 'string' || !clientId || clientId !== clientId.trim()
+      || typeof projectId !== 'string' || !projectId || projectId !== projectId.trim()) return null;
+  const tenantToken = await getTenantAccessToken();
+  const [leads, projects] = await Promise.all([
+    listBitableRecords({ tenantToken, appToken: process.env.FEISHU_BASE_APP_TOKEN,
+      tableId: process.env.FEISHU_LEADS_TABLE_ID, pageSize: 100 }),
+    listBitableRecords({ tenantToken, appToken: process.env.FEISHU_BASE_APP_TOKEN,
+      tableId: process.env.FEISHU_PROJECTS_TABLE_ID, pageSize: 100 })
+  ]);
+  // The existing payment store selects by project ID. Ambiguity in either
+  // CRM table must fail even when one candidate matches the requested owner.
+  const projectRows = records => records.filter(row => text(row.fields?.项目编号) === projectId);
+  const matchingLeads = projectRows(leads);
+  const matchingProjects = projectRows(projects);
+  if (matchingLeads.length !== 1 || matchingProjects.length !== 1) return null;
+  const [lead] = matchingLeads, [project] = matchingProjects;
+  if (text(lead.fields?.客户编号) !== clientId || text(project.fields?.客户编号) !== clientId
+      || !(lead.record_id || lead.recordId) || !(project.record_id || project.recordId)) return null;
+  const payment = await findPaymentByProject(projectId);
+  if (!isScopedPaidReportOrder(payment, clientId, projectId)) return null;
+  return { tenantToken, lead, project, payment };
+}
+
+async function verifyPaidReportBinding(clientId, projectId) {
+  const verified = Boolean(await resolvePaidReportBinding(clientId, projectId));
+  return { client_id: clientId, project_id: projectId, verified,
+    paid_order_verified: verified, customer_access_scoped: verified };
+}
+
+async function publishR01SealedPair(packageDocument) {
+  validateDeliveryPackage(packageDocument);
+  const { client_id: clientId, project_id: projectId, delivery_package_id: packageId,
+    released_at: releasedAt } = packageDocument;
+  const { verifyR01ArtifactPair } = require('./report-v2-bridge-operations');
+  if (!r01SealedPairEnabled() || !verifyR01ArtifactPair(packageDocument)) {
+    throw new OperationsBridgeError('OS_BRIDGE_R01_PAIR_NOT_AVAILABLE');
+  }
+  const binding = await resolvePaidReportBinding(clientId, projectId);
+  if (!binding) throw new OperationsBridgeError('OS_BRIDGE_R01_PAID_BINDING_REQUIRED');
+  if (isDeliveryRevoked(packageId)) throw new OperationsBridgeError('OS_BRIDGE_R01_PACKAGE_REVOKED');
+  const result = await importDeliveryPackage(packageDocument);
+  const response = { status: 'published', imported: result.imported, idempotent: result.idempotent,
+    delivery_package_id: packageId, deliveryPackageId: packageId, clientId, projectId };
+  if (!result.imported) {
+    if (!await isR01DeliveryComplete(packageDocument)) {
+      throw new OperationsBridgeError('OS_BRIDGE_R01_RELEASE_NEEDS_RECONCILIATION');
+    }
+    if (isDeliveryRevoked(packageId)) throw new OperationsBridgeError('OS_BRIDGE_R01_PACKAGE_REVOKED');
+    return response;
+  }
+  // An imported R01 package stays invisible until all effects complete.
+  // A failed or ambiguous write never replays these effects automatically.
+  const assertPending = () => {
+    if (isDeliveryRevoked(packageId)) {
+      throw new OperationsBridgeError('OS_BRIDGE_R01_RELEASE_NEEDS_RECONCILIATION');
+    }
+  };
+  await writeOsProjectStage(binding, projectId, 'RELEASED', PROJECT_STAGES.RELEASED, assertPending);
+  assertPending();
+  const paidScope = { clientId, outTradeNo: binding.payment.outTradeNo, beforeWrite: assertPending };
+  const payment = await markProjectReportReleased(projectId, releasedAt, paidScope);
+  assertPending();
+  const commission = await reconcileCommission({ order: payment, releasedAt });
+  const current = await resolvePaidReportBinding(clientId, projectId);
+  if (!current || current.payment.outTradeNo !== paidScope.outTradeNo || isDeliveryRevoked(packageId)) {
+    throw new OperationsBridgeError('OS_BRIDGE_R01_RELEASE_NEEDS_RECONCILIATION');
+  }
+  await completeR01Delivery(packageDocument);
+  return { ...response, commission };
+}
+
 async function publishOsDeliveryPackage(packageDocument) {
+  if (isR01SealedPair(packageDocument)) return publishR01SealedPair(packageDocument);
   const result = await importDeliveryPackage(packageDocument);
   await updateOsProjectStage({ projectId: packageDocument.project_id, stage: 'RELEASED' });
   const payment = await markProjectReportReleased(
@@ -220,6 +305,7 @@ module.exports = {
   configured,
   requireOsBridge,
   listOsIntakes,
+  verifyPaidReportBinding,
   updateOsProjectStage,
   publishOsDeliveryPackage
 };
