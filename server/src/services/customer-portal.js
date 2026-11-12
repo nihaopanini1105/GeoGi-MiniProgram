@@ -4,11 +4,14 @@ const {
 } = require('./feishu');
 const {
   findDeliveryPackage,
-  projectDeliveryForCustomer
+  projectDeliveryForCustomer,
+  isR01SealedPair,
+  isDeliveryRevoked
 } = require('./delivery-package-store');
 const {
   findPaymentByProject,
-  publicPaymentView
+  publicPaymentView,
+  isScopedPaidReportOrder
 } = require('./payment-store');
 
 async function listCustomerProjects({ clientId, clientIds }) {
@@ -51,10 +54,14 @@ async function listCustomerProjects({ clientId, clientIds }) {
         findDeliveryPackage({ clientId: ownedClientId, projectId }),
         findPaymentByProject(projectId)
       ]);
+      const project = projectById.get(projectId);
+      const r01ScopeValid = !isR01SealedPair(deliveryPackage) || (
+        [allLeads, allProjects].every(rows => rows.filter(row => text(row.fields?.项目编号) === projectId).length === 1)
+        && text(project?.fields?.客户编号) === ownedClientId);
       return normalizeOrder({
         lead,
-        project: projectById.get(projectId),
-        deliveryPackage,
+        project,
+        deliveryPackage: r01ScopeValid ? deliveryPackage : null,
         payment
       });
     }))).filter(Boolean);
@@ -71,6 +78,7 @@ async function listCustomerProjects({ clientId, clientIds }) {
 }
 
 function authorizedGeoGiV2Pilot(clientId,projectId,deliveryPackage) {
+  if (isR01SealedPair(deliveryPackage)) return false;
   if (String(process.env.GEOGI_V2_EXACT_PILOT_ENABLED||'').toLowerCase()!=='true') return false;
   const allowedClient=String(process.env.GEOGI_V2_PILOT_CONSUMER_CLIENT_ID||'').trim();
   const allowedProject=String(process.env.GEOGI_V2_PILOT_CONSUMER_PROJECT_ID||'').trim();
@@ -106,10 +114,19 @@ async function getCustomerReport({ clientId, projectId }) {
       findDeliveryPackage({ clientId: cleanClientId, projectId: cleanProjectId }),
       findPaymentByProject(cleanProjectId)
     ]);
-    const order = normalizeOrder({ lead, project, deliveryPackage, payment });
+    let readablePackage = deliveryPackage;
+    if (isR01SealedPair(deliveryPackage)) {
+      const { verifyPaidReportBinding } = require('./os-operations-bridge');
+      const binding = await verifyPaidReportBinding(cleanClientId, cleanProjectId);
+      if (!project || !binding.verified || !isScopedPaidReportOrder(payment, cleanClientId, cleanProjectId)
+          || isDeliveryRevoked(deliveryPackage.delivery_package_id)) {
+        readablePackage = null;
+      }
+    }
+    const order = normalizeOrder({ lead, project, deliveryPackage: readablePackage, payment });
 
-    if (!deliveryPackage || (!isPaidForReport(payment)
-         && !authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage))) {
+    if (!readablePackage || (!isPaidForReport(payment)
+         && !authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,readablePackage))) {
       return {
         ok: true,
         order,
@@ -121,13 +138,13 @@ async function getCustomerReport({ clientId, projectId }) {
       ok: true,
       order,
       report: {
-        ...projectDeliveryForCustomer(deliveryPackage, {
+        ...projectDeliveryForCustomer(readablePackage, {
           clientId: cleanClientId,
           projectId: cleanProjectId
         }),
         status: '报告已完成',
         reportReady: true,
-        pilotReviewAccess: authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,deliveryPackage)
+        pilotReviewAccess: authorizedGeoGiV2Pilot(cleanClientId,cleanProjectId,readablePackage)
       }
     };
   } catch (error) {
@@ -139,7 +156,9 @@ async function getCustomerReport({ clientId, projectId }) {
 function normalizeOrder({ lead, project, deliveryPackage, payment }) {
   const leadFields = (lead && lead.fields) || {};
   const projectFields = (project && project.fields) || {};
-  const paidForReport = isPaidForReport(payment);
+  const paidForReport = isR01SealedPair(deliveryPackage)
+    ? isScopedPaidReportOrder(payment, text(leadFields.客户编号), text(leadFields.项目编号))
+    : isPaidForReport(payment);
   const pilotReviewAccess=authorizedGeoGiV2Pilot(
     text(leadFields.客户编号),
     text(leadFields.项目编号)||text(projectFields.项目编号),deliveryPackage);

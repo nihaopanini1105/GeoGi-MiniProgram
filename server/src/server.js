@@ -58,9 +58,14 @@ const {
   configured: osBridgeConfigured,
   requireOsBridge,
   listOsIntakes,
+  verifyPaidReportBinding,
   updateOsProjectStage,
   publishOsDeliveryPackage
 } = require('./services/os-operations-bridge');
+
+const {
+  reportV21Capabilities, verifyReportV21CustomerAccess, revokeReportV21Delivery
+} = require('./services/report-v21-bridge-operations');
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -85,8 +90,10 @@ app.use('/uploads', (req, res, next) => {
   catch (_) { return res.status(400).json({ ok: false, userMessage: '文件地址无效' }); }
   // Customer-uploaded PDF attachments remain accessible under their
   // existing rules. Only immutable V2 report PDF assets are private.
-  if (name.endsWith('.html') || name.endsWith('.htm')
-      || /^\/geogi-v2-[0-9a-f]{16}\.pdf$/.test(name)) {
+  const ambiguousEncoding = /%(?:2e|2f|5c|25)/i.test(name);
+  name = path.posix.basename(path.posix.normalize(name.replace(/\\/g, '/')));
+  if (ambiguousEncoding || name.endsWith('.html') || name.endsWith('.htm')
+      || /^geogi-v2(?:1)?-[0-9a-f]{16}\.pdf$/.test(name)) {
     return res.status(404).json({ ok: false, userMessage: '文件不可公开访问' });
   }
   return next();
@@ -589,6 +596,34 @@ app.post(
 
 app.get('/internal/os/report-v2/capabilities', requireOsBridge, (_req,res) => {
   return res.json({ok:true,result:reportV2Capabilities()});
+});
+
+// The OS R01 client uses this existing read-only V2.1 binding contract.
+app.post('/internal/os/report-v21/verify-customer-binding', requireOsBridge, async (req, res, next) => {
+  try {
+    const { client_id: clientId, project_id: projectId } = req.body || {};
+    const result = await verifyPaidReportBinding(clientId, projectId);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ ok: true, result });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get('/internal/os/report-v21/capabilities', requireOsBridge, (_req, res) => {
+  return res.json({ ok: true, result: reportV21Capabilities() });
+});
+app.post('/internal/os/report-v21/verify-customer-access', requireOsBridge, async (req, res, next) => {
+  try {
+    const result = await verifyReportV21CustomerAccess(req.body || {});
+    return res.json({ ok: true, result });
+  } catch (error) { return next(error); }
+});
+app.post('/internal/os/report-v21/revoke', requireOsBridge, async (req, res, next) => {
+  try {
+    const result = await revokeReportV21Delivery(req.body || {});
+    return res.json({ ok: true, result });
+  } catch (error) { return next(error); }
 });
 
 app.post('/internal/os/report-v2/verify-pilot-binding',requireOsBridge,async(req,res,next)=>{

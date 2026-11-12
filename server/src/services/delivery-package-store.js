@@ -9,6 +9,16 @@ const DELIVERY_AUTHORITIES = Object.freeze({
   baseline_diagnostic_report: 'geo_diagnostic_html_release_v2'
 });
 const SUPPORTED_DELIVERY_CONTRACT_VERSIONS = new Set([DELIVERY_CONTRACT_VERSION]);
+const R01_PROFILE = 'r01_sealed_h5_pdf';
+const R01_RENDER = 'report-r01-v26-ux42';
+
+function isR01SealedPair(document) {
+  return document?.version_pins?.artifact_delivery_profile === R01_PROFILE;
+}
+
+function r01SealedPairEnabled() {
+  return process.env.GEOGI_R01_SEALED_H5_PDF_ENABLED === 'true';
+}
 
 class DeliveryPackageError extends Error {
   constructor(code, detail = '') {
@@ -128,6 +138,9 @@ function validateDeliveryPackage(packageDocument) {
   if (!Number.isInteger(pins.report_version) || pins.report_version !== report.report_version) {
     throw new DeliveryPackageError('DELIVERY_REPORT_VERSION_PIN_MISMATCH');
   }
+  if (Object.hasOwn(pins, 'artifact_delivery_profile') && !isR01SealedPair(packageDocument)) {
+    throw new DeliveryPackageError('DELIVERY_ARTIFACT_PROFILE_UNSUPPORTED');
+  }
 
   const artifacts=packageDocument.artifacts;
   if (!Array.isArray(artifacts) || artifacts.length !== 2) {
@@ -171,6 +184,14 @@ function validateDeliveryPackage(packageDocument) {
       || !seenKinds.has('h5') || !seenKinds.has('pdf')) {
     throw new DeliveryPackageError('DELIVERY_DUAL_ARTIFACT_SCOPE_INVALID');
   }
+  if (isR01SealedPair(packageDocument) && (
+    !/^delivery_package_[a-f0-9]{24}$/.test(packageDocument.delivery_package_id)
+    || pins.artifact_render_version !== R01_RENDER
+    || artifacts[0].artifact_type !== 'h5' || artifacts[1].artifact_type !== 'pdf'
+    || artifacts.some(item => item.render_version !== R01_RENDER)
+    || artifacts[0].sha256 === artifacts[1].sha256
+    || path.parse(artifacts[0].file_name).name !== path.parse(artifacts[1].file_name).name
+  )) throw new DeliveryPackageError('DELIVERY_R01_PAIR_INVALID');
 
   const hashInput = JSON.parse(JSON.stringify(packageDocument));
   delete hashInput.package_hash;
@@ -205,8 +226,54 @@ async function importDeliveryPackage(packageDocument) {
   } catch (error) {
     if (error && error.code !== 'ENOENT') throw error;
   }
+  if (isR01SealedPair(packageDocument)) {
+    // Publish the complete JSON atomically. The exclusive link elects one
+    // writer before business effects can start, even across server processes.
+    const temporary = output + '.' + crypto.randomBytes(8).toString('hex') + '.tmp';
+    await fs.promises.writeFile(temporary, canonical, { flag: 'wx', mode: 0o600 });
+    try {
+      await fs.promises.link(temporary, output);
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      const existing = await getDeliveryPackageById(packageDocument.delivery_package_id);
+      if (canonicalStringify(existing) !== canonicalStringify(packageDocument)) {
+        throw new DeliveryPackageError('DELIVERY_PACKAGE_IMMUTABLE_CONFLICT');
+      }
+      return { imported: false, idempotent: true, path: output, package: existing };
+    } finally {
+      await fs.promises.unlink(temporary);
+    }
+    return { imported: true, idempotent: false, path: output, package: packageDocument };
+  }
   await fs.promises.writeFile(output, canonical, { encoding: 'utf8', flag: 'wx' });
   return { imported: true, idempotent: false, path: output, package: packageDocument };
+}
+
+function r01CompletionPath(packageDocument) {
+  return path.join(deliveryRoot(), '_r01_completed', packageDocument.delivery_package_id + '.json');
+}
+
+async function isR01DeliveryComplete(packageDocument) {
+  try {
+    const record = JSON.parse(await fs.promises.readFile(r01CompletionPath(packageDocument), 'utf8'));
+    return record.package_hash === packageDocument.package_hash;
+  } catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+async function completeR01Delivery(packageDocument) {
+  const file = r01CompletionPath(packageDocument);
+  await fs.promises.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
+  const temporary = file + '.' + crypto.randomBytes(8).toString('hex') + '.tmp';
+  await fs.promises.writeFile(temporary, JSON.stringify({ package_hash: packageDocument.package_hash }),
+    { flag: 'wx', mode: 0o600 });
+  try {
+    await fs.promises.link(temporary, file);
+  } finally {
+    await fs.promises.unlink(temporary);
+  }
 }
 
 function _revocationPath(packageId) {
@@ -237,7 +304,7 @@ async function revokeDeliveryPackage(packageId,{clientId,projectId,reason}) {
   const payload={packageId,clientId,projectId,
     revokedAt:new Date().toISOString(),reason:String(reason).slice(0,400)};
   try {
-    await fs.promises.writeFile(revokedFile,JSON.stringify(payload)+'\\n',{flag:'wx',mode:0o600});
+    await fs.promises.writeFile(revokedFile,JSON.stringify(payload)+'\n',{flag:'wx',mode:0o600});
   } catch (error) {
     if (error.code==='EEXIST') return {idempotent:true,status:'revoked'};
     throw error;
@@ -274,6 +341,7 @@ async function listDeliveryPackages() {
     if ((document.release_authority || '') !== DELIVERY_AUTHORITIES.baseline_diagnostic_report) continue;
     validateDeliveryPackage(document);
     if (isDeliveryRevoked(document.delivery_package_id)) continue;
+    if (isR01SealedPair(document) && (!r01SealedPairEnabled() || !await isR01DeliveryComplete(document))) continue;
     packages.push(document);
   }
   return packages;
@@ -347,5 +415,9 @@ module.exports = {
   getDeliveryPackageById,
   revokeDeliveryPackage,
   isDeliveryRevoked,
+  isR01SealedPair,
+  r01SealedPairEnabled,
+  isR01DeliveryComplete,
+  completeR01Delivery,
   assertScope
 };

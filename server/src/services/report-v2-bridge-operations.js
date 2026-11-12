@@ -5,10 +5,22 @@ const path=require('path');
 const {getUploadRoot}=require('./uploads');
 const {getCustomerReport}=require('./customer-portal');
 const {
-  getDeliveryPackageById, revokeDeliveryPackage, isDeliveryRevoked
+  getDeliveryPackageById, revokeDeliveryPackage, isDeliveryRevoked,
+  isR01SealedPair, r01SealedPairEnabled
 }=require('./delivery-package-store');
 
 const RELEASE_AUTHORITY='geo_diagnostic_html_release_v2';
+
+function r01ArtifactBase() {
+  const base = String(process.env.PUBLIC_UPLOAD_BASE_URL || '').trim().replace(/\/$/, '');
+  try {
+    const url = new URL(base);
+    return url.protocol === 'https:' && url.hostname && !url.username && !url.password
+      && !url.search && !url.hash ? base : '';
+  } catch (_) {
+    return '';
+  }
+}
 
 function reportV2Capabilities() {
   return {
@@ -19,8 +31,16 @@ function reportV2Capabilities() {
     idempotent_publish:true,
     authenticated_customer_access:true,
     revoke:true,
-    rollback:true
+    rollback:true,
+    ...(r01SealedPairEnabled() && r01ArtifactBase() && require('./os-operations-bridge').configured()
+      ? { r01_sealed_h5_pdf_customer_delivery: true } : {})
   };
+}
+
+function verifyR01ArtifactPair(packageDocument) {
+  const base = r01ArtifactBase();
+  return Boolean(base && packageDocument.artifacts.every(artifact =>
+    artifact.uri === base + '/' + encodeURIComponent(artifact.file_name) && _verifiedBytes(artifact)));
 }
 
 function _verifiedBytes(artifact) {
@@ -71,17 +91,28 @@ async function verifyCustomerReportAccess(request) {
   };
   if (!id || !client || !project || !/^[a-f0-9]{64}$/.test(hash)) return denied;
   const pack=await getDeliveryPackageById(id);
-  if (!pack || pack.client_id!==client || pack.project_id!==project
+  if (!pack || pack.delivery_package_id!==id || pack.client_id!==client || pack.project_id!==project
       || pack.release_authority!==RELEASE_AUTHORITY) return denied;
-  if (!pack.artifacts || pack.artifacts.length!==2
-      || pack.artifacts[0].sha256!==hash) return denied;
+  const paired = isR01SealedPair(pack);
+  const artifact = paired ? pack.artifacts.find(item => item.sha256 === hash) : pack.artifacts[0];
+  if (!artifact || artifact.sha256 !== hash) return denied;
   if (isDeliveryRevoked(id)) return denied;
   const result=await getCustomerReport({clientId:client,projectId:project});
   const ready=result && result.ok && result.report
      && result.report.reportReady===true
      && result.report.deliveryPackageId===id;
-  const intact=pack.artifacts.every(_verifiedBytes);
-  return {...denied,authorized:Boolean(ready),accessible:Boolean(ready&&intact)};
+  if (!ready || (paired && isDeliveryRevoked(id))) return denied;
+  if (paired) {
+    const report = result.report;
+    const projected = artifact.artifact_type === 'h5'
+      ? report.artifactType === 'h5' && report.artifactMimeType === 'text/html'
+        && report.artifactSha256 === hash && report.artifactFileName === artifact.file_name
+      : report.pdfAvailable === true && report.pdfArtifactSha256 === hash
+        && report.pdfArtifactFileName === artifact.file_name;
+    if (!projected) return denied;
+  }
+  const intact=paired ? _verifiedBytes(artifact) : pack.artifacts.every(_verifiedBytes);
+  return {...denied,authorized:true,accessible:intact};
 }
 
 async function revokeCustomerReportDelivery(request) {
@@ -90,7 +121,7 @@ async function revokeCustomerReportDelivery(request) {
   const project=String(request.project_id||'');
   const hash=String(request.artifact_sha256||'');
   const pack=await getDeliveryPackageById(id);
-  if (!pack || pack.client_id!==client || pack.project_id!==project
+  if (!pack || pack.delivery_package_id!==id || pack.client_id!==client || pack.project_id!==project
       || pack.artifacts[0].sha256!==hash
       || pack.release_authority!==RELEASE_AUTHORITY) {
     throw new Error('V2_REVOKE_SCOPE_INVALID');
@@ -103,5 +134,5 @@ async function revokeCustomerReportDelivery(request) {
 
 module.exports={
   RELEASE_AUTHORITY,reportV2Capabilities,verifyCustomerReportAccess,
-  revokeCustomerReportDelivery,verifyGeoGiPilotBinding
+  revokeCustomerReportDelivery,verifyGeoGiPilotBinding,verifyR01ArtifactPair
 };

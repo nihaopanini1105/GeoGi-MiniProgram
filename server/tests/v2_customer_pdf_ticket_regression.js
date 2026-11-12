@@ -4,9 +4,49 @@ const crypto=require('crypto');
 const fs=require('fs');
 const os=require('os');
 const path=require('path');
+const vm=require('node:vm');
 const {
   issuePdfTicket,consumePdfTicket,readVerifiedPdfArtifact
 }=require('../src/services/pdf-reader-ticket');
+
+function assertPublicUploadBoundary(serverSource) {
+  const start=serverSource.indexOf("app.use('/uploads', (req, res, next) => {");
+  const end=serverSource.indexOf("app.use('/uploads', express.static",start);
+  assert(start >= 0 && end > start, 'the upload guard must precede static serving');
+
+  // Register the real middleware without importing the server or starting a listener.
+  let guard;
+  vm.runInNewContext(serverSource.slice(start,end),{
+    path,
+    app:{use(route, handler) {
+      assert.strictEqual(route,'/uploads');
+      guard=handler;
+    }}
+  },{filename:'server.js:/uploads'});
+  assert.strictEqual(typeof guard,'function');
+
+  const id='0123456789abcdef';
+  const cases=[
+    ['/GeoGi-V2-'+id+'.pdf',404],
+    ['/GeoGi-V21-'+id+'.pdf',404],
+    ['/nested/GeoGi-V21-'+id+'.PDF',404],
+    ['/nested/../GeoGi-V2-'+id+'.pdf',404],
+    ['/nested%2fGeoGi-V2-'+id+'.pdf',404],
+    ['/GeoGi-V2-'+id+'%252Epdf',404],
+    ['/artifact.htm',404],
+    ['/ordinary-document.pdf','next'],
+    ['/%bad',400]
+  ];
+  for (const [url, expected] of cases) {
+    const outcomes=[];
+    const response={
+      status(code) { outcomes.push(code); return this; },
+      json() { return this; }
+    };
+    guard({path:url,url},response,()=>outcomes.push('next'));
+    assert.deepStrictEqual(outcomes,[expected],url);
+  }
+}
 
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'geogi-v2-pdf-ticket-'));
 try {
@@ -29,7 +69,7 @@ try {
     clientId:'client',projectId:'project',sha256:'wrong',fileName:filename
   }),/SCOPE_INVALID/);
   const serverSource=fs.readFileSync(path.join(__dirname,'../src/server.js'),'utf8');
-  assert(serverSource.includes("geogi-v2-[0-9a-f]{16}"));
+  assertPublicUploadBoundary(serverSource);
   assert(!serverSource.includes("name.endsWith('.pdf')"));
   assert(serverSource.includes("app.post('/api/customer/reports/:projectId/pdf-ticket', requireCustomerSession"));
   assert(serverSource.includes("app.get('/api/customer/pdf-reader/:ticket'"));

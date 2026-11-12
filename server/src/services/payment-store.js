@@ -179,9 +179,14 @@ async function createOrGetPaymentOrder(input) {
   return { created: true, order };
 }
 
-async function updatePaymentOrder(outTradeNo, patch) {
+async function updatePaymentOrder(outTradeNo, patch, { paidReportScope } = {}) {
   const existing = await findPaymentByOutTradeNo(outTradeNo);
   if (!existing) throw new Error('PAYMENT_ORDER_NOT_FOUND');
+  if (paidReportScope && !isScopedPaidReportOrder(existing, paidReportScope.clientId, paidReportScope.projectId)) {
+    const error = new Error('PAYMENT_REPORT_RELEASE_SCOPE_MISMATCH');
+    error.code = 'PAYMENT_REPORT_RELEASE_SCOPE_MISMATCH';
+    throw error;
+  }
   const immutable = {
     outTradeNo: existing.outTradeNo,
     clientId: existing.clientId,
@@ -210,17 +215,30 @@ async function updatePaymentOrder(outTradeNo, patch) {
     ...immutable,
     updatedAt: new Date().toISOString()
   });
+  paidReportScope?.beforeWrite?.();
   await writeOrder(next);
   return next;
 }
 
-async function markProjectReportReleased(projectId, releasedAt) {
+function isScopedPaidReportOrder(order, clientId, projectId) {
+  return Boolean(order && order.clientId === clientId && order.projectId === projectId
+    && ['paid', 'partially_refunded'].includes(order.status) && (order.paidAt || order.transactionId));
+}
+
+async function markProjectReportReleased(projectId, releasedAt, paidScope = null) {
   const order = await findPaymentByProject(projectId);
+  if (paidScope && (!isScopedPaidReportOrder(order, paidScope.clientId, projectId)
+      || order.outTradeNo !== paidScope.outTradeNo)) {
+    const error = new Error('PAYMENT_REPORT_RELEASE_SCOPE_MISMATCH');
+    error.code = 'PAYMENT_REPORT_RELEASE_SCOPE_MISMATCH';
+    throw error;
+  }
   if (!order) return null;
   if (order.reportReleasedAt) return order;
   return updatePaymentOrder(order.outTradeNo, {
     reportReleasedAt: String(releasedAt || new Date().toISOString())
-  });
+  }, paidScope ? { paidReportScope: { clientId: paidScope.clientId, projectId,
+    beforeWrite: paidScope.beforeWrite } } : undefined);
 }
 
 function maskContact(value) {
@@ -353,6 +371,7 @@ module.exports = {
   findPaymentByOutTradeNo,
   listPaymentOrders,
   updatePaymentOrder,
+  isScopedPaidReportOrder,
   markProjectReportReleased,
   publicPaymentView,
   operationsPaymentView,
