@@ -95,5 +95,29 @@ class Adapter(ReleaseAdapter):
             os.environ["GEOGI_RELEASE_CONTEXT"]).stem + ".json", receipt)
         return receipt
 
-    check = backup = stage = before_switch = switch = verify = execute
-    before_rollback = rollback = verify_rollback = execute
+    def check(self, context):
+        return self.execute(context)
+
+    def backup(self, context):
+        return self.execute(context)
+
+    def stage(self, context):
+        return self.execute(context)
+
+    def before_switch(self, context):
+        return self.execute(context)
+
+    def switch(self, context):
+        return self.execute(context)
+
+    def verify(self, context):
+        return self.execute(context)
+
+    def before_rollback(self, context):
+        return self.execute(context)
+
+    def rollback(self, context):
+        return self.execute(context)
+
+    def verify_rollback(self, context):
+        return self.execute(context)

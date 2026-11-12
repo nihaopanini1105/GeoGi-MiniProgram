@@ -6,8 +6,12 @@ import json
 from pathlib import Path
 import subprocess
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
+
+from tools.live.geogi_release import main
+from tools.releasing.sdk import ReleaseContext
 
 ROOT = Path(__file__).resolve().parents[2]
 ADAPTER = ROOT / "deploy/releases/wechat-miniprogram/adapter.py"
@@ -15,6 +19,35 @@ SPEC = importlib.util.spec_from_file_location("mini_adapter_under_test", ADAPTER
 adapter = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(adapter)
 native = adapter.native_module()
+
+
+def test_release_doctor_and_native_hook_delegation(tmp_path, capsys, monkeypatch):
+    status = main(["doctor", "--module", adapter.MODULE, "--root", str(ROOT)])
+    readiness = json.loads(capsys.readouterr().out)
+    assert status == 0, readiness["issues"]
+    assert readiness["status"] == "adapter_contract_ready"
+    assert readiness["issues"] == []
+
+    instance = adapter.Adapter()
+    receipt = {"verified": True}
+    failure = RuntimeError("synthetic native failure")
+    execute = Mock()
+    monkeypatch.setattr(instance, "execute", execute)
+    for phase in native.FORWARD + native.RECOVERY:
+        context = ReleaseContext(phase=phase, run_directory=tmp_path, source_sha="a" * 40,
+                                 target=adapter.TARGET, resource=adapter.MODULE,
+                                 approval_ref="", module=adapter.MODULE,
+                                 version=native.VERSION, profile="feature")
+        hook = getattr(instance, phase)
+        execute.reset_mock()
+        execute.side_effect = [receipt, failure]
+        assert hook(context=context) is receipt
+        execute.assert_called_once_with(context)
+        execute.reset_mock()
+        with pytest.raises(RuntimeError) as caught:
+            hook(context)
+        assert caught.value is failure
+        execute.assert_called_once_with(context)
 
 
 class ServiceFixture:
